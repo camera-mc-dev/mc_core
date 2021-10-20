@@ -1,0 +1,26 @@
+#include "misc/imgSender.h"
+#include "imgio/loadsave.h"
+
+
+int main(void)
+{
+	boost::asio::io_service ioService;
+	
+	ImageSender s(ioService, 123456);
+// 	ImageReceiver r(ioService, "127.0.0.1", 123456 );
+	
+	cv::Mat i = LoadImage("data/testImg2.jpg");
+	cv::resize( i, i, cv::Size(128,128) );
+	std::vector< cv::Mat > si, ri;
+	
+	
+	si.push_back(i);
+	s.SetImages("test", si);
+	
+	while(1);
+	
+// 	std::string info;
+// 	r.GetImages( info, ri );
+// 	
+// 	cout << info << " " << ri.size() << endl;
+}
