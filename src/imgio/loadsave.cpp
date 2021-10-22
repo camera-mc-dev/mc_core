@@ -13,10 +13,19 @@ using std::endl;
 // best compression - and we want to be lossless!
 #include <snappy.h>
 
+bool magickIsInitted = false;
+
 // Sometimes, it's quicker or just nicer to have a custom wrapper
 // for loading / saving images and using Magick++ rather than opencv.
 cv::Mat LoadImage(std::string filename)
 {
+
+	if( !magickIsInitted )
+    {
+        Magick::InitializeMagick(NULL);
+        magickIsInitted = true;
+    }
+
 	//cout << "loading: " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos )
 	{
@@ -190,7 +199,14 @@ jumpLabel01:
 
 void SaveImage(cv::Mat &img, std::string filename)
 {
-// 	cout << "Saving " << filename << endl;
+	if( !magickIsInitted )
+	{
+		Magick::InitializeMagick(NULL);
+		magickIsInitted = true;
+	}
+
+
+	cout << "Saving " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos)
 	{
 // 		cout << "is floatImg " << endl;
@@ -209,6 +225,10 @@ void SaveImage(cv::Mat &img, std::string filename)
 		else if( img.type() == CV_32FC3 )
 		{
 			c = 3;
+		}
+		else
+		{
+			throw std::runtime_error("SaveImage: Image had neither 1 nor 3 channels.");
 		}
 		outfi.write( (char*)&magic, sizeof(magic) );
 		outfi.write( (char*)&w, sizeof(w) );
@@ -258,5 +278,141 @@ void SaveImage(cv::Mat &img, std::string filename)
 
 	// todo... use Magick instead of opencv. I have reasons for that... umm...
 	// honest. Probably mostly to do with OpenCV normalising things etc... maybe...
+	if( img.type() == CV_32FC3 || img.type() == CV_32FC1 )
+	{
+		img *= 255;
+	}
 	cv::imwrite(filename, img);
+	
+}
+
+void SaveCFImage( cfMatrix &img, std::string filename)
+{
+	cout << "Saving " << filename << endl;
+	if( filename.find(".cplxImg") != std::string::npos)
+	{
+		cout << "is cplxImg " << endl;
+		// this should be an uncompressed float image.
+		std::ofstream outfi;
+		outfi.open( filename, std::ios::out | std::ios::binary );
+
+		unsigned magic,w,h,c;
+		magic = 820830003;
+		w = img.cols();
+		h = img.rows();
+		
+		outfi.write( (char*)&magic, sizeof(magic) );
+		outfi.write( (char*)&w, sizeof(w) );
+		outfi.write( (char*)&h, sizeof(h) );
+		
+
+		//outfi.write( (char*)img.data, h*w*c*sizeof(float) );
+		std::string compressed;
+		size_t s = 	snappy::Compress( (char*)img.data(), w*h*2*sizeof(float), &compressed );
+		outfi.write( (char*) &s, sizeof(size_t) );
+		outfi.write( (char*)compressed.data(), compressed.size() );
+
+		return;
+	}
+	else
+	{
+		throw std::runtime_error("Please use extension .cplxImg for saving cfMatrix images.");
+	}
+}
+
+cfMatrix LoadCFImage(std::string filename)
+{
+	if( filename.find(".cplxImg") != std::string::npos )
+	{
+		std::ifstream infi;
+		infi.open( filename, std::ios::in | std::ios::binary );
+
+		unsigned magic,w,h,c;
+		size_t s;
+		infi.read( (char*)&magic, sizeof(magic) );
+
+		if( magic != 820830003 )
+		{
+			throw std::runtime_error("Magic number in file does not match .cmplxImg.");
+		}
+
+		infi.read( (char*)&w, sizeof(w) );
+		infi.read( (char*)&h, sizeof(h) );
+		infi.read( (char*)&s, sizeof(s) );
+		std::vector<char> d(s);
+		infi.read( &d[0], s );
+		std::string uncompressed;
+		if( !snappy::Uncompress( &d[0], d.size(), &uncompressed ) )
+		{
+			throw std::runtime_error(std::string("Could not uncompress image (snappy error): ") +  filename );
+			cout << "Could not uncompress data with snappy... " << endl;
+		}
+		else
+		{
+			cfMatrix res = cfMatrix::Zero( h, w );
+			memcpy( res.data(), uncompressed.data(), uncompressed.size() );
+			return res;
+		}
+	}
+	else
+	{
+		throw std::runtime_error("Please use extension .cplxImg for loading cfMatrix images.");
+	}
+}
+
+
+
+
+void SaveFBuffer( int rows, int cols, int channels, std::vector<float> &inBuff, std::string fn )
+{
+	assert( inBuff.size() == rows * cols * channels );
+	
+	std::ofstream outfi;
+	outfi.open( fn, std::ios::out | std::ios::binary );
+
+	unsigned magic;
+	magic = 820830004;
+	
+	outfi.write( (char*)&magic, sizeof(magic) );
+	outfi.write( (char*)&cols, sizeof(cols) );
+	outfi.write( (char*)&rows, sizeof(rows) );
+	outfi.write( (char*)&channels, sizeof(channels) );
+	
+	std::string compressed;
+	size_t s = snappy::Compress( (char*) &inBuff[0], rows*cols*channels*sizeof(float), &compressed );
+	
+	outfi.write( (char*) &s, sizeof(size_t) );
+	outfi.write( (char*)compressed.data(), compressed.size() );
+
+}
+
+
+void LoadFBuffer( std::string fn, std::vector<float> &outBuff, int &rows, int &cols, int &channels )
+{
+	std::ifstream infi;
+	infi.open( fn, std::ios::in | std::ios::binary );
+	
+	unsigned magic;
+	size_t s;
+	
+	infi.read( (char*)&magic, sizeof(magic) );
+	infi.read( (char*)&cols, sizeof(cols) );
+	infi.read( (char*)&rows, sizeof(rows) );
+	infi.read( (char*)&channels, sizeof(channels) );
+	infi.read( (char*)&s, sizeof(s) );
+	assert( magic == 820830004);
+	
+	if( outBuff.size() != rows * cols * channels )
+		outBuff.resize( rows * cols * channels );
+	
+	std::string uncompressed;
+	std::vector<char> d(s);
+	infi.read( &d[0], s );
+	if( !snappy::Uncompress( &d[0], d.size(), &uncompressed ) )
+	{
+		throw std::runtime_error(std::string("Could not uncompress image (snappy error): ") +  fn );
+		cout << "Could not uncompress data with snappy... " << endl;
+	}
+	
+	memcpy( &outBuff[0], uncompressed.data(), uncompressed.size() );
 }
