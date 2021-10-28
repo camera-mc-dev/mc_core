@@ -285,11 +285,12 @@ void CamNetCalibrator::Calibrate()
 
 }
 
-void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, std::mutex &coutLock)
+void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t &coutLock)
 {
 	// Print startup message.
-	coutLock.lock();
-	cout << "Thread for directory number: " << isc+1 << " has started." << endl;
+	//coutLock.lock();
+	omp_set_lock( &coutLock );
+	cout << "Thread for directory number: " << isc << " has started." << endl;
 	// cout << dir->GetCurrent().cols << " " << dir->GetCurrent().rows << " " << isGridLightOnDark << " " << useHypothesis << " " << gridRows << " " << gridCols << endl;
 	
 
@@ -306,7 +307,8 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, std::mutex
 	{
 		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis);
 	}
-	coutLock.unlock();
+	omp_unset_lock( &coutLock );
+// 	coutLock.unlock();
 	
 	std::vector< CircleGridDetector::GridPoint > gps;
 	do
@@ -330,16 +332,20 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, std::mutex
 		}
 
 		// Print status message.
-		coutLock.lock();
-		cout << "Dir No. " << isc+1 << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
-		coutLock.unlock();
+// 		coutLock.lock();
+		omp_set_lock( &coutLock );
+		cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
+		omp_unset_lock( &coutLock );
+// 		coutLock.unlock();
 
 	} while(dir->Advance()); // Stop when reach end of image directory.
 
 	// Print status message.
-	coutLock.lock();
-	cout << "Finding grids for directory number " << isc+1 << " has finished." << endl;
-	coutLock.unlock();
+// 	coutLock.lock();
+	omp_set_lock( &coutLock );
+	cout << "Finding grids for directory number " << isc << " has finished." << endl;
+	omp_unset_lock( &coutLock );
+// 	coutLock.unlock();
 
 	// Save grids to a file.
 	std::string filePath;
@@ -347,9 +353,11 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, std::mutex
 		filePath = imgDirs[isc] + "grids";
 	else
 		filePath = imgDirs[isc] + ".grids";
-	coutLock.lock();
+// 	coutLock.lock();
+	omp_set_lock( &coutLock );
 	cout << "Writing grids file: " << filePath << endl;
-	coutLock.unlock();
+	omp_unset_lock( &coutLock );
+// 	coutLock.unlock();
 
 	std::ofstream gridFile(filePath);
 	WriteGridsFile( gridFile, grids[isc] );
@@ -358,9 +366,11 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, std::mutex
 	delete cgd;
 	
 	// Print termination message.
-	coutLock.lock();
-	cout << "Thread for source number " << isc+1 << " has finished." << endl;
-	coutLock.unlock();
+// 	coutLock.lock();
+	omp_set_lock( &coutLock );
+	cout << "Thread for source number " << isc << " has finished." << endl;
+	omp_unset_lock( &coutLock );
+// 	coutLock.unlock();
 }
 
 void CamNetCalibrator::GetGrids()
@@ -420,39 +430,51 @@ void CamNetCalibrator::GetGrids()
 		// Determine number of concurrent threads supported.
 		unsigned long numThreads = std::thread::hardware_concurrency();
 		cout << numThreads << " concurrent threads are supported.\n";
+		cout << "sources: " << sources.size() << endl;
 
 		// Launch a group of threads. Ideally, one for each image source but
 		// max out at number of supported threads if less than number of sources.
-		std::mutex coutLock;
-		unsigned isc = 0, numIter = 1, numFinished, numRunning;
-		do
+// 		std::mutex coutLock;
+// 		unsigned isc = 0, numIter = 1, numFinished, numRunning;
+// 		do
+// 		{
+// 			numRunning = 0;
+// 			for ( ; isc < numIter*std::min(numThreads-1, sources.size()); ++isc)
+// 			{
+// 				gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
+// 				++numRunning;
+// 			}
+// 
+// 			numFinished = 0;
+// 			do
+// 			{
+// 				for (auto &t : gridThreads)
+// 				{
+// 					if (t.joinable())
+// 					{
+// 						t.join();
+// 						++numFinished;
+// 					}
+// 				}
+// 
+// 				usleep(1000); // Wait 1 second before checking again.
+// 			} while(numFinished < numRunning);
+// 
+// 			++numIter;
+// 
+// 		} while(isc < sources.size());
+		
+		omp_lock_t coutLock;
+		omp_init_lock( &coutLock );
+		#pragma omp parallel for
+		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
-			numRunning = 0;
-			for ( ; isc < numIter*std::min(numThreads-1, sources.size()); ++isc)
-			{
-				gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
-				++numRunning;
-			}
-
-			numFinished = 0;
-			do
-			{
-				for (auto &t : gridThreads)
-				{
-					if (t.joinable())
-					{
-						t.join();
-						++numFinished;
-					}
-				}
-
-				usleep(1000); // Wait 1 second before checking again.
-			} while(numFinished < numRunning);
-
-			++numIter;
-
-		} while(isc < sources.size());
-
+			//gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
+			FindGridThread( sources[isc], isc, coutLock );
+		}
+		
+		
+		
 		/*
 		// Launch a group of threads. One for each image source.
 		std::mutex coutLock;
@@ -2655,23 +2677,52 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 			{
 				if( Cp2ds[pc][cc](2) == 1.0 )
 				{
-					ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPFocal_BA, 2, 7>  *cef;
-					
-					CalibCeres::CeresFunctor_FixedPFocal_BA *errf;
-					errf = new CalibCeres::CeresFunctor_FixedPFocal_BA( Cp2ds[pc][cc], CKs[cc], CLs[cc], Cks[cc], Cp3ds[pc] );
-					
-					cef = new ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPFocal_BA, 2, 7> ( errf );
-					
-					if( !setParams[cc] )
+					if( numFixedIntrinsics == 5 )
 					{
-						errf->ThingsToParams( CKs[cc], CLs[cc], Cks[cc], params[cc], paramID[cc] );
-						setParams[cc] = true;
+						// extrinsics only.
+						ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPExtOnly_BA, 2, 6> *cef;
+						
+						CalibCeres::CeresFunctor_FixedPExtOnly_BA *errf;
+						errf = new CalibCeres::CeresFunctor_FixedPExtOnly_BA( Cp2ds[pc][cc], CKs[cc], CLs[cc], Cks[cc], Cp3ds[pc] );
+						
+						
+						cef = new ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPExtOnly_BA, 2, 6>( errf );
+						
+						if( !setParams[cc] )
+						{
+							errf->ThingsToParams( CKs[cc], CLs[cc], Cks[cc], params[cc], paramID[cc] );
+							setParams[cc] = true;
+						}
+						
+						
+						problem.AddResidualBlock(
+						                          cef,
+						                          NULL /* squared loss */,
+						                          &params[cc][0]
+						                        );
 					}
-					
-					
-					problem.AddResidualBlock(cef,
-					                         NULL /* squared loss */,
-					                         &params[cc][0] );
+					else if( numFixedIntrinsics == 4 )
+					{
+						ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPFocal_BA, 2, 7>  *cef;
+						
+						CalibCeres::CeresFunctor_FixedPFocal_BA *errf;
+						errf = new CalibCeres::CeresFunctor_FixedPFocal_BA( Cp2ds[pc][cc], CKs[cc], CLs[cc], Cks[cc], Cp3ds[pc] );
+						
+						cef = new ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedPFocal_BA, 2, 7> ( errf );
+						
+						if( !setParams[cc] )
+						{
+							errf->ThingsToParams( CKs[cc], CLs[cc], Cks[cc], params[cc], paramID[cc] );
+							setParams[cc] = true;
+						}
+						
+						
+						problem.AddResidualBlock(
+						                          cef,
+						                          NULL /* squared loss */,
+						                          &params[cc][0]
+						                        );
+					}
 				}
 			}
 		}
@@ -2710,6 +2761,31 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 					else
 					{
 						// we need one of the cam and points functors, but which one?
+						if( numFixedIntrinsics == 5 )
+						{
+							// extrinsics only.
+							ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_ExtrinsicOnly_BA, 2, 6, 3> *cef;
+							
+							CalibCeres::CeresFunctor_ExtrinsicOnly_BA *errf;
+							errf = new CalibCeres::CeresFunctor_ExtrinsicOnly_BA( Cp2ds[pc][cc], CKs[cc], CLs[cc], Cks[cc], Cp3ds[pc] );
+							
+							
+							cef = new ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_ExtrinsicOnly_BA, 2, 6, 3>( errf );
+							
+							if( !setParams[cc] )
+							{
+								errf->ThingsToParams( CKs[cc], CLs[cc], Cks[cc], params[cc], paramID[cc] );
+								setParams[cc] = true;
+							}
+							
+							
+							problem.AddResidualBlock(
+							                          cef,
+							                          NULL /* squared loss */,
+							                          &params[cc][0],
+							                          &points[pc][0]
+							                        );
+						}
 						if( numFixedIntrinsics == 4 )
 						{
 							// F only

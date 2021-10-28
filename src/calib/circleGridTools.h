@@ -226,6 +226,8 @@ protected:
 		
 		Get2dFgRoot()->AddChild(linesRoot);
 		Get2dFgRoot()->AddChild(gpsRoot);
+		
+		luuid = 0;
 	}
 public:
 	bool Step();
@@ -241,6 +243,7 @@ public:
 	std::shared_ptr< Rendering::SceneNode > linesRoot;
 	std::shared_ptr< Rendering::SceneNode > gpsRoot;
 	
+	int luuid;
 };
 
 

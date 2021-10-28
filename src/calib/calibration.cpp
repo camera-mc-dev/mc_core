@@ -4,6 +4,10 @@
 using std::cout;
 using std::endl;
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
+
 // wrappers around using L
 hVec3D Calibration::TransformToCamera(const hVec3D &in) const
 {
@@ -195,9 +199,13 @@ hVec2D Calibration::UndistortPoint(const hVec2D &in) const
 
 bool Calibration::Read( std::string filename )
 {
-	std::ifstream infi(filename);
+	boost::filesystem::path p(filename);
+	boost::filesystem::ifstream infi( p );
 	if(!infi.is_open())
+	{
+		cout << "?: " << p.string() << endl;
 		return false;
+	}
 
 	infi >> width;
 	infi >> height;

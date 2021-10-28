@@ -198,6 +198,110 @@ public:
 // we also need one or two for fixed points, changing cameras. If the points are 
 // fixed, let us assume we're going to adjust extrinsics and focal length.
 // focal length
+class CeresFunctor_FixedPExtOnly_BA : CeresFunctor_BA_base
+{
+public:
+	CeresFunctor_FixedPExtOnly_BA(
+	                     hVec2D in_obs2d,
+	                     transMatrix2D &in_initK,
+	                     transMatrix3D &in_initL,
+	                     Eigen::Matrix<float,5,1> &in_initk,
+	                     hVec3D in_initp3d = hVec3D::Zero()
+	                    ) : CeresFunctor_BA_base( in_obs2d, in_initK, in_initL, in_initk, in_initp3d ) {}
+	
+	template <typename T>
+	bool operator()( T const* params, T* errors ) const
+	{
+		// most of the stuff still comes from internal...
+		Eigen::Matrix<T,3,3> KT;
+		Eigen::Matrix<T,4,4> LT;
+		Eigen::Matrix<T,5,1> kT;
+		Eigen::Matrix<T,4,1> p3d;
+		Eigen::Matrix<T,3,1> p2d;
+		
+		KT = initK.cast<T>();
+		kT = initk.cast<T>();
+		
+		unsigned pc = 0;
+		
+		
+		// we need LT
+		LT = Eigen::Matrix<T,4,4>::Identity();
+		
+		T ax[3];
+		ax[0] = params[pc++];
+		ax[1] = params[pc++];
+		ax[2] = params[pc++];
+		
+		std::vector<T> R33(9);
+
+		Eigen::Matrix<T, 3, 3> R = Eigen::Matrix<T,3,3>::Identity();
+		ceres::AngleAxisToRotationMatrix( &ax[0], &R33[0] );
+		R << R33[0], R33[3], R33[6],
+		     R33[1], R33[4], R33[7],
+		     R33[2], R33[5], R33[8];
+		
+		LT.block(0,0,3,3) = R;
+		LT(0,3) = params[pc++];
+		LT(1,3) = params[pc++];
+		LT(2,3) = params[pc++];
+		
+		
+		// and the rest is easy.
+		p3d = initp3d.cast<T>();
+		
+		Project( KT, LT, kT, p3d, p2d );
+		
+		Eigen::Matrix<T,3,1> obs2dT;
+		obs2dT = obs2d.cast<T>();
+		
+		Eigen::Matrix<T,3,1> e;
+		e = p2d - obs2dT;
+		
+		errors[0] = e(0);
+		errors[1] = e(1);
+		
+		return true;
+	}
+
+	void ThingsToParams( Eigen::Matrix<float,3,3> &K,
+	                     Eigen::Matrix<float,4,4> &L,
+	                     Eigen::Matrix<float,5,1> &k,
+	                     std::vector<double> &params,
+	                     std::vector<int>    &paramID       )
+	{
+		params.clear();
+		
+		
+		std::vector<double> R(9);
+		unsigned i = 0;
+		for( unsigned c = 0; c < 3; ++c )
+			for( unsigned r = 0; r < 3; ++r )
+			{
+				R[i] = L(r,c);
+				++i;
+			}
+		
+		double ax[3];
+		ceres::RotationMatrixToAngleAxis(&R[0], ax);
+		
+		params.push_back(ax[0]);     paramID.push_back( BA_PARAMID_raxx );
+		params.push_back(ax[1]);     paramID.push_back( BA_PARAMID_raxy );
+		params.push_back(ax[2]);     paramID.push_back( BA_PARAMID_raxz );
+		
+		params.push_back( L(0,3) );     paramID.push_back( BA_PARAMID_tx );
+		params.push_back( L(1,3) );     paramID.push_back( BA_PARAMID_ty );
+		params.push_back( L(2,3) );     paramID.push_back( BA_PARAMID_tz );
+		
+		return;
+	}
+	
+};
+
+
+// we also need one or two for fixed points, changing cameras. If the points are 
+// fixed, let us assume we're going to adjust extrinsics and focal length.
+// focal length
 class CeresFunctor_FixedPFocal_BA : CeresFunctor_BA_base
 {
 public:
@@ -314,12 +418,12 @@ class CeresFunctor_ExtrinsicOnly_BA : CeresFunctor_BA_base
 {
 public:
 	CeresFunctor_ExtrinsicOnly_BA(
-	                     hVec2D in_obs2d,
-	                     transMatrix2D &in_initK,
-	                     transMatrix3D &in_initL,
-	                     Eigen::Matrix<float,5,1> &in_initk,
-	                     hVec3D in_initp3d = hVec3D::Zero()
-	                    ) : CeresFunctor_BA_base( in_obs2d, in_initK, in_initL, in_initk, in_initp3d ) {}
+	                                hVec2D in_obs2d,
+	                                transMatrix2D &in_initK,
+	                                transMatrix3D &in_initL,
+	                                Eigen::Matrix<float,5,1> &in_initk,
+	                                hVec3D in_initp3d = hVec3D::Zero()
+	                             ) : CeresFunctor_BA_base( in_obs2d, in_initK, in_initL, in_initk, in_initp3d ) {}
 	
 	template <typename T>
 	bool operator()( T const* params, T const* point, T* errors ) const

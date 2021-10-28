@@ -60,6 +60,7 @@ public:
 	void SetImages();
 	void SetPID();
 	void SetPoints();
+	void DeletePoint( bool isLeft );
 	
 	void ClickTopBar( hVec2D p );
 	void ClickBotBar( hVec2D p );
@@ -81,15 +82,16 @@ public:
 	
 	// interface and controls.
 	unsigned winX, winY;
-	std::shared_ptr<Rendering::MeshNode>  topBar, pidDown, pidUp, lImg, rImg;
+	std::shared_ptr<Rendering::MeshNode>  topBar, pidDown, pidUp, lImg, rImg, pdeleteBtnLeft, pdeleteBtnRight;
 	std::shared_ptr<Rendering::MeshNode>  botBar, lfDown, lfUp, rfDown, rfUp;
-	std::shared_ptr<Rendering::SceneNode> pidText, pidDltText, saveBtnText, lfCam, rfCam, imgsRoot;
+	std::shared_ptr<Rendering::SceneNode> pidText, pidDltTextLeft, pidDltTextRight, lfCam, rfCam, imgsRoot;
 	std::shared_ptr<Rendering::SceneNode> lPointsRoot, rPointsRoot;
 
 	
 	// state
 	std::string leftCam, rightCam;
 	unsigned    pid;
+	std::map< std::string, unsigned > frameInds;
 	
 	CommonConfig ccfg;
 	
@@ -111,7 +113,7 @@ PointMatcher::PointMatcher(std::string networkConfigFilename)
 
 	std::map< std::string, std::string > imgDirs;
 
-	std::map< std::string, unsigned > frameInds;
+	
 	unsigned ignoreBeforeFrame = 0;
 	winX = 1200;
 	winY = 800;
@@ -133,21 +135,26 @@ PointMatcher::PointMatcher(std::string networkConfigFilename)
 		else
 			winY = 1200;
 		
+		
+		// realistically, the window needs to be larger than 900x900
+		// so... try to respect maxSingleWindowHeight...
 		float ar = winY / (float)winX;
-		if( winX > ccfg.maxSingleWindowWidth )
+		if( winX < 900  )
 		{
-			winX = ccfg.maxSingleWindowWidth;
+			winX = 900;
 			winY = ar * winX;
 		}
-		if( winY > ccfg.maxSingleWindowHeight )
+		if( winY < 900 )
 		{
-			winY = ccfg.maxSingleWindowHeight;
+			winY = 900;
 			winX = winY / ar;
 		}
-
+		
+		cout << "wx, wy: " << winX << " " << winY << endl;
+		
 		matchesFile = dataRoot + testRoot + (const char*)  cfg.lookup("matchesFile");
-
-
+		
+		
 		libconfig::Setting &idirs  = cfg.lookup("imgDirs");
 		libconfig::Setting &frames = cfg.lookup("frameInds");
 		for( unsigned ic = 0; ic < idirs.getLength(); ++ic )
@@ -237,7 +244,14 @@ void PointMatcher::ClickTopBar( hVec2D p )
 		SetPID();
 	}
 	
-	// TODO: Save and delete buttons.
+	if( p(0) >= 270 && p(0) < 290 )
+	{
+		DeletePoint(true);
+	}
+	if( p(0) >= winX-300-30 && p(0) < winX-300-10 )
+	{
+		DeletePoint(false);
+	}
 }
 
 void PointMatcher::ClickBotBar( hVec2D p )
@@ -334,6 +348,12 @@ hVec3D PointMatcher::GetSubPixel( hVec3D p, cv::Mat img )
 	
 	// we should be able to render it 4 times larger...
 	auto n = Rendering::GenerateImageNode( winX/2-400, winY/2-400, 800, win, "subPixWin", ren );
+	cout << "winX/2-400 : " << winX/2-400 << endl;
+	cout << "winY/2-400 : " << winY/2-400 << endl;
+	cout << winX << endl;
+	cout << winY << endl;
+	
+	cout << n->GetTransformation() << endl;
 	
 	ren->Get2dFgRoot()->AddChild(n);
 	
@@ -482,6 +502,53 @@ bool PointMatchRenderer::StepEventLoop()
 					pm->rightCam = i->first;
 				pm->SetImages();
 			}
+			
+			if( ev.key.code == sf::Keyboard::LBracket )
+			{
+				int frameChange = 0;
+				if( !ev.key.shift && !ev.key.control)
+					frameChange = 10;
+				if(  ev.key.shift && !ev.key.control)
+					frameChange = 100;
+				if( ev.key.shift && ev.key.control)
+					frameChange = 500;
+				if( ev.key.alt )
+					frameChange = 1;
+				
+				for( auto i = pm->frameInds.begin(); i != pm->frameInds.end(); ++i )
+				{
+					cout << i->first << " : " << pm->frameInds[i->first] << " -> ";
+					pm->frameInds[i->first] = std::max( (int)pm->frameInds[i->first]-frameChange, 0);
+					pm->sources[i->first]->JumpToFrame( pm->frameInds[i->first] );
+					cout << pm->frameInds[i->first] << endl;
+				}
+				
+				pm->SetImages();
+			}
+			if( ev.key.code == sf::Keyboard::RBracket )
+			{
+				int frameChange = 0;
+				if( !ev.key.shift && !ev.key.control)
+					frameChange = 10;
+				if(  ev.key.shift && !ev.key.control)
+					frameChange = 100;
+				if( ev.key.shift && ev.key.control)
+					frameChange = 500;
+				if( ev.key.alt )
+					frameChange = 1;
+				
+				for( auto i = pm->frameInds.begin(); i != pm->frameInds.end(); ++i )
+				{
+					cout << i->first << " : " <<  pm->frameInds[i->first] << " -> ";
+					pm->frameInds[i->first] = std::min( (int)pm->frameInds[i->first]+frameChange, 
+					                                    (int)pm->sources[i->first]->GetNumImages()-10
+					                                  );
+					pm->sources[i->first]->JumpToFrame( pm->frameInds[i->first] );
+					cout << pm->frameInds[i->first] << endl;
+				}
+				
+				pm->SetImages();
+			}
 		}
 	}
 	return false;
@@ -496,6 +563,26 @@ void PointMatcher::SetPID()
 	textMaker->RenderString( ss.str(), 25, 0.0, 1.0, 1.0, pidText );
 	
 	SetPoints(); // change colour of active point.
+}
+
+
+void PointMatcher::DeletePoint( bool isLeft )
+{
+	if( isLeft )
+	{
+		matches[ pid ].imgPoints.erase( leftCam );
+	}
+	else
+	{
+		matches[ pid ].imgPoints.erase( rightCam );
+	}
+	
+	if( matches[pid].imgPoints.size() == 0 )
+	{
+		matches.erase( pid );
+	}
+	
+	SetPoints();
 }
 
 void PointMatcher::SetImages()
@@ -661,18 +748,54 @@ void PointMatcher::CreateInterface()
 	T(1,3) = 25;
 	pidText->SetTransformation(T);
 	
-	Rendering::NodeFactory::Create( pidDltText, "pidDltText" );
-	textMaker->RenderString( "Delete point", 25, 0.0, 1.0, 1.0, pidDltText );
+	
+	std::shared_ptr<Rendering::Mesh> boxBtnMesh( new Rendering::Mesh(4, 2) );
+	boxBtnMesh->vertices <<  -10,   10,   10,  -10,
+	                         -10,  -10,   10,   10,
+	                           0,    0,    0,    0,
+	                         1.0,  1.0,  1.0,  1.0;
+	boxBtnMesh->faces    << 0, 0,
+	                        1, 2,
+	                        2, 3;
+	boxBtnMesh->UploadToRenderer(ren);
+	
+	
+	Rendering::NodeFactory::Create( pdeleteBtnLeft, "pdeleteBtnLeft" );
+	pdeleteBtnLeft->SetShader( ren->GetShaderProg("basicColourShader") );
+	pdeleteBtnLeft->SetMesh( boxBtnMesh );
+	pdeleteBtnLeft->SetTexture( ren->GetBlankTexture() );
+	pdeleteBtnLeft->SetBaseColour( ifaceButColour );
+	
+	T = transMatrix3D::Identity();
+	T(0,3) = 270;
+	T(1,3) =  15;
+	pdeleteBtnLeft->SetTransformation(T);
+	
+	Rendering::NodeFactory::Create( pidDltTextLeft, "pidDltTextLeftLeft" );
+	textMaker->RenderString( "Delete point (left)", 25, 0.0, 1.0, 1.0, pidDltTextLeft );
 	T(0,3) = 300;
 	T(1,3) = 25;
 	
-	pidDltText->SetTransformation(T);
+	pidDltTextLeft->SetTransformation(T);
 	
-	Rendering::NodeFactory::Create( saveBtnText, "saveBtnText" );
-	textMaker->RenderString( "Save", 25, 0.0, 1.0, 1.0, saveBtnText );
-	T(0,3) = winX - 100;
+	
+	
+	Rendering::NodeFactory::Create( pdeleteBtnRight, "pdeleteBtnRight" );
+	pdeleteBtnRight->SetShader( ren->GetShaderProg("basicColourShader") );
+	pdeleteBtnRight->SetMesh( boxBtnMesh );
+	pdeleteBtnRight->SetTexture( ren->GetBlankTexture() );
+	pdeleteBtnRight->SetBaseColour( ifaceButColour );
+	
+	T = transMatrix3D::Identity();
+	T(0,3) = winX - 300 - 30;
+	T(1,3) =  15;
+	pdeleteBtnRight->SetTransformation(T);
+	
+	Rendering::NodeFactory::Create( pidDltTextRight, "pidDltTextRight" );
+	textMaker->RenderString( "Delete point (right)", 25, 0.0, 1.0, 1.0, pidDltTextRight );
+	T(0,3) = winX - 300;
 	T(1,3) = 25;
-	saveBtnText->SetTransformation(T);
+	pidDltTextRight->SetTransformation(T);
 	
 	
 	// two main image areas are created and adjusted as the images are loaded and displayed, so skip them here...
@@ -756,9 +879,11 @@ void PointMatcher::CreateInterface()
 	
 	ren->Get2dFgRoot()->AddChild( pidDown );
 	ren->Get2dFgRoot()->AddChild( pidUp );
-	ren->Get2dFgRoot()->AddChild( pidDltText );
+	ren->Get2dFgRoot()->AddChild( pidDltTextLeft );
+	ren->Get2dFgRoot()->AddChild( pdeleteBtnLeft );
 	ren->Get2dFgRoot()->AddChild( pidText );
-	ren->Get2dFgRoot()->AddChild( saveBtnText );
+	ren->Get2dFgRoot()->AddChild( pidDltTextRight );
+	ren->Get2dFgRoot()->AddChild( pdeleteBtnRight );
 	
 	ren->Get2dFgRoot()->AddChild( lfDown );
 	ren->Get2dFgRoot()->AddChild( lfUp );

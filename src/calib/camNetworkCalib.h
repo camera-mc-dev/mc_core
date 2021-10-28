@@ -60,7 +60,7 @@ private:
 	std::map< std::string, unsigned > srcId2Indx;
 
 	// grids.
-	void FindGridThread(ImageSource *dir, unsigned isc,std::mutex &coutLock);
+	void FindGridThread(ImageSource *dir, unsigned isc,omp_lock_t &coutLock);
 	void GetGrids();
 	unsigned maxGridsForInitial;
 	unsigned gridRows;

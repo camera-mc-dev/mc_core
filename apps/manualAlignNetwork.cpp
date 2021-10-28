@@ -20,7 +20,6 @@ using std::vector;
 
 #include "commonConfig/commonConfig.h"
 
-
 void DebugOutput(vector< transMatrix3D > Ls);
 
 
@@ -256,10 +255,130 @@ struct AxisPoints
 };
 AxisPoints GetAxisObservationsInteractive( Settings &s, std::vector< ImageSource* > &sources)
 {
-	cout << "Interactive setting of axis keypoints is deprecated." << endl;
-	cout << "Please use the pointMatcher programme to specify relevant image points" << endl;
-	cout << "and indicate which point IDs correspond to the axis points in the config file." << endl;
-	throw std::runtime_error("deprecated code path");
+	cout << "Deprecated the interactive axis observation. Use pointMatcher to identify axis/origin points" << endl;
+	exit(0);
+	
+// 	CommonConfig ccfg;
+// 	
+// 	// how big are the images?
+// 	cv::Mat img = sources[0]->GetCurrent();
+// 	float ar = img.rows / (float) img.cols;
+// 
+// 	cout << img.cols << " " << img.rows << endl;
+// 	cout << ar << endl;
+// 	
+// 	float winW = ccfg.maxSingleWindowWidth;
+// 	float winH = winW * ar;
+// 	if( winH > ccfg.maxSingleWindowHeight )
+// 	{
+// 		winH = ccfg.maxSingleWindowHeight;
+// 		winW = winH / ar;
+// 	}
+// 	
+// 	Renderer ren( winW, winH, "Manual camera network alignment test." );
+// 	ren.CheckClose();
+// 	ren.Set2DCamera(0,img.cols,img.cols*ar,0.0);
+// 	
+// 	AxisPoints axisPoints;
+// 	
+// 	// Does admitting this is hideous code make it any better,
+// 	// or does it just make it worse that I know, but still
+// 	// leave it here? Sorry...
+// 	Texture tex = ren.GenTexture();
+// 	for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 	{
+// 		cv::Mat img = sources[isc]->GetCurrent();
+// 		ren.UploadImage( img, tex );
+// 
+// 		std::vector< hVec2D > imgPoints;
+// 		while( imgPoints.size() < 3 )
+// 		{
+// 			ren.ClearAll();
+// 
+// 			hVec2D pos;
+// 			pos << 0.0, 0.0, 1.0;
+// 			ren.RenderImage2D(pos, img.cols, tex );
+// 			ren.RenderPoints2D( imgPoints, 1.0, 0.0, 0.0 );
+// 
+// 
+// 			if( imgPoints.size() > 1 )
+// 			{
+// 				ren.RenderLine(imgPoints[0], 0.0, 1.0, 0.0, imgPoints[1], 0.0, 1.0, 0.0 );
+// 			}
+// 			if( imgPoints.size() > 2 )
+// 			{
+// 				ren.RenderLine(imgPoints[1], 0.0, 1.0, 0.0, imgPoints[2], 0.0, 1.0, 0.0 );
+// 			}
+// 
+// 			ren.Display();
+// 			float x, y;
+// 			bool left;
+// 			if (ren.CheckMouseClick(x, y, left) )
+// 			{
+// 				if( left )
+// 				{
+// 					hVec2D p;
+// 					p << x,y,1.0;
+// 
+// 					cout << "mx, my: " << x << " " << y << endl;
+// 
+// 
+// 					bool gotZoomed = false;
+// 					while(!gotZoomed)
+// 					{
+// 						pos << 0.25*img.cols, 0.25*img.cols*ar, 1.0;
+// 						hVec2D zoomCentre;
+// 						zoomCentre << x,y,1.0;
+// 						float zoom = 8.0;
+// 
+// 						ren.RenderSubImage2D(pos, 0.5*img.cols, zoomCentre, zoom, tex);
+// 						ren.Display();
+// 
+// 						float zx, zy;
+// 						if (ren.CheckMouseClick(zx, zy, left))
+// 						{
+// 							if(left)
+// 							{
+// 								cout << "p: " << p.transpose() << endl;
+// 								cout << zx << " " << zy << endl;
+// 								zx -= img.cols/2.0;
+// 								zy -= img.cols*ar/2.0;
+// 								cout << zx << " " << zy << endl;
+// 								zx /= zoom;
+// 								zy /= zoom;
+// 								cout << zx << " " << zy << endl;
+// 								p(0) += zx;
+// 								p(1) += zy;
+// 								gotZoomed = true;
+// 								cout << "p: " << p.transpose() << endl;
+// 							}
+// 							else
+// 							{
+// 								break;
+// 							}
+// 						}
+// 					}
+// 					imgPoints.push_back(p);
+// 				}
+// 				else
+// 				{
+// 					// used is skipping this image (i.e. they can't see the target)
+// 					imgPoints.clear();
+// 					break;
+// 				}
+// 			}
+// 		}
+// 
+// 		if( imgPoints.size() == 3 )
+// 		{
+// 			std::string id = s.srcIndx2Id[isc];
+// 			axisPoints.x.obs[ id ] = imgPoints[0];
+// 			axisPoints.o.obs[ id ] = imgPoints[1];
+// 			axisPoints.y.obs[ id ] = imgPoints[2];
+// 		}
+// 	}
+// 	
+// 	return axisPoints;	
 }
 
 
@@ -309,8 +428,10 @@ void GetAxisPoints3D( Settings &s, std::vector< ImageSource* > &sources, AxisPoi
 
 
 
-
-transMatrix3D ComputeTransformation( Settings &s, AxisPoints axisPoints )
+//
+// This version works well if we're sure of our x-direction annotation.
+//
+transMatrix3D ComputeTransformationXfirst( Settings &s, AxisPoints axisPoints )
 {
 	hVec3D x3,o3,y3;
 	x3 = axisPoints.x.p3d;
@@ -429,6 +550,131 @@ transMatrix3D ComputeTransformation( Settings &s, AxisPoints axisPoints )
 }
 
 
+//
+// This version works well if we're sure of our y-direction annotation
+//
+transMatrix3D ComputeTransformationYfirst( Settings &s, AxisPoints axisPoints )
+{
+	hVec3D x3,o3,y3;
+	x3 = axisPoints.x.p3d;
+	o3 = axisPoints.o.p3d;
+	y3 = axisPoints.y.p3d;
+	
+	// 1) what is the translation that moves o to the origin?
+	//    well that's pretty obvious...
+	transMatrix3D T;
+	T = transMatrix3D::Identity();
+	T(0,3) = -o3(0);
+	T(1,3) = -o3(1);
+	T(2,3) = -o3(2);
+
+	
+	
+	// 2) what is the rotation that makes y3-y0 == [0,1,0,0]?
+	//    (note, it may be [0,-1,0,0] if the config file said we had to click on a point on the -ve x axis)
+
+	// the rotation axis is the cross product...
+	hVec3D y0; 
+	if( s.negateYAxis )
+		y0 << 0,-1,0,0;
+	else
+		y0 <<   0,1,0,0;
+	
+	hVec3D y3mo3 = y3-o3;
+	y3mo3 /= y3mo3.norm();
+	
+	hVec3D raxis = Cross(y3mo3, y0);
+	raxis /= raxis.norm();
+
+
+	// and the angle is the dot product...
+	float ang    = acos( (y3mo3).dot(y0) );
+
+	transMatrix3D Ry0 = transMatrix3D::Identity();
+	Ry0.block(0,0,3,3) = Eigen::AngleAxisf(ang, raxis.head(3)).matrix();
+
+	transMatrix3D M = Ry0*T;
+
+	
+	
+	// 3) what is the rotation that ensures y3, o3 and x3
+	//    form the z=0 plane with x3 on the positive side at
+	//    at approximately y3 ~ [1,0,0,1]?
+
+	// easiest for my brain if o3 actually is the origin...
+	hVec3D xc = M*x3;
+	hVec3D yc = M*y3;
+	hVec3D oc = M*o3;
+
+	// we should now have oc = 0,0,0,1;
+	//                    yc = 0,?,0,1;  (or yc = 0,-?,0,1)
+	cout << "Should be: (something) and (0,0,0,1) and (0,y,0,1) or (0,-y,0,1) : " << endl;
+	cout << xc.transpose() << endl;
+	cout << oc.transpose() << endl;
+	cout << yc.transpose() << endl;
+
+	cout << "----------" << endl << endl << endl;
+
+	
+	// xc however is the last fix.
+	hVec3D xcmoc = xc-oc;
+
+	// we only want to rotate around the y-axis,
+	// such that xcmoc has no z component, and its x component
+	// is +ve (or -ve if requested in config)
+	// how much rotation does that mean we need?
+	// the bearing of the current x line is easy enough to get...
+	float bearing = atan2( xcmoc(2), xcmoc(0) );
+	cout << "bearing: " << bearing << endl;
+	ang = 0;
+	if( s.negateXAxis )
+	{
+		// we want to get to a bearing of 180, which means we need to rotate by pi - bearing.... right?
+		ang = 3.14159 - bearing;
+		cout << "negating x-axis so bearing -> " << bearing << endl;
+	}
+	else
+	{
+		// simply reverse ang because we just want to go to a bearing of 0 degrees...
+		// actually, rotate by the bearing... confused now...
+		ang = bearing;
+	}
+	cout << "ang around y: " << ang << endl;
+	transMatrix3D Rz0 = transMatrix3D::Identity();
+	Rz0.block(0,0,3,3) = Eigen::AngleAxisf(ang, Eigen::Vector3f::UnitY()).matrix();
+
+	cout << "Rz0:" << endl;
+	cout << Rz0 << endl;
+	cout << "(ang = " << ang << " )" << endl;
+
+	M = Rz0 * M;
+	
+	cout << "Should be: (x,0,0,1) or (-x,0,0,1)  and (0,0,0,1) and (0,y,0,1) : " << endl;
+	cout << (M*x3).transpose() << endl;
+	cout << (M*o3).transpose() << endl;
+	cout << (M*y3).transpose() << endl << endl << endl;
+	
+
+	// the very last thing is to account for the
+	// depth of the calibration target,
+	// which we assume means a simple translation on z.
+	transMatrix3D T2;
+	T2 = transMatrix3D::Identity();
+	T2(2,3) = s.targetDepth;
+
+	M = T2 * M;
+
+	cout << "fin (modified for target depth)?" << endl;
+	cout << (M*x3).transpose() << endl;
+	cout << (M*o3).transpose() << endl;
+	cout << (M*y3).transpose() << endl << endl << endl;
+	
+	return M;
+	
+	
+}
+
+
 
 
 int main(int argc, char *argv[] )
@@ -506,7 +752,7 @@ int main(int argc, char *argv[] )
 	
 	
 	
-	transMatrix3D M = ComputeTransformation( settings, axisPoints );
+	transMatrix3D M = ComputeTransformationYfirst( settings, axisPoints );
 	
 	
 	// we can now apply that to all of the calibrations.

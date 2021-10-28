@@ -66,6 +66,12 @@ def FindOpenGL(env):
 	# freetype2 for font rendering. The v2 renderer can't use
 	# SFML's text code, so we wrapped up our own.
 	env.ParseConfig("pkg-config freetype2 --cflags --libs")
+	
+	# we can also use EGL for headless OpenGL rendering contexts,
+	# which is great for remote applications where we need to render,
+	# but don't care about seeing it.
+	env.Append(CPPDEFINES=["USE_EGL"])
+	env.ParseConfig("pkg-config egl --cflags --libs")
 
 
 def FindOpenCV(env):

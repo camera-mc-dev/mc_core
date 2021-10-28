@@ -408,8 +408,8 @@ int main(int argc, char *argv[] )
 // 	axesNode->SetBaseColour(magenta);
 // 	axesNode->SetShader( ren->GetShaderProg("basicColourShader"));
 
-// 	auto axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
-	auto axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
+	auto axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
+// 	auto axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
 	
 	ren->Get3dRoot()->AddChild(axesNode);
 	

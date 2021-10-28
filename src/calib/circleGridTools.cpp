@@ -293,7 +293,7 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 	useGridPointHypothesis = useHypothesis;
 	
 	MSER_delta = 5;
-	MSER_minArea = 8*8;
+	MSER_minArea = 8;
 	MSER_maxArea = 70*70;
 	MSER_maxVariation = 0.2;
 	
@@ -308,7 +308,7 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 	
 	cd_minMagThresh = 0.1;
 	cd_detThresh = 0.35;
-	cd_rescale = 0.5;
+	cd_rescale = 1.0;
 	
 	potentialLinesNumNearest = 21;
 	parallelLineAngleThresh  = 5;      //(degrees)
@@ -352,7 +352,7 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 {
 	cd_minMagThresh = 0.1;
 	cd_detThresh = 0.35;
-	cd_rescale = 0.5;
+	cd_rescale = 1.0;
 	
 	try
 	{
@@ -512,6 +512,13 @@ bool CircleGridDetector::FindGrid( cv::Mat in_img, unsigned in_rows, unsigned in
 	maxHypPointDist = 10.0f;
 
 	auto t0 = std::chrono::steady_clock::now();
+	
+	if( showVisualiser )
+	{
+		ren->SetActive();
+		ren->ClearLinesAndGPs();
+	}
+	
 	
 	// Find keypoints. Return false if less than minimum number are found.
 	FindKeypoints(isGridLightOnDark);
@@ -2037,25 +2044,45 @@ void CircleGridDetector::FilterLines(vector< kpLine > &lines, vector< lineInter 
 			set.push_back( ic1 );
 			set.push_back( ic2 );
 			
-			// now find the next line at a consistent gap.
+			// now iterate over the remaining lines and find the best 3rd, 4th, 5th...
+			// line given the gap we're looking for.
 			int prev = ic2;
 			int next = ic2+1;
 			float gap2 = 0;
-			while( next < inters.size() && gap2 < (gap + gapThresh*gap) )
+			float totalGap = gap;
+			bool done = false;
+			while( !done )
 			{
-				gap2 = fabs(inters[next].scalar - inters[prev].scalar);
-// 				cout << "\t\t\tp: " << prev << "   n: " << next << "  g2: " << gap2;  
-				if( fabs(gap2 - gap) < gapThresh*gap )
+				//
+				// given our previous line and the current mean gap,
+				// which remaining line would best go next (if any)
+				//
+				float meanGap = totalGap / (set.size()-1);
+				float bestRat = 0.0f;
+				next = -1;
+				for( unsigned ic3 = prev+1; ic3 < inters.size(); ++ic3 )
+				{
+					float newGap = fabs(inters[ic3].scalar - inters[prev].scalar);
+					float gapRat = std::min(newGap,meanGap) / (float)std::max(newGap,meanGap);
+// 					cout << "\t\t\tp: " << prev << "   ic3: " << ic3 << "  g2: " << newGap << " r: " << gapRat << " ";  
+					if( gapRat > gapThresh && gapRat > bestRat)
+					{
+						next = ic3;
+// 						cout << " (maybe) ";
+						bestRat = gapRat;
+					}
+// 					cout << endl;
+				}
+				
+				if( next >= 0 )
 				{
 					set.push_back(next);
+					totalGap += fabs(inters[next].scalar - inters[prev].scalar);
+// 					cout << "took: " << next << endl;
 					prev = next;
-					
-// 					cout << " ! ";
-					float r = set.size()/(set.size()+1);
-					gap = r*gap + (1.0-r) * gap2;
 				}
-// 				cout << endl;
-				++next;
+				else
+					done = true;
 			}
 			
 // 			cout << "\tset: ";
@@ -2064,6 +2091,8 @@ void CircleGridDetector::FilterLines(vector< kpLine > &lines, vector< lineInter 
 // 				cout << set[sc] << " ";
 // 			}
 // 			cout << endl;
+			
+			
 			if( set.size() > bestSet.size() )
 			{
 				bestSet = set;
@@ -2200,7 +2229,7 @@ void CircleGridDetector::FilterLines(vector< kpLine > &lines, vector< lineInter 
 // 		}
 // 	}
 
-//	cout << "pre -> post: " << inters.size() << " -> " << ni.size() << endl;
+	cout << "pre -> post: " << inters.size() << " -> " << ni.size() << endl;
 
 	inters = ni;
 	lines = nl;
@@ -2372,7 +2401,8 @@ void CGDRenderer::RenderLines( cv::Mat img, const vector< CircleGridDetector::kp
 		const CircleGridDetector::kpLine &l = lines[lc];
 		
 		std::stringstream idstr;
-		idstr << "line_" << l.p0 << "_" << l.d << "_" << colour.transpose();
+		idstr << "line_" << l.p0 << "_" << luuid;
+		++luuid;
 		vector<Eigen::Vector2f> points(2);
 		points[0] << kps[l.a].pt.x, kps[l.a].pt.y;
 		points[1] << kps[l.b].pt.x, kps[l.b].pt.y;
@@ -2395,7 +2425,8 @@ void CGDRenderer::RenderLines( cv::Mat img, const vector< CircleGridDetector::kp
 		const CircleGridDetector::kpLine &l = lines[lc];
 		
 		std::stringstream idstr;
-		idstr << "line_" << l.p0 << "_" << l.d << "_" << colour.transpose();
+		idstr << "line_" << l.p0 << "_" << luuid;
+		++luuid;
 		vector<Eigen::Vector2f> points(2);
 		points[0] = l.p0.head(2);
 		points[1] = (l.p0 + l.d).head(2);
@@ -2422,7 +2453,8 @@ void CGDRenderer::RenderLines( cv::Mat img, const vector< CircleGridDetector::kp
 		float c = lc / (float)lines.size();
 		colour << 1.0-c,c,1.0,0.7;
 		
-		idstr << "line_" << l.p0 << "_" << l.d << "_" << colour.transpose();
+		idstr << "line_" << l.p0 << "_" << luuid;
+		++luuid;
 		vector<Eigen::Vector2f> points(2);
 		points[0] << kps[l.a].pt.x, kps[l.a].pt.y;
 		points[1] << kps[l.b].pt.x, kps[l.b].pt.y;
