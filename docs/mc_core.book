@@ -27,7 +27,7 @@ bk.coverImg = "imgs/tst.jpg"
 bk.outputTypes = ["html"]
 
 bk.MakeChapter( 0, "Readme", ["../README.md"] )
-bk.MakeChapter( 1, "Calibration", ["calib/00.md", "calib/01.md"] )
+bk.MakeChapter( 1, "Calibration", ["calib/00.md"] )
 #bk.MakeChapter( 2, "ApplyBlendweights tool", ["02.chp"])
 
 
