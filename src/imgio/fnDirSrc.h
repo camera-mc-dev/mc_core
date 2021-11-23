@@ -17,6 +17,7 @@ protected:
 	
 	int maxFrame;
 	int minFrame;
+	int firstFrame;
 	
 	
 public:
@@ -53,22 +54,46 @@ public:
 		//   - <path>
 		//   - <tag>:<path>
 		//
-		// In the second case, the <tag> can be used to specify the format of the image filenames. In the first case, the format
-		// is assumed to be <frameNumber>.ext
+		// In the second case, the <tag> can have the format:
+		//   - <first frame>
+		//   - <fmt>:<first frame>
 		//
-		
-		int a = info.find(":");
+		// As you provide a directory of images with their frame numbers in
+		// the filename, it might be the case that those frame numbers don't start at 0.
+		// 
+		// The source always starts at frame 0, so when you use the source, you might 
+		// find that you have to go through 10k frames before you get to the first real image.
+		// (if that's how you're images are numbered). So, you can instead specify where the 
+		// first frame is.
+		// 
+		// This means that when you use the source and ask from frame 0, you get frame n instead.
+		// when you ask for frame 1, you get n+1 instead.
+		// when you ask for frame x, you get n+x. Got it?
+		//
+		firstFrame = -1;
+		int a = info.rfind(":");
 		if( a == std::string::npos )
 		{
 			path = info;
 		}
 		else
 		{
-			cout << "The FNImageDirectory source does not currently support specifying the format of the image filename." << endl;
-			cout << "You must for now use <frameNumber>.ext as the format. Sorry!" << endl;
-			throw std::runtime_error("Pending feature not done yet!");
+			std::string tag( info.begin(), info.begin()+a );
+			path = std::string( info.begin()+a+1, info.end() );
+			
+			// tag can be just the first frame, or it can be a format string, and the first frame.
+			a = tag.rfind(":");
+			if( a == std::string::npos )
+			{
+				firstFrame = atoi( tag.c_str() );
+			}
+			else
+			{
+				cout << "The FNImageDirectory source does not currently support specifying the format of the image filename." << endl;
+				cout << "You must for now use <frameNumber>.ext as the format. Sorry!" << endl;
+				throw std::runtime_error("Pending feature not done yet!");
+			}
 		}
-		
 	}
 	
 	void GetImgMap()
@@ -107,6 +132,8 @@ public:
 			
 			imgMap[ic] = imageList[lc];
 		}
+		
+		minFrame = std::max( minFrame, firstFrame );
 	}
 	
 	int ParseFilename( std::string fn )
@@ -188,14 +215,19 @@ public:
 	
 	bool ReadImage( )
 	{
-		auto i = imgMap.find( frameIdx );
+		int realFrameNo = frameIdx;
+		if( firstFrame > -1 )
+		{
+			realFrameNo = frameIdx + firstFrame;
+		}
+		auto i = imgMap.find( realFrameNo );
 		if( i != imgMap.end() )
 		{
 			current = LoadImage( i->second );
 		}
 		else
 		{
-			cout << "source didn't have " << frameIdx << endl;
+			cout << "source didn't have " << frameIdx << " (" << realFrameNo << ")" << endl;
 			cout << "so using: " << imgMap.begin()->first << endl;
 			// we need an image of a sensible size... load the first image and blank it.
 			// really we could remember what size image and just make a blank image, but
@@ -203,7 +235,7 @@ public:
 			current = LoadImage( imgMap.begin()->second );
 			current = cv::Mat( current.rows, current.cols, current.type(), cv::Scalar(0) );
 		}
-		cout << "frameIdx: " << frameIdx << " : " << current.rows << " " << current.cols << endl;
+		cout << "frameIdx: " << frameIdx << " (" << realFrameNo << ")" << " : " << current.rows << " " << current.cols << endl;
 		
 		return true;
 	}
