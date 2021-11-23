@@ -9,6 +9,10 @@
 #include "calib/calibrationC.h"
 #include "commonConfig/commonConfig.h"
 
+#include "renderer2/basicHeadlessRenderer.h"
+
+#include <iomanip>
+
 // #include <sfm/sfm.hpp>
 
 void CamNetCalibrator::ReadConfig()
@@ -305,8 +309,31 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	}
 	else
 	{
-		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis);
+		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis, true);
 	}
+	
+	cout << "potentialLinesNumNearest     : " << cgd->potentialLinesNumNearest      << endl;
+	cout << "parallelLineAngleThresh      : " << cgd->parallelLineAngleThresh       << endl;
+	cout << "parallelLineLengthRatioThresh: " << cgd->parallelLineLengthRatioThresh << endl;
+	
+	cout << "gridLinesParallelThresh      : " << cgd->gridLinesParallelThresh       << endl;
+	cout << "gridLinesPerpendicularThresh : " << cgd->gridLinesPerpendicularThresh  << endl;
+	
+	cout << "gapThresh                    : " << cgd->gapThresh                     << endl;
+	
+	cout << "alignDotDistanceThresh       : " << cgd->alignDotDistanceThresh        << endl;
+	cout << "alignDotSizeDiffThresh       : " << cgd->alignDotSizeDiffThresh        << endl;
+	
+	cout << "MSER_delta                   : " << cgd->MSER_delta                    << endl;
+	cout << "MSER_minArea                 : " << cgd->MSER_minArea                  << endl;
+	cout << "MSER_maxArea                 : " << cgd->MSER_maxArea                  << endl;
+	cout << "MSER_maxVariation            : " << cgd->MSER_maxVariation             << endl;
+	
+	cout << "maxGridlineError             : " << cgd->maxGridlineError              << endl;
+	cout << "maxHypPointDist              : " << cgd->maxHypPointDist               << endl;
+	
+// 	exit(0);
+	
 	omp_unset_lock( &coutLock );
 // 	coutLock.unlock();
 	
@@ -399,12 +426,19 @@ void CamNetCalibrator::GetGrids()
 			ReadGridsFile(infi, grids.at(isc) );
 			
 			cout << grids[isc].size() << endl;
+			int count = 0;
+			int icount = 0;
 			for( unsigned gc = 0; gc < grids[isc].size(); ++gc )
 			{
 				if( grids[isc][gc].size() > 0 && grids[isc][gc].size() != gridRows*gridCols )
 				{
-					cout << "\t incomplete grid - ignoring." << endl;
+// 					cout << "\t incomplete grid - ignoring." << endl;
 					grids[isc][gc].clear();
+					++icount;
+				}
+				else if( grids[isc][gc].size() == gridRows*gridCols )
+				{
+					++count;
 				}
 				
 				for( unsigned pc = 0; pc < grids[isc][gc].size(); ++pc )
@@ -416,6 +450,7 @@ void CamNetCalibrator::GetGrids()
 					assert( grids[isc][gc][pc].col >= 0 );
 				}
 			}
+			cout << count << " " << icount << endl;
 		}
 	}
 	else
@@ -432,77 +467,156 @@ void CamNetCalibrator::GetGrids()
 		cout << numThreads << " concurrent threads are supported.\n";
 		cout << "sources: " << sources.size() << endl;
 
-		// Launch a group of threads. Ideally, one for each image source but
-		// max out at number of supported threads if less than number of sources.
-// 		std::mutex coutLock;
-// 		unsigned isc = 0, numIter = 1, numFinished, numRunning;
-// 		do
-// 		{
-// 			numRunning = 0;
-// 			for ( ; isc < numIter*std::min(numThreads-1, sources.size()); ++isc)
-// 			{
-// 				gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
-// 				++numRunning;
-// 			}
-// 
-// 			numFinished = 0;
-// 			do
-// 			{
-// 				for (auto &t : gridThreads)
-// 				{
-// 					if (t.joinable())
-// 					{
-// 						t.join();
-// 						++numFinished;
-// 					}
-// 				}
-// 
-// 				usleep(1000); // Wait 1 second before checking again.
-// 			} while(numFinished < numRunning);
-// 
-// 			++numIter;
-// 
-// 		} while(isc < sources.size());
 		
 		omp_lock_t coutLock;
 		omp_init_lock( &coutLock );
 		#pragma omp parallel for
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
-			//gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
 			FindGridThread( sources[isc], isc, coutLock );
 		}
-		
-		
-		
-		/*
-		// Launch a group of threads. One for each image source.
-		std::mutex coutLock;
-
-		for (unsigned isc = 0; isc < sources.size(); ++isc)
-		{
-			gridThreads.push_back(std::thread(&CamNetCalibrator::FindGridThread,this,sources[isc],isc,std::ref(coutLock)));
-		}
-
-		// TODO: Find better way to dispose of threads. Should have threads report back to main when finished.
-		// Join the threads with the main thread.
-		unsigned numFinished = 0;
-		do
-		{
-			for (auto &t : gridThreads)
-			{
-				if (t.joinable())
-				{
-					t.join();
-					++numFinished;
-				}
-			}
-
-			usleep(1000); // Wait 1 second before checking again.
-
-		} while(numFinished < sources.size()); // Stop when all the threads finish.
-		*/
+	
 	}
+	
+	
+// 	//
+// 	// Trying to find bad grids is currently a nightmare. 
+// 	// So here's an alternative, showing only the grids we've accepted for use.
+// 	//
+// 	cout << " --- rendering all grid images for easier hunting" << endl;
+// 	CommonConfig ccfg;
+// 	int imgc = 0;
+// 	int mxgc = 0;
+// 	for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 	{
+// 		mxgc = std::max( (size_t)mxgc, grids[isc].size() );
+// 	}
+// 	
+// 	unsigned numRows = 1;
+// 	unsigned numCols = 1;
+// 	if( sources.size() > 16)
+// 		throw std::runtime_error("I'm just refusing to show that many images!");
+// 	else
+// 	{
+// 		numRows = numCols = (int)ceil( sqrt(sources.size()) );
+// 	}
+// 	
+// 	// find out how big a window to make
+// 	cout << "sizes of first images: " << endl;
+// 	float maxW, maxH;
+// 	maxW = maxH = 0.0;
+// 	for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 	{
+// 		std::shared_ptr<Rendering::MeshNode> mn;
+// 		cv::Mat img = sources[isc]->GetCurrent();
+// 		
+// 		maxW = std::max( (float)img.cols, maxW );
+// 		maxH = std::max( (float)img.rows, maxH );
+// 		
+// 		cout << "\t" << img.cols << " " << img.rows << endl;
+// 	}
+// 	
+// 	float winW = ccfg.maxSingleWindowWidth;
+// 	float winH = winW * (maxH * numRows)/(maxW * numCols);
+// 	if( winH > ccfg.maxSingleWindowHeight )
+// 	{
+// 		winH = ccfg.maxSingleWindowHeight;
+// 		winW = winH * (maxW * numCols) / (maxH * numRows);
+// 	}
+// 	
+// 	float rat = winH / winW;
+// 	
+// 	if( winW > ccfg.maxSingleWindowWidth )
+// 	{
+// 		winW = ccfg.maxSingleWindowWidth;
+// 		winH = rat * winW / rat;
+// 	}
+// 	
+// 	cout << "win W, H: " << winW << ", " << winH << endl;
+// 	
+// 	std::shared_ptr< Rendering::BasicHeadlessRenderer > gridRen;
+// 	Rendering::RendererFactory::Create( gridRen, winW,winH, "valid grids" );
+// 	
+// 	
+// 	float renW, renH;
+// 	renW = numCols * maxW;
+// 	renH = numRows * maxH;
+// 	
+// 	gridRen->Get2dBgCamera()->SetOrthoProjection(0, renW, 0, renH, -10, 10 );
+// 	
+// 	std::vector< std::shared_ptr<Rendering::MeshNode> > imgCards;
+// 	for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 	{
+// 		std::shared_ptr<Rendering::MeshNode> mn;
+// 		cv::Mat img = sources[isc]->GetCurrent();
+// 		std::stringstream ss; ss << "image-" << isc;
+// 		
+// 		unsigned r = isc/numCols;
+// 		unsigned c = isc%numCols;
+// 		
+// 		float x,y;
+// 		x = c * maxW;
+// 		y = r * maxH;
+// 		
+// 		mn = Rendering::GenerateImageNode( x, y, img.cols, img, ss.str(), gridRen );
+// 		imgCards.push_back(mn);
+// 		gridRen->Get2dBgRoot()->AddChild( mn );
+// 	}
+// 	
+// 	
+// 	
+// 	for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 	{
+// 		sources[isc]->JumpToFrame(0);
+// 	}
+// 	int fc = 0;
+// 	for( unsigned gc = 0; gc < mxgc; ++gc )
+// 	{
+// 		bool use = false;
+// 		for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 			if( grids[isc][gc].size() == gridRows*gridCols )
+// 				use = true;
+// 		
+// 		if( use )
+// 		{
+// 			for( unsigned isc = 0; isc < sources.size(); ++isc )
+// 			{
+// 				//sources[isc]->JumpToFrame(gc);
+// 				while( sources[isc]->GetCurrentFrameID() != gc )
+// 					sources[isc]->Advance();
+// 				
+// 				cv::Mat img = sources[isc]->GetCurrent();
+// 				
+// 				for( unsigned pc = 0; pc < grids[isc][gc].size(); ++pc )
+// 				{
+// 					float x,y;
+// 					x = grids[isc][gc][pc].pi(0);
+// 					y = grids[isc][gc][pc].pi(1);
+// 					int row,col;
+// 					row = grids[isc][gc][pc].row;
+// 					col = grids[isc][gc][pc].col;
+// 					
+// 					float red,green,blue;
+// 					red   = (std::min(row,10)/10.0f) * 255.0f;
+// 					green = (std::min(col,10)/10.0f) * 255.0f;
+// 					blue  = 255.0f;
+// 					
+// 					cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
+// 				}
+// 				
+// 				imgCards[isc]->GetTexture()->UploadImage( img );
+// 			}
+// 			
+// 			gridRen->StepEventLoop();
+// 			cv::Mat grab = gridRen->Capture();
+// 			std::stringstream ss;
+// 			ss << "gridImgs/" << std::setw(6) << std::setfill('0') << fc << "_" << std::setw(6) << std::setfill('0') << gc << ".jpg";
+// 			SaveImage( grab, ss.str() );
+// 			
+// 			++fc;
+// 		}
+// 	}
+	
 }
 
 

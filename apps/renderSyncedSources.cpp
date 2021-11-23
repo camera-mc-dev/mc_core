@@ -6,13 +6,14 @@ using std::cout;
 using std::endl;
 using std::vector;
 
-#include "imgio/imagesource.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/camNetworkCalib.h"
 
 #include "renderer2/basicRenderer.h"
 #include "renderer2/geomTools.h"
 #include "commonConfig/commonConfig.h"
+
+#include <boost/filesystem.hpp>
 
 
 
@@ -81,53 +82,62 @@ int main(int argc, char* argv[])
 	// to visualise the calibration grids on the sources. This is particularly useful for making
 	// sure that the grids all have the same row/column point ids.
 	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > grids;
+	std::vector< std::string > gridsFiles;
 	
 	// create the image sources
 	// At present, although the functionality is meant to be there,
 	// the OpenCV methods to move to a specific frame of video are not working.
 	// as such, we need a slightly different process if we use video sources.
 	bool isVideoSources = false;
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	for( unsigned ac = 1; ac < argc; ++ac )
 	{
-		// is it a directory?
-		if( boost::filesystem::is_directory( argv[ac] ))
+		// Let the factory make the source, but we'll do some extra work to see if there are 
+		// grid files or calib files in default locations.
+
+		std::string cfn = std::string(argv[ac]) + std::string(".calib");
+		if( boost::filesystem::exists( cfn ) )
 		{
-			auto src = (ImageSource*) new ImageDirectory( argv[ac] );
-			sources.push_back(src);
+			auto sp = CreateSource( argv[ac], cfn );
+			sources.push_back( sp.source );
 		}
 		else
 		{
-			auto src = (ImageSource*) new VideoSource( argv[ac], "none");
-			sources.push_back(src);
-			isVideoSources = true;
-			
-			// although we could do grids with video sources, we would need the calibration,
-			// and right now, renderSyncedSources is only getting the video filename.
-			// std::string gfn;
-			// gfn = imgDirs[isc] + ".grids";
+			auto sp = CreateSource( argv[ac] );
+			sources.push_back( sp.source );
 		}
+		
+		
+		
+		std::string gfn0 = std::string(argv[ac]) + std::string(".grids");
+		std::string gfn1 = std::string(argv[ac]) + std::string("/grids");
+		if( boost::filesystem::exists( gfn0 ) )
+		{
+			gridsFiles.push_back(gfn0);
+		}
+		else if( boost::filesystem::exists( gfn1 ) )
+		{
+			gridsFiles.push_back(gfn1);
+		}
+		else
+		{
+			gridsFiles.push_back("none");
+		}
+		
+		
 	}
-
-	cout << "got: " << sources.size() << " sources " << endl;
 	
+	cout << "got: " << sources.size() << " sources " << endl;
 	grids.resize( sources.size() );
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{
-		if( !isVideoSources )
+		std::ifstream infi(gridsFiles[isc]);
+		if( infi )
 		{
-			// are there grids for this source?
-			std::string gfn;
-			gfn = std::string(argv[isc+1]) + "/grids";
-			cout << gfn << " ? " << endl;
-			std::ifstream infi(gfn);
-			if( infi )
-			{
-				// we have a grids file for this directory source.
-				CamNetCalibrator::ReadGridsFile(infi, grids.at(isc) );
-				
-				cout << "source " << isc << " had grids file." << endl;
-			}
+			// we have a grids file for this directory source.
+			CamNetCalibrator::ReadGridsFile(infi, grids.at(isc) );
+			
+			cout << "source " << isc << " had grids file." << endl;
 		}
 	}
 

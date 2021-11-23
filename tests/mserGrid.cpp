@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
 		src = (ImageSource*) new VideoSource( argv[1], "none");
 	}
 	
-// 	src->JumpToFrame(1370);
+// 	src->JumpToFrame(2822);
 	
 	int MSER_delta = 5;
 	int MSER_minArea = 3*2;
@@ -52,6 +52,12 @@ int main(int argc, char* argv[])
 	Rendering::RendererFactory::Create( ren, 1280, 720, "MSER test" );
 	
 	CircleGridDetector cgDet(1920, 1080, false, false, CircleGridDetector::MSER_t);
+	cgDet.MSER_delta   = 5;
+	cgDet.MSER_maxArea = 50*50;
+	cgDet.MSER_minArea = 3*3;
+	cgDet.MSER_maxVariation = 0.2;
+	cgDet.parallelLineLengthRatioThresh = 0.85;
+	cgDet.parallelLineAngleThresh = 5.0;
 	
 	bool done = false;
 	bool paused = false;

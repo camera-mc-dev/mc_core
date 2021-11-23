@@ -397,15 +397,15 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 		if( cfg.exists("blobDetector") )
 		{
 			std::string bds = (const char*) cfg.lookup("blobDetector");
-			if( bds.compare("MSER") )
+			if( bds.compare("MSER") == 0)
 			{
 				blobDetector = MSER_t;
 			}
-			else if( bds.compare("SURF") )
+			else if( bds.compare("SURF") == 0 )
 			{
 				blobDetector = SURF_t;
 			}
-			else if( bds.compare("CIRCD") )
+			else if( bds.compare("CIRCD") == 0 )
 			{
 				blobDetector = CIRCD_t;
 			}
@@ -487,6 +487,33 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 		exit(1);
 	}
 	
+	
+	
+	if (showVisualiser)
+	{
+		float ar = h / (float)w;
+		
+		CommonConfig ccfg;
+		
+		float winW, winH;
+		winW = w; winH = h;
+		if( winW > ccfg.maxSingleWindowWidth )
+		{
+			winW = ccfg.maxSingleWindowWidth;
+			winH = ar * winW;
+		}
+		if( h > ccfg.maxSingleWindowHeight )
+		{
+			winH = ccfg.maxSingleWindowHeight;
+			winW = winH / ar;
+		}
+		
+		Rendering::RendererFactory::Create( ren, winW, winH, "circle detector debug" );
+
+		ren->Get2dBgCamera()->SetOrthoProjection(0, w, 0, h, -100, 100 );
+		ren->Get2dFgCamera()->SetOrthoProjection(0, w, 0, h, -100, 100 );
+
+	}
 	
 }
 
@@ -722,31 +749,6 @@ bool CircleGridDetector::FindGrid( cv::Mat in_img, unsigned in_rows, unsigned in
 
 void CircleGridDetector::RoughClassifyKeypoints( cv::Mat grey, bool isGridLightOnDark, vector< cv::KeyPoint > &filtkps )
 {
-	vector< cv::KeyPoint > tmpkps;
-	if( blobDetector == MSER_t )
-	{
-		// MSER makes an excellent blob detector for
-		// black (white) circles on a white (black) background but is very slow.
-		cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
-		mser->detect( grey, tmpkps );
-	}
-	else if( blobDetector == SURF_t )
-	{
-		// with the right tuning, SURF is much faster and can do a pretty good job.
-		cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(SURF_thresh);
-		surf->detect( grey, tmpkps );
-		
-		// one thing to watch out for though is that the size of a SURF features seems to be
-		// about 4 times too large.
-		for( unsigned kpc = 0; kpc < tmpkps.size(); ++kpc )
-		{
-			tmpkps[kpc].size *= 0.5;    // 1/4 == 0.25, but we want a wee-bit-larger.
-		}
-	}
-	else if( blobDetector == CIRCD_t )
-	{
-		GridCircleFinder( grey, cd_minMagThresh, cd_detThresh, cd_rescale, tmpkps );
-	}
 	
 	// put all the keypoint locations in one matrix.
 	Eigen::MatrixXf kpM;
@@ -915,7 +917,7 @@ void CircleGridDetector::TestKeypoints( cv::Mat grey, bool isGridLightOnDark, ve
 {
 	// initial keypoints
 	vector< cv::KeyPoint > filtkps;
-	InitKeypoints( grey, filtkps );
+// 	InitKeypoints( grey, filtkps );
 	
 	RoughClassifyKeypoints( grey, isGridLightOnDark, filtkps );
 	

@@ -1,5 +1,7 @@
 #ifdef USE_EGL
 
+#include "imgio/loadsave.h"
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GL/glew.h>
@@ -10,7 +12,6 @@
 using std::cout;
 using std::endl;
 
-#include "imgio/loadsave.h"
 
 
 // to debug, we're just using a tutorial for a very basic triangle render,
