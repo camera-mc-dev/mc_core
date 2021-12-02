@@ -1,6 +1,7 @@
 #include "imgio/imagesource.h"
 #include "imgio/vidsrc.h"
 #include "imgio/fnDirSrc.h"
+#include "imgio/hdf5source.h"
 
 
 struct SourcePair

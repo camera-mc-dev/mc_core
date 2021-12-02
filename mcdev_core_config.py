@@ -120,7 +120,11 @@ def FindCeres(env):
 	# some google libs.
 	env.Append(LIBS=["gflags", "glog", "ceres"])
 
-
+def FindHDF5(env):
+	# We use HDF5 files when we create and load a training dataset.
+	env.ParseConfig("pkg-config hdf5 --libs --cflags")
+	env.Append(LIBS=['hdf5'])
+	env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
 
 def SetCoreConfig(env):
 	# --
@@ -143,3 +147,4 @@ def SetCoreConfig(env):
 	FindLibConfig(env)
 	FindSnappy(env)
 	FindCeres(env)
+	FindHDF5(env)

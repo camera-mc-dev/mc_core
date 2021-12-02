@@ -25,6 +25,8 @@ Rendering::BaseRenderer::BaseRenderer(unsigned in_width, unsigned in_height, std
 	width  = win.getSize().x;
 	height = win.getSize().y;
 	
+	cout << "win size requested: " << width << " " << height << endl;
+	
 #ifndef __APPLE__
 	GLenum err = glewInit();
 	if( err != GLEW_OK )

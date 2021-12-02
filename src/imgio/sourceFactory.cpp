@@ -2,6 +2,7 @@
 #include <boost/filesystem.hpp>
 #include <map>
 
+
 std::string GetBotLevelDir( std::string in )
 {
 	boost::filesystem::path p(in);
@@ -27,10 +28,12 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 	//
 	SourcePair retval;
 	
+	boost::filesystem::path inpth( input );
+	
 	int a = input.find(":");
 	if( a == std::string::npos )
 	{
-		if( boost::filesystem::is_directory( input ))
+		if( boost::filesystem::is_directory( inpth ))
 		{
 			// create a directory source.
 			if( calibFile.compare("none") == 0 )
@@ -41,10 +44,21 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
 		}
-		else if( boost::filesystem::exists( input ) )
+		else if( boost::filesystem::exists( inpth ) )
 		{
-			// create a video source.
-			retval.source.reset( new VideoSource( input, calibFile ) );
+			// create a video source unless its an hdf5 file
+			if( inpth.extension().compare(".hdf5") == 0 )
+			{
+#ifdef HAVE_HIGH_FIVE
+				retval.source.reset( new HDF5Source( input, calibFile ) );
+#else
+				throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");
+#endif
+			}
+			else
+			{
+				retval.source.reset( new VideoSource( input, calibFile ) );
+			}
 			
 			// return the filename without extension as a source name.
 			retval.name = GetBotLevelFile( input );

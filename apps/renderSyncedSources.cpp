@@ -139,6 +139,10 @@ int main(int argc, char* argv[])
 			
 			cout << "source " << isc << " had grids file." << endl;
 		}
+		else
+		{
+			cout << gridsFiles[isc] << " - no" << endl;
+		}
 	}
 
 	// find the source with the least # of frames.
