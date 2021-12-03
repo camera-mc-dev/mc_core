@@ -76,8 +76,29 @@ void HDF5ImageWriter::Flush()
 
 HDF5Source::HDF5Source( std::string in_filepath, std::string in_calibPath )
 {
-	cout << "opening: " << in_filepath << endl;
-	infi = new HighFive::File( in_filepath, HighFive::File::ReadOnly );
+	//
+	// Input filepath can be of the format:
+	// /path/to/file.hdf5
+	// <firstframe>:path/to/file.hdf5
+	//
+	int a = in_filepath.find(":");
+	
+	std::string filepath;
+	if( a == std::string::npos )
+	{
+		filepath = in_filepath;
+		currentFrameNo = 0;
+	}
+	else
+	{
+		filepath = std::string( in_filepath.begin()+a+1, in_filepath.end() );
+		std::string numStr( in_filepath.begin(), in_filepath.begin()+a );
+		currentFrameNo = std::atoi( numStr.c_str() );
+	}
+	
+	
+	cout << "opening: " << filepath << endl;
+	infi = new HighFive::File( filepath, HighFive::File::ReadOnly );
 	
 	// get list of dataset names from file
 	dsList = infi->listObjectNames();
@@ -85,18 +106,18 @@ HDF5Source::HDF5Source( std::string in_filepath, std::string in_calibPath )
 	// map frame index to frame number from dataset name
 	for( unsigned lc = 0; lc < dsList.size(); ++lc )
 	{
-		auto a = dsList[ dsIdx ].find("_");
-		std::string numStr = std::string( dsList[ dsIdx ].begin(), dsList[ dsIdx ].begin() + a );
+		auto a = dsList[ lc ].find("_");
+		std::string numStr = std::string( dsList[ lc ].begin(), dsList[ lc ].begin() + a );
 		unsigned fno = std::atoi( numStr.c_str() );
+		
+// 		cout << lc << " " << dsList[lc] << " " << fno << endl;
 		
 		idx2fno[ lc ] = fno;
 		fno2idx[ fno ] = lc;
 	}
 	
-	// set to first ds.
-	dsIdx = 0;
 	
-	GetImage();
+	FindImage();
 	
 	calibPath = in_calibPath;
 }
@@ -114,10 +135,10 @@ cv::Mat HDF5Source::GetCurrent()
 
 bool HDF5Source::Advance()
 {
-	if( dsIdx < dsList.size() - 1 )
+	if( currentFrameNo < GetNumImages() - 1 )
 	{
-		++dsIdx;
-		GetImage();
+		++currentFrameNo;
+		FindImage();
 		return true;
 	}
 	else return false;
@@ -126,10 +147,10 @@ bool HDF5Source::Advance()
 
 bool HDF5Source::Regress()
 {
-	if( dsIdx > 0 )
+	if( currentFrameNo > 0 )
 	{
-		--dsIdx;
-		GetImage();
+		--currentFrameNo;
+		FindImage();
 		return true;
 	}
 	else return false;
@@ -137,7 +158,7 @@ bool HDF5Source::Regress()
 
 unsigned HDF5Source::GetCurrentFrameID()
 {
-	return idx2fno[ dsIdx ];
+	return currentFrameNo;
 }
 
 frameTime_t HDF5Source::GetCurrentFrameTime()
@@ -148,20 +169,35 @@ frameTime_t HDF5Source::GetCurrentFrameTime()
 
 int HDF5Source::GetNumImages()
 {
-	return dsList.size();
+	// what we really want to do is return our largest frame number
+	// so not this: return dsList.size();
+	cout << "hdf5 fnos: " <<  fno2idx.begin()->first << " " << fno2idx.rbegin()->first << endl;
+	return fno2idx.rbegin()->first;
 }
 
 
 bool HDF5Source::JumpToFrame(unsigned frame)
 {
-	// note that this might not jump to a frame with the frame number "frame"
-	auto fi = fno2idx.find( frame );
-	if( fi == fno2idx.end() )
-		return false;
+	currentFrameNo = frame;
+	FindImage();
+}
+
+void HDF5Source::FindImage()
+{
+	auto i = fno2idx.find( currentFrameNo );
+	if( i == fno2idx.end() )
+	{
+		// make a blank image the same size as the firt image we can get.
+		dsIdx = fno2idx.begin()->first;
+		GetImage();
+		
+		current = cv::Mat( current.rows, current.cols, current.type(), cv::Scalar(0) );
+	}
 	else
-		dsIdx = fi->second;
-	GetImage();
-	return true;
+	{
+		dsIdx = i->first;
+		GetImage();
+	}
 }
 
 void HDF5Source::GetImage()

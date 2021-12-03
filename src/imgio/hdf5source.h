@@ -68,10 +68,28 @@ protected:
 	std::map<unsigned, unsigned> idx2fno, fno2idx;
 	int dsIdx;
 	
+	void FindImage();
 	void GetImage();
 	cv::Mat current;
 	
 	int maxFrame, minFrame;
+	
+	
+	//
+	// We operate on the approach that we can have synchronised images sources,
+	// and we have established the standard that frame n from camera m is the same 
+	// as frame n from camera k. 
+	//
+	// To make this work, we need the sources to step by one frame.
+	//
+	// The nature of a source like this, like the frameNumberImageSource is that
+	// we might have gaps between frames in the source - so stepping to the "next"
+	// frame on one source might skip a frameNumber, but on another source it wont.
+	//
+	// To fix this, we have a monotonically increasing frame count, and if the 
+	// frame doesn't exist on this source, it simply returns a black image.
+	//
+	int currentFrameNo;
 	
 	std::string calibPath;
 };
