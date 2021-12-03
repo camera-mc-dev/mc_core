@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 	// to visualise the calibration grids on the sources. This is particularly useful for making
 	// sure that the grids all have the same row/column point ids.
 	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > grids;
-	
+	std::vector< std::string > gridsFiles;	
 	// create the image sources
 	// At present, although the functionality is meant to be there,
 	// the OpenCV methods to move to a specific frame of video are not working.
