@@ -69,8 +69,15 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 		std::string tag( input.begin(), input.begin()+a);
 		std::string info( input.begin()+a+1, input.end());
 		
-		
-		if( tag.compare("fndir") == 0 )
+		if( inpth.extension().compare(".hdf5") == 0 )
+		{
+#ifdef HAVE_HIGH_FIVE
+			retval.source.reset( new HDF5Source( input, calibFile ) );
+#else
+			throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");
+#endif
+		}
+		else if( tag.compare("fndir") == 0 )
 		{
 			// create a directory source.
 			if( calibFile.compare("none") == 0 )
