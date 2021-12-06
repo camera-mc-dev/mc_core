@@ -357,6 +357,7 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 	
 	try
 	{
+		showVisualiser = false;
 		if( cfg.exists("visualise") )
 		{
 			showVisualiser = cfg.lookup("visualise");
