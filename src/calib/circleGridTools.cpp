@@ -292,6 +292,7 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 	showVisualiser = visualise;
 	useGridPointHypothesis = useHypothesis;
 	
+	
 	MSER_delta = 5;
 	MSER_minArea = 8;
 	MSER_maxArea = 70*70;
@@ -356,6 +357,7 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 	
 	try
 	{
+		showVisualiser = false;
 		if( cfg.exists("visualise") )
 		{
 			showVisualiser = cfg.lookup("visualise");
