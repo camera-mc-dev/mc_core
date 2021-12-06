@@ -309,7 +309,7 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	}
 	else
 	{
-		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis, true);
+		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis, false);
 	}
 	
 	cout << "potentialLinesNumNearest     : " << cgd->potentialLinesNumNearest      << endl;
