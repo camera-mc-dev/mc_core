@@ -7,7 +7,7 @@
 #include <mutex>
 #include <chrono>
 
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <iostream>
 using std::cout;

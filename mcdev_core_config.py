@@ -76,7 +76,7 @@ def FindOpenGL(env):
 
 def FindOpenCV(env):
 	# We use OpenCV for lots of things.
-	env.ParseConfig("pkg-config opencv --cflags --libs")
+	env.ParseConfig("pkg-config opencv4 --cflags --libs")
 
 	# OpenCV now needs this... well, on Mac anyway...
 	# Note: This assumes Opencv was installed with Homebrew.

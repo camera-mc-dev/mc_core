@@ -7,7 +7,7 @@
 // and there's at least one comment that some part might only work on Windows.
 // F that Sh.
 //
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 
 extern "C"
 {

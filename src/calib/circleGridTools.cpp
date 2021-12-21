@@ -139,7 +139,7 @@ bool GetCircleGrids(ImageSource *imgSrc, vector<cv::Point2f> &centers, unsigned 
 	if( img.cols > 800 )
 	{
 		cv::resize(img, imgSmall,  cv::Size(800, 800*aspectRat ));
-		cv::cvtColor(imgSmall, graySmall, CV_BGR2GRAY );
+		cv::cvtColor(imgSmall, graySmall, cv::COLOR_BGR2GRAY );
 
 		// cv::SimpleBlobDetector::Params params;
 		// params.minThreshold = 28;
@@ -167,7 +167,7 @@ bool GetCircleGrids(ImageSource *imgSrc, vector<cv::Point2f> &centers, unsigned 
 	// or we found the grid in the smaller image and thus
 	// now consider it worth attacking at full resolution.
 	cv::Mat gray;
-	cv::cvtColor(img, gray, CV_BGR2GRAY);
+	cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
 	// cv::SimpleBlobDetector::Params params;
 	// if(img.cols > 1000)

@@ -2,7 +2,7 @@
 #define ME_MATHTYPES
 
 #include <Eigen/Dense>
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 
 // matrix types for various purposes:
 

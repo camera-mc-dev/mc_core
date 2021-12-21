@@ -7,7 +7,7 @@
 #include "renderer2/sdfText.h"
 
 #include <vector>
-#include <cv.hpp>
+#include <opencv2/core.hpp>
 using std::vector;
 
 // given an image source, find the circle centres

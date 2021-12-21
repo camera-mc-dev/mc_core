@@ -1,7 +1,7 @@
 #ifndef SDF_TEXT_H
 #define SDF_TEXT_H
 
-#include "cv.hpp"
+#include <opencv2/core.hpp>
 #include <vector>
 using std::vector;
 

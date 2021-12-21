@@ -2,7 +2,7 @@
 #define IMAGES_H_MC
 
 #include <string>
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 #include "math/mathTypes.h"
 
 cv::Mat LoadImage(std::string filename);

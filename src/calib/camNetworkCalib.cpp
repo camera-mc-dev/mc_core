@@ -342,7 +342,7 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	{
 		// Get current image and convert it to greyscale.
 		currentImage = dir->GetCurrent();
-		cv::cvtColor(currentImage, grey, CV_BGR2GRAY);
+		cv::cvtColor(currentImage, grey, cv::COLOR_BGR2GRAY);
 		++imgCount;
 
 		// Find grid.
@@ -791,12 +791,12 @@ void CamNetCalibrator::CalibrateIntrinsics()
 			{
 				// distortion parameters are often a flaky prospect, so try calibrating initially
 				// without them, then let the bundle adjustment worry about them later.
-				flags = CV_CALIB_FIX_PRINCIPAL_POINT | CV_CALIB_FIX_ASPECT_RATIO | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3 | CV_CALIB_ZERO_TANGENT_DIST;
+				flags = cv::CALIB_FIX_PRINCIPAL_POINT | cv::CALIB_FIX_ASPECT_RATIO | cv::CALIB_FIX_K1 | cv::CALIB_FIX_K2 | cv::CALIB_FIX_K3 | cv::CALIB_ZERO_TANGENT_DIST;
 			}
 			else
 			{
 				// let OpenCV try a few distortion parameters.
-				flags = CV_CALIB_FIX_PRINCIPAL_POINT | CV_CALIB_FIX_ASPECT_RATIO | CV_CALIB_FIX_K3 | CV_CALIB_ZERO_TANGENT_DIST;
+				flags = cv::CALIB_FIX_PRINCIPAL_POINT | cv::CALIB_FIX_ASPECT_RATIO | cv::CALIB_FIX_K3 | cv::CALIB_ZERO_TANGENT_DIST;
 			}
 			double error = cv::calibrateCamera(allObjCorners, gridsToUse, imgSizes[isc], K, k, Rs, ts, flags);
 			
@@ -2102,7 +2102,7 @@ bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
 		// Note that OpenC does have a findEssentialMatrix function, but the idiot that created it assumed you have
 		// the same K matrix for each camera. Idiot.
 		cv::Mat F;
-		F = cv::findFundamentalMat(othPoints, camPoints, CV_FM_LMEDS);
+		F = cv::findFundamentalMat(othPoints, camPoints, cv::FM_LMEDS);
 		
 		// we don't get the nice sfm::essentialFromFundamental here, but we can do it manually
 		// because E = K_2' * F * K_1
