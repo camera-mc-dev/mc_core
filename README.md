@@ -9,7 +9,7 @@
   - image io
   - maths and miscellaneous core functionality
 
-The CAMERA wiki provides an overview of the various other parts of `mc_dev`.
+Documentation in the `mc_base` repository provides basic information about the other parts of the framework.
 
 ## Getting the source
 
