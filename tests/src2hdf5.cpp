@@ -33,4 +33,14 @@ int main(int argc, char *argv[] )
 	}
 }
 
+#else
+
+#include <iostream>
+
+int main(void)
+{
+	std::cout << "framework not compiled with High5 HDF5 file support." << endl;
+	return -1;
+}
+
 #endif
