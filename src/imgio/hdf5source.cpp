@@ -1,3 +1,5 @@
+#ifdef HAVE_HIGH_FIVE
+
 #include "imgio/hdf5source.h"
 #include "misc/tokeniser.h"
 
@@ -236,3 +238,4 @@ void HDF5Source::GetImage()
 	dsi.read( current.data );
 }
 
+#endif
