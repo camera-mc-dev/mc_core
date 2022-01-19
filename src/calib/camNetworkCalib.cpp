@@ -1285,7 +1285,15 @@ float CamNetCalibrator::CalcReconError()
 			for( unsigned ec = 0; ec < gridPointsErrs[cc].size(); ++ec )
 				mean += gridPointsErrs[cc][ec];
 			mean /= gridPointsErrs[cc].size();
-			cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+			
+			if( gridPointsErrs[cc].size() > 0 )
+			{
+				cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+			}
+			else
+			{
+				cout << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
+			}
 			grandMean += mean;
 			++grandCount;
 		}
