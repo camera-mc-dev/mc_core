@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import meBook
+import os
 
 # "meBook" is a python class that wraps up the process of taking 
 # a markdown formatted document and using pandoc to output html,ebook
