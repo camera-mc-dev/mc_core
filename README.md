@@ -24,28 +24,6 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
   $ git clone camera@rivendell.cs.bath.ac.uk:mc_core
 ```
 
-## Building
-
-The project is built using the `scons` build system. If you have not already done so, you will need to install `scons` now, probably using your package manager or Homebrew on Mac. e.g. for Ubuntu based systems:
-
-```bash
-  $ sudo apt install scons
-```
-
-Next, change into your `mc_core` directory, e.g.:
-
-```bash
-  $ cd ~/where/you/keep/your/code/mc_dev/mc_core
-```
-
-To build everything in optimised mode just type (using 5 build jobs):
-
-```bash
-  $ scons -j5
-```
-
-Obviously, that will fail if you have not yet installed all the required dependencies or modified the build to find those dependencies.
-
 ## Dependencies
 
 `mc_core` and thus all of `mc_dev` depends on a number of external libraries. These can mostly be installed through your package manager.
@@ -70,15 +48,31 @@ Obviously, that will fail if you have not yet installed all the required depende
     - `sudo apt install libmagick++-dev`
   - libconfig : parse config files.
     - `sudo apt install libconfig-dev`
+
+    or
+    - `sudo apt install libconfig++-dev`
   - snappy : Google's fast compression library - used for custom `.charImg` and .`floatImg` 
     - `sudo apt install libsnappy-dev`
   - ceres solver
     - `sudo apt install libceres-dev`
+  - nanoflann
+    - https://github.com/jlblancoc/nanoflann
+    - `sudo apt-get install build-essential cmake libgtest-dev libeigen3-dev`
+    - `mkdir build && cd build && cmake ..`
+    - `make && make test`
   - High5 *optional*: An HDF5 file library
     - https://github.com/BlueBrain/HighFive
-    - edit the `FindHDF5()` in `mcdev_core_config.py` if you use it.
+    - If not required, edit the `FindHDF5()` in `mcdev_core_config.py` like so:
+    ```python
+    def FindHDF5(env):
+    # We use HDF5 files when we create and load a training dataset.
+    #env.ParseConfig("pkg-config hdf5 --libs --cflags")
+    #env.Append(LIBS=['hdf5'])
+    #env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
+    pass
+    ```
 
-Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority.
+Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority. Example for installing OpenCV here: https://learnopencv.com/install-opencv-3-4-4-on-ubuntu-18-04/
 
 ## Specifing where dependencies are
 
@@ -129,6 +123,38 @@ env.Append(LINKFLAGS=['-framework', 'OpenGL'])
 For more details on how the build system is set up, see the main documentation.
 
 
+## Building
+
+The project is built using the `scons` build system. If you have not already done so, you will need to install `scons` now, probably using your package manager or Homebrew on Mac. e.g. for Ubuntu based systems:
+
+```bash
+  $ sudo apt install scons
+```
+
+Next, change into your `mc_core` directory, e.g.:
+
+```bash
+  $ cd ~/where/you/keep/your/code/mc_dev/mc_core
+```
+
+To build everything in optimised mode just type (using 5 build jobs):
+
+```bash
+  $ scons -j5
+```
+
+*Optional:* To specify an install directory, for example, `/opt/mc_bin/`:
+
+```bash
+  $ scons <target> install=true installDir=<path/to/install/location>
+```
+e.g.
+
+```bash
+  $ scons -j5 install=true installDir=</opt/mc_bin/>
+```
+Fianlly, `~/.mc_dev.common.cfg` should be updated to ensure that paths in this config file are correct. Further details [here](./docs/chapters/overview.md).
+
 
 ## Tools
 
@@ -153,3 +179,5 @@ To make the html book of the documentation:
   - enter the docs directory: `cd docs/`
   - run the `.book` file: `./mc_core.book`
     - the `.book` file is actually a python script which wraps up calls to `pandoc` for making a nice html book from the markdown files.
+
+...or if you're lazy, like Laurie, just open them in VSCode and enable markdown preview.
