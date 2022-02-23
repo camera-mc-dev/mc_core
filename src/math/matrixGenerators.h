@@ -1,7 +1,30 @@
 #ifndef MC_MATRIX_GENERATORS_H
 #define MC_MATRIX_GENERATORS_H
 
+#ifndef HAVE_CERES
+namespace ceres
+{
+	template <class T>
+	void AngleAxisToRotationMatrix(T* a, T* b)
+	{
+		throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+	}
+	
+	template <class T>
+	void RotationMatrixToAngleAxis(T* a, T* b)
+	{
+		throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+	}
+
+	template <class T>
+	void AngleAxisToQuaternion(T* a, T* b)
+	{
+		throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+	}
+}
+#else
 #include <ceres/rotation.h>
+#endif
 
 #include "math/mathTypes.h"
 

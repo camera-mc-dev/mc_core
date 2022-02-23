@@ -9,6 +9,8 @@ using std::endl;
 #include <vector>
 #include <string>
 
+#include <omp.h>
+
 #include "calib/calibration.h"
 #include "math/mathTypes.h"
 #include "imgio/imagesource.h"

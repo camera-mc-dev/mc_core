@@ -2,6 +2,10 @@
 #include <sstream>
 #include <thread>
 #include <cmath>
+#include <chrono>
+#include <thread>
+#include <set>
+#include <numeric>
 
 #include "calib/camNetworkCalib.h"
 #include "math/intersections.h"
@@ -179,7 +183,7 @@ void CamNetCalibrator::LoadAuxMatches()
 		cout << "============================================================================================" << endl;
 		cout << "      warning! matches file: '" << auxMatchesFile << "' could not be opened " << endl;
 		cout << "============================================================================================" << endl;
-		sleep(2);
+		std::this_thread::sleep_for(std::chrono::seconds(2));
 		return;
 	}
 
@@ -2619,6 +2623,9 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 
 void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, vector<unsigned> variCams, unsigned numFixedIntrinsics, unsigned numFixedDists)
 {
+#ifndef HAVE_CERES
+	throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+#else
 	cout << "BA: " << endl;
 	cout << "\tfixed: ";
 	for(unsigned fc = 0; fc < fixedCams.size(); ++fc )
@@ -2775,7 +2782,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 	// ===============================================================
 	// now we should be able to create the Ceres based bundle adjustor.
 	// ===============================================================
-	
+
 	ceres::Problem problem;
 	std::vector< std::vector<double> > params;
 	std::vector< std::vector<double> > points;
@@ -3281,6 +3288,8 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 	}
 	
 	// it all seems to simple, until you run it...
+
+#endif
 }
 
 

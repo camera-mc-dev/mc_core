@@ -147,7 +147,7 @@ void Rendering::CameraNode::Render( RenderList &renderList )
 }
 
 
-void Rendering::CameraNode::SetOrthoProjection(float left, float right, float top, float bottom, float near, float far)
+void Rendering::CameraNode::SetOrthoProjection(float left, float right, float top, float bottom, float nearClip, float farClip)
 {
 	transMatrix3D M;
 	M(0,0) = 2.0 / (right-left);
@@ -162,8 +162,8 @@ void Rendering::CameraNode::SetOrthoProjection(float left, float right, float to
 
 	M(2,0) = 0.0;
 	M(2,1) = 0.0;
-	M(2,2) = -2 / (far-near);
-	M(2,3) = -(far+near)/(far-near);
+	M(2,2) = -2 / (farClip-nearClip);
+	M(2,3) = -(farClip+nearClip)/(farClip-nearClip);
 
 	M(3,0) = 0.0;
 	M(3,1) = 0.0;
@@ -174,30 +174,30 @@ void Rendering::CameraNode::SetOrthoProjection(float left, float right, float to
 	this->right = right;
 	this->top = top;
 	this->bottom = bottom;
-	this->near = near;
-	this->far = far;
+	this->nearClip = nearClip;
+	this->farClip = farClip;
 
 	projMatrix = M;
 
 }
 
-void Rendering::CameraNode::SetPerspectiveProjection( transMatrix2D K, float w, float h, float near, float far )
+void Rendering::CameraNode::SetPerspectiveProjection( transMatrix2D K, float w, float h, float nearClip, float farClip )
 {
 	// This should map our desired right-handed looking along +ve z camera coordinate system
 	// to the appropriate OpenGL normalised device coordinates. Hopefully...
 	transMatrix3D M;
 	M << 2*K(0,0)/w,   2*K(0,1)/w, -( w - 2*K(0,2))/w      ,                        0,
 				  0,  -2*K(1,1)/h,  ( h - 2*K(1,2))/h      ,                        0,
-				  0,            0, -(near+far)/(near-far)  ,  2*far*near/(near - far),
+				  0,            0, -(nearClip+farClip)/(nearClip-farClip)  ,  2*farClip*nearClip/(nearClip - farClip),
 				  0,            0,                        1,                        0;
 	projMatrix = M;
 }
 
-void Rendering::CameraNode::SetFromCalibration( const Calibration &calib, float near, float far )
+void Rendering::CameraNode::SetFromCalibration( const Calibration &calib, float nearClip, float farClip )
 {
 	// This sets the camera projection and camera position to match the input camera
 	// calibration.
-	SetPerspectiveProjection( calib.K, calib.width, calib.height, near, far );
+	SetPerspectiveProjection( calib.K, calib.width, calib.height, nearClip, farClip );
 	L = calib.L;
 }
 

@@ -1,6 +1,7 @@
 #include "imgio/vidWriter.h"
 #include <boost/algorithm/string.hpp>
 
+#ifdef HAVE_FFMPEG
 
 #include <iostream>
 using std::cout;
@@ -345,3 +346,4 @@ void VidWriter::Finish()
 VidWriter::~VidWriter()
 {
 }
+#endif

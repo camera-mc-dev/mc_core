@@ -16,8 +16,26 @@
 #define ME_CALIBRATION_C
 
 #include "math/mathTypes.h"
-#include <ceres/ceres.h>
-#include <ceres/rotation.h>
+
+#ifndef HAVE_CERES
+namespace ceres
+{
+	template <class T>
+	void AngleAxisToRotationMatrix(T *a, T *b)
+	{
+		throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+	}
+
+	template <class T>
+	void RotationMatrixToAngleAxis(T *a, T *b)
+	{
+		throw std::runtime_error("Not compiled with ceres, don't try to run calibration stuff.");
+	}
+}
+#else
+	#include <ceres/ceres.h>
+	#include <ceres/rotation.h>
+#endif
 #include <vector>
 
 

@@ -15,7 +15,9 @@ using std::endl;
 #include <chrono>
 
 #include "opencv2/features2d.hpp"
+#ifdef HAVE_OPENCV_XFEATURES
 #include "opencv2/xfeatures2d.hpp"
+#endif
 
 
 class CircleDetector : public cv::Feature2D
@@ -948,6 +950,7 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 	}
 	else if( blobDetector == SURF_t )
 	{
+#ifdef HAVE_OPENCV_XFEATURES
 		// with the right tuning, SURF is much faster and can do a pretty good job.
 		cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(SURF_thresh);
 		surf->detect( grey, tmpkps );
@@ -958,6 +961,9 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 		{
 			tmpkps[kpc].size *= 0.5;    // 1/4 == 0.25, but we want a wee-bit-larger.
 		}
+#else
+		throw std::runtime_error("Not compiled with OpenCV xFeatures, so no SURF");
+#endif
 	}
 	else if( blobDetector == CIRCD_t )
 	{

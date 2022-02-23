@@ -47,7 +47,7 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 		else if( boost::filesystem::exists( inpth ) )
 		{
 			// create a video source unless its an hdf5 file
-			if( inpth.extension().compare(".hdf5") == 0 )
+			if( inpth.extension().compare(std::string(".hdf5")) == 0 )
 			{
 #ifdef HAVE_HIGH_FIVE
 				retval.source.reset( new HDF5Source( input, calibFile ) );
@@ -69,7 +69,7 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 		std::string tag( input.begin(), input.begin()+a);
 		std::string info( input.begin()+a+1, input.end());
 		
-		if( inpth.extension().compare(".hdf5") == 0 )
+		if( inpth.extension().compare(std::string(".hdf5")) == 0 )
 		{
 #ifdef HAVE_HIGH_FIVE
 			retval.source.reset( new HDF5Source( input, calibFile ) );

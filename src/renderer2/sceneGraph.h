@@ -1,6 +1,11 @@
 #ifndef SCENE_GRAPH_H
 #define SCENE_GRAPH_H
 
+// stupid windows compile thing
+// windows had non-standard keywords for nearClip and farClip for old fashioned 
+// stuff, and being windows, didn't properly remove them, and I don't want to include windows.h
+
+
 #include "math/mathTypes.h"
 #include <vector>
 #include <map>
@@ -148,9 +153,9 @@ namespace Rendering
 		// set what sort of projection the camera will perform.
 		// perspective projection is set using a standard computer
 		// vision K matrix, compatible with OpenCV.
-		void SetOrthoProjection(float left, float right, float top, float bottom, float near, float far);
-		void SetPerspectiveProjection( transMatrix2D K, float width, float height, float near, float far );
-		void SetFromCalibration( const Calibration &calib, float near, float far );
+		void SetOrthoProjection(float left, float right, float top, float bottom, float nearClip, float farClip);
+		void SetPerspectiveProjection( transMatrix2D K, float width, float height, float nearClip, float farClip );
+		void SetFromCalibration( const Calibration &calib, float nearClip, float farClip );
 		transMatrix3D GetProjection()
 		{
 			return projMatrix;
@@ -171,8 +176,8 @@ namespace Rendering
 		float GetRight(){ return right ;}
 		float GetTop(){ return top ;}
 		float GetBottom(){ return bottom ;}
-		float GetNear(){ return near ;}
-		float GetFar(){ return far ;}
+		float GetnearClip(){ return nearClip ;}
+		float GetfarClip(){ return farClip ;}
 		
 	protected:
 
@@ -185,7 +190,7 @@ namespace Rendering
 		// worth knowing these :)
 		float left, right;
 		float top,  bottom;
-		float near, far;
+		float nearClip, farClip;
 
 	};
 

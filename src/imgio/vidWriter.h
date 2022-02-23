@@ -9,6 +9,7 @@
 //
 #include <cv.hpp>
 
+#ifdef HAVE_FFMPEG
 extern "C"
 {
 	#include "libavcodec/avcodec.h"
@@ -65,6 +66,50 @@ protected:
 	int fps;
 	FILE *outfi;
 };
+
+#else
+class VidWriter
+{
+public:
+	//
+	// Create the VidWriter to write to the specified filename, using the specified codec,
+	// for an image of the format typified by typicalImage, and with the expected fps as listed.
+	//
+	// Bitrate is input as kbps, and 8000 is considered a good place for 1920x1080
+	//
+	VidWriter(std::string filename, std::string codecStr, cv::Mat typicalImage, int fps, int crf = 18)
+	{
+		throw std::runtime_error("Not compiled with ffmpeg, so no vid writer.");
+	}
+
+	//
+	// Write the next image to the video file.
+	//
+	void Write(cv::Mat img)
+	{
+		throw std::runtime_error("Not compiled with ffmpeg, so no vid writer.");
+	}
+
+
+	//
+	// Close the video file
+	//
+	void Finish()
+	{
+		throw std::runtime_error("Not compiled with ffmpeg, so no vid writer.");
+	}
+
+
+	~VidWriter()
+	{
+
+	}
+
+protected:
+
+
+};
+#endif
 
 
 #endif
