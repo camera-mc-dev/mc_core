@@ -32,9 +32,9 @@ jobs:
           #config: ${{ secrets.CONFIG }} # ssh_config; optional
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Update submodule
-        working-directory: HighFive
         run: |
-           git pull
+           cd HighFive
+           git pull origin master
            ls -la
       - name: Copies the file
         run: |
