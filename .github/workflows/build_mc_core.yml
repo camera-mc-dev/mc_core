@@ -1,11 +1,11 @@
 # This is a basic workflow to help you get started with Actions
-name: Copy mc_core Docker Image
+name: Build mc_core Image and build test
 
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master ]
+#   push:
+#     branches: [ master ]
   pull_request:
     branches: [ master ]
 
@@ -31,11 +31,21 @@ jobs:
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
           #config: ${{ secrets.CONFIG }} # ssh_config; optional
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
+      
       - name: Copies the file
         run: |
-          scp -i /home/runner/.ssh/id_rsa_docker -r ${{secrets.USERNAME}}@${{secrets.HOST}}:/Users/${{secrets.USERNAME}}/CONTENT .
-          cat CONTENT/tst
-          
+          scp -i /home/runner/.ssh/id_rsa_docker ${{secrets.USERNAME}}@${{secrets.HOST}}:/Users/${{secrets.USERNAME}}/CONTENT/mc_base.tar.gz .
+      
+      - name: Load the base image
+        run: docker load mc_base.tar.gz
+      
+      - name: Build the new image
+        run: docker build -t mc_core .
+      
+      - name: Run the build test
+        run: docker run -it mc_core scons -j5 
+      
+      
 #       - name: Run sshpass commands
 #   uses: matheusvanzan/sshpass-action@v2
 #   with:
