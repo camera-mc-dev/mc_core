@@ -37,7 +37,7 @@ jobs:
           scp -i /home/runner/.ssh/id_rsa_docker ${{secrets.USERNAME}}@${{secrets.HOST}}:/Users/${{secrets.USERNAME}}/CONTENT/mc_base.tar.gz .
       
       - name: Load the base image
-        run: docker load mc_base.tar.gz
+        run: docker load -i mc_base.tar.gz
       
       - name: Build the new image
         run: docker build -t mc_core .
