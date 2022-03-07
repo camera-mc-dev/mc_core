@@ -8,4 +8,7 @@ COPY . .
 
 ## install highfive
 WORKDIR HighFive/build
-RUN cmake .. -DHIGHFIVE_EXAMPLES=OFF -DHIGHFIVE_USE_BOOST=OFF && make install 
+RUN cmake .. -DHIGHFIVE_EXAMPLES=OFF -DHIGHFIVE_USE_BOOST=OFF && make install
+
+WORKDIR /root/mc_dev/mc_core
+RUN scons -j5 
