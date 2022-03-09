@@ -45,10 +45,6 @@ jobs:
       - name: Build the new image
         run: docker build -t mc_core .
       
-      - name: Run the build test
-        run: docker run -it mc_core scons -j5 
-      
-      
 #       - name: Run sshpass commands
 #   uses: matheusvanzan/sshpass-action@v2
 #   with:
