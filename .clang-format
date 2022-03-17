@@ -1,0 +1,6 @@
+﻿BasedOnStyle: Microsoft
+IndentCaseLabels: 'true'
+Language: Cpp
+NamespaceIndentation: All
+SpacesInAngles: 'true'
+UseTab: ForIndentation
