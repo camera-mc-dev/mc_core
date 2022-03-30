@@ -122,17 +122,17 @@ public:
 	ImageDirectory( std::string in_path )
 	{
 		this->path = in_path;
-
+		
 		// find the images in the directory.
 		boost::filesystem::path p(path);
-
+		
 		if( boost::filesystem::exists(p) && boost::filesystem::is_directory(p))
 		{
 			boost::filesystem::directory_iterator di(p), endi;
 			for( ; di != endi; ++di )
 			{
 				std::string s = di->path().string();
-
+				
 				if( IsImage(s) )
 				{
 					imageList.push_back(s);
@@ -143,15 +143,15 @@ public:
 		{
 			throw std::runtime_error("Could not find image source directory.");
 		}
-
+		
 		std::sort( imageList.begin(), imageList.end() );
-
+		
 		// find the calibration file in the directory and read it.
 		// if there's no file, this will return false, but we'll still
 		// have a null calibration.
 		calibration.Read( path + "/calibFile");
-
-
+		
+		
 		// advance to the first frame.
 		frameIdx = 0;
 		ReadImage();
@@ -178,7 +178,7 @@ public:
 			for( ; di != endi; ++di )
 			{
 				std::string s = di->path().string();
-
+				
 				if( IsImage(s) )
 				{
 					imageList.push_back(s);
@@ -313,6 +313,35 @@ public:
 			return true;
 		}
 		return false;
+	}
+	
+	
+	// sometimes we might want something weird like this.
+	void SortImageList()
+	{
+		std::unique_lock<std::mutex> lock( nextImage_mutex );
+		frameIdx = 0;
+		std::sort( imageList.begin(), imageList.end() );
+		
+		// let the prefetch work on getting the next image.
+		getNext = true;
+		lock.unlock();
+		nextImage_cv.notify_one();
+	}
+	
+	void ShuffleImageList()
+	{
+		std::unique_lock<std::mutex> lock( nextImage_mutex );
+		frameIdx = 0;
+		
+		std::random_device rd;
+		std::mt19937 g(rd());
+		std::shuffle(imageList.begin(), imageList.end(), g);
+		
+		// let the prefetch work on getting the next image.
+		getNext = true;
+		lock.unlock();
+		nextImage_cv.notify_one();
 	}
 
 private:
