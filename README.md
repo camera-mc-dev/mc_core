@@ -63,12 +63,16 @@ Obviously, that will fail if you have not yet installed all the required depende
     - `sudo apt install libboost-filesystem-dev`
   - Magick++: image loading library - I had fondness for this over OpenCV, but may remove requirement.
     - `sudo apt install libmagick++-dev`
-  - libconfig : parse config files.
-    - `sudo apt install libconfig-dev`
+  - libconfig++ : parse config files.
+    - `sudo apt install libconfig++-dev`
   - snappy : Google's fast compression library - used for custom `.charImg` and .`floatImg` 
     - `sudo apt install libsnappy-dev`
   - ceres solver
     - `sudo apt install libceres-dev`
+  - nanoflann
+    - https://github.com/jlblancoc/nanoflann
+    - A nice little library for fast nearest neighbour search trees with Eigen interface
+    - Usual CMake install process.
 
 Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority.
 
