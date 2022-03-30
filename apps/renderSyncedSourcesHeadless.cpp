@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 	// as such, we need a slightly different process if we use video sources.
 	bool isVideoSources = false;
 	std::vector< std::shared_ptr<ImageSource> > sources;
-	for( unsigned ac = 1; ac < argc; ++ac )
+	for( unsigned ac = 2; ac < argc; ++ac )
 	{
 		// Let the factory make the source, but we'll do some extra work to see if there are 
 		// grid files or calib files in default locations.
