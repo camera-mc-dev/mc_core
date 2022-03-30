@@ -18,6 +18,8 @@ using std::string;
 
 #include "imgio/loadsave.h"
 
+#include <random>
+
 // and ImageSource is the basic root class for something that provides images.
 // It could be a camera, or it could be a directory of images, or any number
 // of other things :)
