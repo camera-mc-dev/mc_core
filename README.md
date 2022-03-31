@@ -9,7 +9,7 @@
   - image io
   - maths and miscellaneous core functionality
 
-The CAMERA wiki provides an overview of the various other parts of `mc_dev`.
+Documentation in the `mc_base` repository provides basic information about the other parts of the framework.
 
 ## Getting the source
 
@@ -50,7 +50,12 @@ Obviously, that will fail if you have not yet installed all the required depende
 
 `mc_core` and thus all of `mc_dev` depends on a number of external libraries. These can mostly be installed through your package manager.
 
-  - OpenCV: Up to 3.4. Recommend you build yourself.
+  - OpenCV: 3.4.9 will work. Although it can come from a package manager, you should build it yourself to be sure you have:
+    - You will need the contrib packages
+    - You will need to enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+    - Recommend enabling OpenMP for taking advantage of some parallel optimisations
+    - Use CUDA if you have it.
+    - Update to 4.x branch is on the ToDo list...
   - Rendering: 
     - SFML: Create and manage OpenGL contexts and handle interactivity
     - GLEW: So we can use modern OpenGL
@@ -63,12 +68,19 @@ Obviously, that will fail if you have not yet installed all the required depende
     - `sudo apt install libboost-filesystem-dev`
   - Magick++: image loading library - I had fondness for this over OpenCV, but may remove requirement.
     - `sudo apt install libmagick++-dev`
-  - libconfig : parse config files.
-    - `sudo apt install libconfig-dev`
+  - libconfig++ : parse config files.
+    - `sudo apt install libconfig++-dev`
   - snappy : Google's fast compression library - used for custom `.charImg` and .`floatImg` 
     - `sudo apt install libsnappy-dev`
   - ceres solver
     - `sudo apt install libceres-dev`
+  - nanoflann
+    - https://github.com/jlblancoc/nanoflann
+    - A nice little library for fast nearest neighbour search trees with Eigen interface
+    - Usual CMake install process.
+  - High5 *optional*: An HDF5 file library
+    - https://github.com/BlueBrain/HighFive
+    - edit the `FindHDF5()` in `mcdev_core_config.py` if you use it.
 
 Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority.
 
