@@ -93,8 +93,10 @@ private:
 		{
 			// wait for trigger
 			std::unique_lock<std::mutex> lock( nextImage_mutex );
-			while( !getNext )
+			while( !getNext && !threadQuit )
 			{
+				if( threadQuit )
+					continue;
 				nextImage_cv.wait( lock );
 			}
 			
