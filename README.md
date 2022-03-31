@@ -46,10 +46,7 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
     - `sudo apt install libboost-filesystem-dev`
   - Magick++: image loading library - I had fondness for this over OpenCV, but may remove requirement.
     - `sudo apt install libmagick++-dev`
-  - libconfig : parse config files.
-    - `sudo apt install libconfig-dev`
-
-    or
+  - libconfig++ : parse config files.
     - `sudo apt install libconfig++-dev`
   - snappy : Google's fast compression library - used for custom `.charImg` and .`floatImg` 
     - `sudo apt install libsnappy-dev`
@@ -57,9 +54,8 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
     - `sudo apt install libceres-dev`
   - nanoflann
     - https://github.com/jlblancoc/nanoflann
-    - `sudo apt-get install build-essential cmake libgtest-dev libeigen3-dev`
-    - `mkdir build && cd build && cmake ..`
-    - `make && make test`
+    - A nice little library for fast nearest neighbour search trees with Eigen interface
+    - Usual CMake install process
   - High5 *optional*: An HDF5 file library
     - https://github.com/BlueBrain/HighFive
     - If not required, edit the `FindHDF5()` in `mcdev_core_config.py` like so:

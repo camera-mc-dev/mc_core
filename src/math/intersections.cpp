@@ -8,7 +8,8 @@ hVec3D IntersectRays( vector<hVec3D> ss, vector<hVec3D> ds )
 	assert( ss.size() == ds.size() );
 
 	// algorithm uses Slabaugh,Schafer & Livingston 2001:
-	// http://www.staff.city.ac.uk/~sbbh653/publications/opray.pdf
+	// http://www.staff.city.ac.uk/~sbbh653/publications/opray.pdf - dead link.
+	// https://www.researchgate.net/publication/2837100_Optimal_Ray_Intersection_For_Computing_3D_Points
 
 	// make sure ds are normalised.
 	for( unsigned dc = 0; dc < ds.size(); ++dc )
