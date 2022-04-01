@@ -28,6 +28,7 @@ public:
 	std::string shadersRoot;
 	std::string coreDataRoot;
 	std::string scriptsRoot;
+	std::string netsRoot;
 	
 	unsigned maxSingleWindowWidth;
 	unsigned maxSingleWindowHeight;
@@ -75,10 +76,11 @@ public:
 				cfgRoot.add("maxSingleWindowWidth", libconfig::Setting::TypeInt );
 				cfgRoot.add("maxSingleWindowHeight", libconfig::Setting::TypeInt );
 				
-				cfg.lookup("dataRoot")     = userHome + "/programming/mc_dev/data";
-				cfg.lookup("shadersRoot") = userHome + "/programming/mc_dev/shaders";
-				cfg.lookup("coreDataRoot") = userHome + "/programming/mc_dev/data";
-				cfg.lookup("scriptsRoot")  = userHome + "/programming/mc_dev/python";
+				cfg.lookup("dataRoot")     = userHome + "/programming/mc_dev/mc_core/data/";
+				cfg.lookup("shadersRoot")  = userHome + "/programming/mc_dev/mc_core/shaders/";
+				cfg.lookup("coreDataRoot") = userHome + "/programming/mc_dev/mc_core/data/";
+				cfg.lookup("scriptsRoot")  = userHome + "/programming/mc_dev/mc_core/python";
+				cfg.lookup("netsRoot")     = userHome + "/programming/mc_dev/mc_nets/data/";
 				
 				cfg.lookup("maxSingleWindowWidth") = 1000;
 				cfg.lookup("maxSingleWindowHeight") = 800;
@@ -93,6 +95,7 @@ public:
 			shadersRoot  = (const char*) cfg.lookup("shadersRoot");
 			coreDataRoot = (const char*) cfg.lookup("coreDataRoot");
 			scriptsRoot  = (const char*) cfg.lookup("scriptsRoot");
+			netsRoot     = (const char*) cfg.lookup("netsRoot");
 			
 			maxSingleWindowWidth  = cfg.lookup("maxSingleWindowWidth");
 			maxSingleWindowHeight = cfg.lookup("maxSingleWindowHeight");
