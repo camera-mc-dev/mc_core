@@ -100,6 +100,7 @@ void Rendering::Mesh::UploadToRenderer(std::weak_ptr<AbstractRenderer> in_render
 	
 	glBindBuffer(GL_ARRAY_BUFFER, vertColourBuffer );
 	glBufferData( GL_ARRAY_BUFFER, vertColours.cols() * sizeof(float) * vertColours.rows(), vertColours.data(), GL_STATIC_DRAW );
+	
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, faceBuffer );
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.cols() * sizeof(unsigned) * faces.rows(), faces.data(), GL_STATIC_DRAW );
