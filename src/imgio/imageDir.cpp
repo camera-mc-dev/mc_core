@@ -149,24 +149,30 @@ bool ImageDirectory::Advance()
 	
 	
 	// try to lock nextImage mutex
-	do(
+	bool got = false;
+	while( !got )
 	{
 		std::unique_lock<std::mutex> lock( nextImage_mutex );
 		current = nextImage.clone();
 		if( current.rows == 0 || current.cols == 0 )
 		{
-			cout << "ImageDirectory: Got empty image from nextImage?" << endl;
+			std::cout << "ImageDirectory: Got empty image from nextImage?" << std::endl;
 			lock.unlock();
 		}
+		else
+		{
+			got = true;
+			++frameIdx;
+			
+			// let the prefetch work on getting the next image.
+			getNext = true;
+			lock.unlock();
+			nextImage_cv.notify_one();
+			
+		}
 	}
-	while( current.rows == 0 || current.cols == 0 )
 	
-	++frameIdx;
 	
-	// let the prefetch work on getting the next image.
-	getNext = true;
-	lock.unlock();
-	nextImage_cv.notify_one();
 	
 	return true;
 }
