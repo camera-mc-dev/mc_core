@@ -39,7 +39,7 @@ int main(int argc, char *argv[] )
 
 int main(void)
 {
-	std::cout << "framework not compiled with High5 HDF5 file support." << endl;
+	std::cout << "framework not compiled with High5 HDF5 file support." << std::endl;
 	return -1;
 }
 
