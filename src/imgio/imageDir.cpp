@@ -17,7 +17,7 @@ void ImageDirectory::PreFetchThread()
 		// read image 
 		if( frameIdx+1  < imageList.size() )
 		{
-			std::cout << "\n*\n*\n*\n*\nprefetch load \n*\n*\n*\n*" << std::endl;
+			//std::cout << "\n*\n*\n*\n*\nprefetch load \n*\n*\n*\n*" << std::endl;
 			nextImage = LoadImage( imageList[frameIdx+1] );
 		}
 		
