@@ -19,9 +19,9 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
 
 ```bash
   $ cd ~/where/you/keep/your/code
-  $ git clone camera@rivendell.cs.bath.ac.uk:mc_base mc_dev
+  $ git clone git@github.com:camera-mc-dev/mc_base.git mc_dev
   $ cd mc_dev
-  $ git clone camera@rivendell.cs.bath.ac.uk:mc_core
+  $ git clone git@github.com:camera-mc-dev/mc_core.git
 ```
 
 ## Dependencies

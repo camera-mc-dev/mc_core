@@ -1,3 +1,6 @@
+#ifndef MC_FNIMGSRC_H
+#define MC_FNIMGSRC_H
+
 #include "imagesource.h"
 #include <map>
 
@@ -275,3 +278,4 @@ private:
 	// the current image.
 	cv::Mat current;
 };
+#endif
