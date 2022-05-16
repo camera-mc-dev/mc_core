@@ -1,6 +1,7 @@
 #ifndef MC_SOURCE_FACTORY_H
 #define MC_SOURCE_FACTORY_H
 
+
 #include "imgio/imagesource.h"
 #include "imgio/vidsrc.h"
 #include "imgio/fnDirSrc.h"
@@ -17,3 +18,4 @@ struct SourcePair
 SourcePair CreateSource( std::string input, std::string calibFile = "none" );
 
 #endif
+
