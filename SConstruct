@@ -68,6 +68,9 @@ def SetPathsLibsAndFlags_memSan(env):
 	env.Append(LINKFLAGS=['-g', '-O1', '-fsanitize=address', '-fno-omit-frame-pointer'])
 
 
+def SetPathsLibsAndFlags_profiling(env):
+	env.Append(CPPFLAGS=['-pg','-g', '-O0'])
+	env.Append(LINKFLAGS=['-pg','-g'])
 
 
 
@@ -206,11 +209,13 @@ buildEnvs['debug'] = masterEnv.Clone()
 buildEnvs['dbgOpt'] = masterEnv.Clone()
 buildEnvs['dbg-memSan'] = masterEnv.Clone()
 buildEnvs['optimised'] = masterEnv.Clone()
+buildEnvs['profile'] = masterEnv.Clone()
 
 SetPathsLibsAndFlags_debug( buildEnvs['debug'])
 SetPathsLibsAndFlags_dbgOpt( buildEnvs['dbgOpt'])
 SetPathsLibsAndFlags_memSan( buildEnvs['dbg-memSan'])
 SetPathsLibsAndFlags_opt( buildEnvs['optimised'])
+SetPathsLibsAndFlags_profiling(buildEnvs['profile'])
 
 
 # --------------------------------------------------------------
