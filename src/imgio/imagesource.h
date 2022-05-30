@@ -15,6 +15,7 @@ using std::string;
 
 #include <thread>
 #include <condition_variable>
+#include <random>
 
 #include "imgio/loadsave.h"
 
