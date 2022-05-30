@@ -236,7 +236,6 @@ void CamNetCalibrator::Calibrate()
 
 	// make sure we only have grids that are visible in more than
 	// a single camera - unless we only have one camera!
-	//std::vector< std::vector< std::vector< cv::Point2f > > > valGrids;
 	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
 
 	unsigned numTotalGrids = grids[0].size();
