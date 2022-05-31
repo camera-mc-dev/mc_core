@@ -98,6 +98,7 @@ private:
 	vector<cv::Mat> Ks;
 	vector< vector<float> > ks;
 	vector< cv::Point3f > objCorners;
+	bool intrinsicsOnly;
 
 
 	// extrinsics
