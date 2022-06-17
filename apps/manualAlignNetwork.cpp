@@ -154,8 +154,12 @@ Settings ParseConfig( std::string cfn )
 				s.calibFiles[ic] = str;
 			}
 		}
-
-		s.originFrame  = cfg.lookup("originFrame");
+		
+		s.originFrame = 0;
+		if( cfg.exists("originFrame" ) )
+		{
+			s.originFrame  = cfg.lookup("originFrame");
+		}
 		s.targetDepth  = cfg.lookup("targetDepth");
 		
 		if( cfg.exists("alignXisNegative") )

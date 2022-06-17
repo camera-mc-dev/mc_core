@@ -273,6 +273,13 @@ int main(int argc, char* argv[])
 				cv::Mat img = sources[isc]->GetCurrent();
 				if( grids.size() > 0 && grids[isc].size() > 0 && grids[isc][ic].size() > 0 )
 				{
+					float nrows = 0;
+					float ncols = 0;
+					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
+					{
+						nrows = std::max( nrows, grids[isc][ic][pc].row+1.0f );
+						ncols = std::max( nrows, grids[isc][ic][pc].col+1.0f );
+					}
 					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
 					{
 						float x,y;
@@ -283,8 +290,8 @@ int main(int argc, char* argv[])
 						col = grids[isc][ic][pc].col;
 						
 						float red,green,blue;
-						red   = (std::min(row,10)/10.0f) * 255.0f;
-						green = (std::min(col,10)/10.0f) * 255.0f;
+						red   = (row/nrows) * 255.0f;
+						green = (col/ncols) * 255.0f;
 						blue  = 255.0f;
 						
 						cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
