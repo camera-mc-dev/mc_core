@@ -1,5 +1,7 @@
 #include "imgio/vidWriter.h"
 #include <boost/algorithm/string.hpp>
+#include "commonConfig/commonConfig.h"
+
 
 #include <sstream>
 #include <iostream>
@@ -8,13 +10,12 @@ using std::endl;
 
 VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typicalImage, int in_fps, int in_crf, std::string pixfmt)
 {
-	// build up our ffmpeg command.
-	
+	// build up our ffmpeg command into a stringstream
+	std::stringstream ss;
 	
 	// start with the basics - the actual ffmpeg executable.
-	// Note that we should get this from the commonConfig
-	std::stringstream ss;
-	ss << "/usr/bin/ffmpeg "; 
+	CommonConfig ccfg;
+	ss << ccfg.ffmpegPath << " "; 
 	
 	// we'll just go with overwriting existing files rather than have to handle a failed ffmpeg open.
 	ss << "-y ";
@@ -98,13 +99,12 @@ VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typica
 
 VidWriter::VidWriter( std::string filename, std::string encoderStr, cv::Mat typicalImage, int in_fps )
 {
-	// build up our ffmpeg command.
-	
+		// build up our ffmpeg command into a stringstream
+	std::stringstream ss;
 	
 	// start with the basics - the actual ffmpeg executable.
-	// Note that we should get this from the commonConfig
-	std::stringstream ss;
-	ss << "/usr/bin/ffmpeg "; 
+	CommonConfig ccfg;
+	ss << ccfg.ffmpegPath << " ";
 	
 	// we'll just go with overwriting existing files rather than have to handle a failed ffmpeg open.
 	ss << "-y ";
