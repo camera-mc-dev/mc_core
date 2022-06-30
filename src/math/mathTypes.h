@@ -9,6 +9,7 @@
 // general purpose dynamic-sized matrix:
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic > genMatrix;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor > genRowMajMatrix;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor > genColMajMatrix;
 
 // projection matrix. Always 3x4.
 typedef Eigen::Matrix<float,3,4> projMatrix;

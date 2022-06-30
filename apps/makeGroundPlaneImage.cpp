@@ -19,6 +19,7 @@
 #include <set>
 #include <string>
 #include <map>
+#include <iomanip>
 using std::cout;
 using std::endl;
 using std::vector;
@@ -85,6 +86,7 @@ int main(int argc, char *argv[] )
 	float targetDepth = 0;
 	unsigned originFrame = 0;
 	std::string matchesFile("none");
+	bool animate = false;
 	try
 	{
 		cfg.readFile(argv[1]);
@@ -130,6 +132,9 @@ int main(int argc, char *argv[] )
 		}
 
 		originFrame  = cfg.lookup("originFrame");
+		animate = false;
+		if( cfg.exists("animateGroundPlane") )
+			animate      = cfg.lookup("animateGroundPlane");
 		targetDepth  = cfg.lookup("targetDepth");
 	}
 	catch( libconfig::SettingException &e)
@@ -179,10 +184,13 @@ int main(int argc, char *argv[] )
 		}
 		gotSources = true;
 	}
-
-	for( unsigned isc = 0; isc < sources.size(); ++isc )
+	
+	if( !animate )
 	{
-		sources[isc]->JumpToFrame( originFrame );
+		for( unsigned isc = 0; isc < sources.size(); ++isc )
+		{
+			sources[isc]->JumpToFrame( originFrame );
+		}
 	}
 	
 	
@@ -213,45 +221,64 @@ int main(int argc, char *argv[] )
 	Rendering::RendererFactory::Create( ren, winW, winH, "Ground Plane");
 	ren->Get2dBgCamera()->SetOrthoProjection(0, imgSize, 0, imgSize, -10, 10);
 	
-	
-	cv::Mat gpImage( imgSize, imgSize, CV_32FC3, cv::Scalar(0,0,0) );
-	for( unsigned rc = 0; rc < imgSize; ++rc )
+	bool done = false;
+	while( !done )
 	{
-		for( unsigned cc = 0; cc < imgSize; ++cc )
+		cv::Mat gpImage( imgSize, imgSize, CV_32FC3, cv::Scalar(0,0,0) );
+		for( unsigned rc = 0; rc < imgSize; ++rc )
 		{
-			hVec3D wp;
-			wp(0) = minx + worldSize * (cc/(float)imgSize);
-			wp(1) = miny + worldSize * (rc/(float)imgSize);
-			wp(2) = 0.0f;
-			wp(3) = 1.0f;
-			
-			cv::Vec3f &gp = gpImage.at<cv::Vec3f>(rc,cc);
-			float count = 0;
-			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			for( unsigned cc = 0; cc < imgSize; ++cc )
 			{
-				hVec2D ip;
-				if( sources[isc]->GetCalibration().Project(wp,ip) )
+				hVec3D wp;
+				wp(0) = minx + worldSize * (cc/(float)imgSize);
+				wp(1) = miny + worldSize * (rc/(float)imgSize);
+				wp(2) = 0.0f;
+				wp(3) = 1.0f;
+				
+				cv::Vec3f &gp = gpImage.at<cv::Vec3f>(rc,cc);
+				float count = 0;
+				for( unsigned isc = 0; isc < sources.size(); ++isc )
 				{
-					cv::Mat img = sources[isc]->GetCurrent();
-					if( ip(0) > 0 && ip(1) > 0 && ip(1) < img.rows && ip(0) < img.cols )
+					hVec2D ip;
+					if( sources[isc]->GetCalibration().Project(wp,ip) )
 					{
-						gp[0] += img.at< cv::Vec3b >( ip(1), ip(0) )[0] / 255.0f;
-						gp[1] += img.at< cv::Vec3b >( ip(1), ip(0) )[1] / 255.0f;
-						gp[2] += img.at< cv::Vec3b >( ip(1), ip(0) )[2] / 255.0f;
-						count += 1;
+						cv::Mat img = sources[isc]->GetCurrent();
+						if( ip(0) > 0 && ip(1) > 0 && ip(1) < img.rows && ip(0) < img.cols )
+						{
+							gp[0] += img.at< cv::Vec3b >( ip(1), ip(0) )[0] / 255.0f;
+							gp[1] += img.at< cv::Vec3b >( ip(1), ip(0) )[1] / 255.0f;
+							gp[2] += img.at< cv::Vec3b >( ip(1), ip(0) )[2] / 255.0f;
+							count += 1;
+						}
 					}
 				}
+				
+				gp /= count;
+				
 			}
-			
-			gp /= count;
-			
+			ren->SetBGImage( gpImage );
+			ren->Step();
 		}
-		ren->SetBGImage( gpImage );
-		ren->Step();
+		
+		
+		if( !animate )
+		{
+			done = true;
+			gpImage *= 255;
+			SaveImage( gpImage, "groundPlane.png" );
+		}
+		if( animate )
+		{
+			std::stringstream ss;
+			ss << "groundPlane-" << std::setw(8) << std::setfill('0') << sources[0]->GetCurrentFrameID() << ".charImg";
+			gpImage *= 255;
+			SaveImage( gpImage, ss.str() );
+			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			{
+				done = done | !sources[isc]->Advance();
+			}
+		}
 	}
-	
-	gpImage *= 255;
-	SaveImage( gpImage, "groundPlane.png" );
 	
 	while(ren->Step());
 }
