@@ -1,347 +1,177 @@
 #include "imgio/vidWriter.h"
 #include <boost/algorithm/string.hpp>
+#include "commonConfig/commonConfig.h"
 
 
+#include <sstream>
 #include <iostream>
 using std::cout;
 using std::endl;
 
-VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typicalImage, int in_fps, int in_crf)
+VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typicalImage, int in_fps, int in_crf, std::string pixfmt)
 {
-	av_register_all();
-	avcodec_register_all();
-	int err;
+	// build up our ffmpeg command into a stringstream
+	std::stringstream ss;
 	
-	fps = in_fps;
+	// start with the basics - the actual ffmpeg executable.
+	CommonConfig ccfg;
+	ss << ccfg.ffmpegPath << " "; 
 	
-	//
-	// Guess the output format.
-	//
-	ofmt = av_guess_format(NULL, filename.c_str(), NULL);
-	if (ofmt == NULL)
-	{
-		throw std::runtime_error("can't guess output format" );
-	}
+	// we'll just go with overwriting existing files rather than have to handle a failed ffmpeg open.
+	ss << "-y ";
 	
-	//
-	// But change the codec to the one requested.
-	//
-	//
-	//
-	// Try to find the desired codec.
-	//
-	boost::algorithm::to_lower(codecStr);
-	if( codecStr.compare("h264") == 0 )
+	// now we specify the codec for the input
+	ss << "-f rawvideo -vcodec rawvideo ";
+	
+	// now the input shape and format.
+	ss << "-s " << typicalImage.cols << "x" << typicalImage.rows << " ";
+	
+	if( typicalImage.type() == CV_8UC3 )
 	{
-		ofmt->video_codec = AV_CODEC_ID_H264;
+		frameBytes = typicalImage.rows * typicalImage.cols * 3;
+		ss << "-pix_fmt bgr24 ";
 	}
-	else if( codecStr.compare("h265") == 0 )
+	else if( typicalImage.type() == CV_8UC1 )
 	{
-		ofmt->video_codec = AV_CODEC_ID_H265;
-	}
-	else if( codecStr.compare("vp9") == 0 )
-	{
-		ofmt->video_codec = AV_CODEC_ID_VP9;
+		frameBytes = typicalImage.rows * typicalImage.cols * 1;
+		ss << "-pix_fmt gray8 ";
 	}
 	else
 	{
-		throw std::runtime_error("Unknown codec for vidWriter: " + codecStr );
+		throw std::runtime_error("Vid writer expects typical image to be CV_8UC1 or CV_8UC3");
 	}
 	
+	// input framerate.
+	fps = in_fps;
+	ss << "-r " << fps;
 	
-	//
-	// Create an output context. 
-	//
-	std::stringstream ss;
-	ss << filename << ".tmp." << codecStr;
-	std::string tmpFile = ss.str();
-	err = avformat_alloc_output_context2(&fctx, ofmt, NULL, filename.c_str());
-	if( err < 0 )
+	// and that the input comes from stdin
+	ss << " -i - ";
+	
+	
+	// now we specify the output codec.
+	// we'll allow a few common shortcuts.
+	std::string cstring;
+	ss << " -c:v " ;
+	boost::algorithm::to_lower(codecStr);
+	if( codecStr.compare("h264") == 0 )
 	{
-		// probably need to do some cleanup...
-		throw std::runtime_error("Failed to allocate output context");
+		cstring = "libx264";
 	}
-	
-	
-	//
-	// Find the encoder.
-	//
-	if( ofmt->video_codec == AV_CODEC_ID_H265 )
+	else if( codecStr.compare("h265") == 0 )
 	{
-		codec = avcodec_find_encoder_by_name("hevc");
-		
+		cstring = "libx265";
+	}
+	else if( codecStr.compare("vp9") == 0 )
+	{
+		cstring = "libvpx-vp9";
+	}
+	else
+	{
+		cstring = codecStr;
 	}
 	
-	if( !codec )
-		codec = avcodec_find_encoder(ofmt->video_codec);
-	if(!codec)
+	ss << cstring << " ";
+	
+	// pixel format. For BioCV data we used yuv444p and got better compression that yuv420p, 
+	// but many media players don't like that so the default is now the less good yuv420p.
+	ss << " -pix_fmt " << pixfmt << " ";
+	
+	// the crf quality - only really valid for x264, x265 and vpn
+	ss << "-crf " << in_crf << " ";
+	
+	// finally, the output file
+	ss << filename;
+	
+	cout << ss.str() << endl;
+	
+	
+	// open the pipe...
+	if( !(outPipe = popen(ss.str().c_str(), "w")) )
 	{
-		throw std::runtime_error("codec not found: " + codecStr );
+		cout << "popen error" << endl;
+		exit(1);
 	}
+	
+	
 
-    cout << "Created codec: " << endl;
-    cout << "\tshort name : " << codec->name << endl;
-    cout << "\tlong name  : " << codec->long_name << endl;
+}
+
+VidWriter::VidWriter( std::string filename, std::string encoderStr, cv::Mat typicalImage, int in_fps )
+{
+		// build up our ffmpeg command into a stringstream
+	std::stringstream ss;
 	
+	// start with the basics - the actual ffmpeg executable.
+	CommonConfig ccfg;
+	ss << ccfg.ffmpegPath << " ";
 	
-	//
-	// Create the output stream.
-	//
-	videoStream = avformat_new_stream(fctx, codec);
-	if (!videoStream)
+	// we'll just go with overwriting existing files rather than have to handle a failed ffmpeg open.
+	ss << "-y ";
+	
+	// now we specify the codec for the input
+	ss << "-f rawvideo -vcodec rawvideo ";
+	
+	// now the input shape and format.
+	ss << "-s " << typicalImage.cols << "x" << typicalImage.rows << " ";
+	
+	if( typicalImage.type() == CV_8UC3 )
 	{
-		throw std::runtime_error("Failed to create video stream");
+		frameBytes = typicalImage.rows * typicalImage.cols * 3;
+		ss << "-pix_fmt bgr24 ";
+	}
+	else if( typicalImage.type() == CV_8UC1 )
+	{
+		frameBytes = typicalImage.rows * typicalImage.cols * 1;
+		ss << "-pix_fmt gray8 ";
+	}
+	else
+	{
+		throw std::runtime_error("Vid writer expects typical image to be CV_8UC1 or CV_8UC3");
 	}
 	
+	// input framerate.
+	fps = in_fps;
+	ss << "-r " << fps;
 	
-	//
-	// Create codec context.
-	//
-	cctx = avcodec_alloc_context3(codec);
+	// and that the input comes from stdin
+	ss << " -i - ";
 	
 	
+	// the encoding options are passed verbatim from the user's string.
+	ss << encoderStr << " ";
 	
-	//
-	// Do some configuration.
-	//
-	videoStream->codecpar->codec_id = ofmt->video_codec;
-	videoStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
-	videoStream->codecpar->width = typicalImage.cols;
-	videoStream->codecpar->height = typicalImage.rows;
-	videoStream->codecpar->format = AV_PIX_FMT_YUV444P;
-// 	videoStream->time_base = av_make_q( 1, fps );			// turns out to be set by codec or muxer or something.
+	// finally, the output file
+	ss << filename;
 	
-	avcodec_parameters_to_context(cctx, videoStream->codecpar);
-	cctx->time_base = av_make_q( 1, fps );
-	cctx->max_b_frames = 4;     // saw these numbers recommended somewhere.
-	cctx->gop_size = 10 * fps;  // ""    ""    ""         ""        ""
-	cctx->sample_rate = fps;
-	AVDictionary *codecOptions( 0 );
-	std::stringstream crfss; crfss << in_crf;
-	if (videoStream->codecpar->codec_id == AV_CODEC_ID_H264)
+	cout << ss.str() << endl;
+	
+	
+	// open the pipe...
+	if( !(outPipe = popen(ss.str().c_str(), "w")) )
 	{
-		av_dict_set(&codecOptions, "crf", crfss.str().c_str(), 0); // default is 18
-		av_dict_set(&codecOptions, "preset", "medium", 0);
+		cout << "popen error" << endl;
+		exit(1);
 	}
-	if (videoStream->codecpar->codec_id == AV_CODEC_ID_H265)
-	{
-		av_dict_set(&codecOptions, "crf", crfss.str().c_str(), 0); // default is 18
-		av_dict_set(&codecOptions, "preset", "medium", 0);
-	}
-	if (videoStream->codecpar->codec_id == AV_CODEC_ID_VP9)
-	{
-		// according to the ffmpeg guide on VP9, VP9 likes a two pass encoding.
-		// this however should set us up for a constant quality single pass.
-		// actually, forget about that, it is far far far too slow.
-		av_dict_set(&codecOptions, crfss.str().c_str(), "30", 0); // recommended is 31 for 1080p
-		av_dict_set(&codecOptions, "deadline", "good", 0);
-		av_dict_set(&codecOptions, "row-mt", "1", 0);
-		videoStream->codecpar->bit_rate = 0;
-	}
-// 	if (fctx->oformat->flags & AVFMT_GLOBALHEADER)
-// 	{
-// 		cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-// 	}
-	avcodec_parameters_from_context(videoStream->codecpar, cctx);
-	
-// 	av_opt_set_int( cctx, "r", fps, 0 );
-	
-	//
-	// Open the codec?
-	//
-	err = avcodec_open2(cctx, codec, &codecOptions);
-	if( err < 0)
-	{
-		throw std::runtime_error("Failed to open codec.");
-	}
-	
-	
-	//
-	// Open the output file.
-	//
-	err = avio_open(&fctx->pb, filename.c_str(), AVIO_FLAG_WRITE);
-	if( err < 0 )
-	{
-		throw std::runtime_error("Failed to open output file.");
-	}
-	
-	
-	//
-	// Write the header.
-	//
-	err = avformat_write_header(fctx, NULL);
-	if( err < 0 )
-	{
-		throw std::runtime_error("Failed to write header.");
-	}
-	
-	
-	av_dump_format(fctx, 0, filename.c_str(), 1);
-	
-	
-	frame = av_frame_alloc();
-	frame->height = cctx->height;
-	frame->width  = cctx->width;
-	frame->format = cctx->pix_fmt;
-	err = av_frame_get_buffer(frame, 24);
-	if( err < 0 )
-	{
-		throw std::runtime_error("Failed to allocate picture.");
-	}
-	
-	fnum = 0;
-	
-	
-	swsCtx = sws_getContext(
-	                          cctx->width,
-	                          cctx->height,
-	                          AV_PIX_FMT_BGR24,
-	                          cctx->width, cctx->height,
-	                          AV_PIX_FMT_YUV444P,
-	                          SWS_BICUBIC,
-	                          0, 0, 0
-	                       );
-	
-	
-	
-	//
-	// Allocate my two frames.
-	//
-	bgrFrame = av_frame_alloc();
-	frame    = av_frame_alloc();
-	
-	bgrFrame->width = cctx->width;
-	bgrFrame->height = cctx->height;
-	bgrFrame->format = AV_PIX_FMT_BGR24;
-	
-	frame->width = cctx->width;
-	frame->height = cctx->height;
-	frame->format = AV_PIX_FMT_YUV444P;
-	
-	av_frame_make_writable(bgrFrame);
-	av_frame_make_writable(frame);
-	
-	yuvSize = av_image_get_buffer_size(AV_PIX_FMT_YUV444P, cctx->width, cctx->height, 1);
-	yuvBuffer = (uint8_t *)av_malloc(yuvSize*sizeof(uint8_t));
-	avpicture_fill((AVPicture *)frame, yuvBuffer, AV_PIX_FMT_YUV444P,  cctx->width, cctx->height);
-	
-	cout << "cctx tb        : " << cctx->time_base.num << " " << cctx->time_base.den << endl;
-	cout << "stream tb      : " << videoStream->time_base.num << " " << videoStream->time_base.den << endl;
-	cout << "stream codec tb: " << videoStream->codec->time_base.num << " " << videoStream->codec->time_base.den << endl;
 }
 
 
 void VidWriter::Write( cv::Mat img )
 {
-	int err;
-	
-	// need to convert to YUV first. Probably best to use ffmpeg for that 
-	// given reports I've had about OpenCVs conversion.
-	int inLinesize[1] = { 3 * cctx->width };
-	
-	avpicture_fill( (AVPicture *)bgrFrame, img.data, AV_PIX_FMT_BGR24, img.cols, img.rows);
-	
-	sws_scale(
-	            swsCtx,
-	            bgrFrame->data,
-	            inLinesize,
-	            0,
-	            cctx->height,
-	            frame->data,
-	            frame->linesize
-	         );
-	
-	
-	// we've set the codec context timebase to 1/fps
-	// stream context seems to be fixed at 1/12800
-	//
-	frame->pts = fnum * (videoStream->time_base.den / cctx->time_base.den);
-	
-// 	cout << bgrFrame->format << " " << bgrFrame->width << " " << bgrFrame->height << endl;
-// 	cout << frame->format << " " << frame->width << " " << frame->height << endl;
-	
-	err = avcodec_send_frame(cctx, frame);
-	if ( err < 0)
-	{
-		throw std::runtime_error("Failed to send frame.");
-	}
-	
-	
-	AVPacket *pkt = av_packet_alloc(); // also inits to defaults
-	if (pkt == NULL)
-	{
-		throw std::runtime_error("Failed to allocate packet.");
-	}
-	
-	bool done = false;
-	while(!done)
-	{
-		err = avcodec_receive_packet(cctx, pkt);
-		if (err == 0) 
-		{
-			//av_packet_rescale_ts(pkt, cctx->time_base, videoStream->time_base);
-    		pkt->stream_index = videoStream->index;
-			// pkt->flags |= AV_PKT_FLAG_KEY;
-			av_interleaved_write_frame(fctx, pkt);
-			av_packet_unref(pkt);
-		}
-		else if( err == AVERROR(EAGAIN) || err == AVERROR_EOF )
-		{
-			done = true;
-		}
-		else if( err < 0 )
-		{
-			throw std::runtime_error("Error during frame write");
-		}
-	}
-	
+	fwrite( img.data, 1, frameBytes, outPipe );
 	++fnum;
 }
 
 void VidWriter::Finish()
 {
-	int err; 
-	
-	AVPacket *pkt = av_packet_alloc(); // also inits to defaults
-	if (pkt == NULL)
-	{
-		throw std::runtime_error("Failed to allocate packet.");
-	}
-	
-	
-	
-	bool done = false;
-	avcodec_send_frame(cctx, NULL);
-	while(!done)
-	{
-		err = avcodec_receive_packet(cctx, pkt);
-		if (err == 0) 
-		{
-			av_interleaved_write_frame(fctx, pkt);
-			av_packet_unref(pkt);
-		}
-		else
-		{
-			done = true;
-		}
-	}
-	
-	
-	av_write_trailer(fctx);
-	err = avio_close(fctx->pb);
-	if (err < 0)
-	{
-		throw( std::runtime_error("Failed to close file") );
-	}
-	
-	av_frame_free(&frame);
-	avcodec_free_context(&cctx);
-	avformat_free_context(fctx);
-	sws_freeContext(swsCtx);
+
 }
 
 
 
 VidWriter::~VidWriter()
 {
+	fflush(outPipe);
+	fclose(outPipe);
+// 	delete outPipe;
 }

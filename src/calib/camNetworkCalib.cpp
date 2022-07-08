@@ -61,6 +61,10 @@ void CamNetCalibrator::ReadConfig()
 		if( cfg.exists("forceOneCam") )
 			forceOneCam = cfg.lookup("forceOneCam");
 			
+		intrinsicsOnly = false;
+		if( cfg.exists("intrinsicsOnly") )
+			intrinsicsOnly = cfg.lookup("intrinsicsOnly");
+		
 		onlyExtrinsicsForBA = false;
 		if( cfg.exists("onlyExtrinsicsForBA") )
 			onlyExtrinsicsForBA = cfg.lookup("onlyExtrinsicsForBA");
@@ -232,47 +236,55 @@ void CamNetCalibrator::Calibrate()
 {
 	GetGrids();
 	CalibrateIntrinsics();
-
-
-	// make sure we only have grids that are visible in more than
-	// a single camera - unless we only have one camera!
-	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
-
-	unsigned numTotalGrids = grids[0].size();
-	for( unsigned cc = 0; cc < grids.size(); ++cc )
-	{
-		numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
-	}
 	
-	valGrids.resize(grids.size());
-	gridFrames.clear();
-	for( unsigned gc = 0; gc < numTotalGrids; ++gc )
+	if( intrinsicsOnly )
 	{
-		unsigned cnt = 0;
+		Ls.assign( grids.size(), transMatrix3D::Identity() );
+	}
+	else
+	{
+		
+
+		// make sure we only have grids that are visible in more than
+		// a single camera - unless we only have one camera!
+		std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
+
+		unsigned numTotalGrids = grids[0].size();
 		for( unsigned cc = 0; cc < grids.size(); ++cc )
 		{
-			if( grids[cc][gc].size() > 0 )
-				++cnt;
+			numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
 		}
-
-		if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+		
+		valGrids.resize(grids.size());
+		gridFrames.clear();
+		for( unsigned gc = 0; gc < numTotalGrids; ++gc )
 		{
+			unsigned cnt = 0;
 			for( unsigned cc = 0; cc < grids.size(); ++cc )
 			{
-				valGrids[cc].push_back( grids[cc][gc] );
+				if( grids[cc][gc].size() > 0 )
+					++cnt;
 			}
-			gridFrames.push_back(gc);
+
+			if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+			{
+				for( unsigned cc = 0; cc < grids.size(); ++cc )
+				{
+					valGrids[cc].push_back( grids[cc][gc] );
+				}
+				gridFrames.push_back(gc);
+			}
 		}
+
+		grids.clear();
+		grids = valGrids;
+
+		DetermineGridVisibility();
+
+		//exit(1);
+
+		CalibrateExtrinsics();
 	}
-
-	grids.clear();
-	grids = valGrids;
-
-	DetermineGridVisibility();
-
-	//exit(1);
-
-	CalibrateExtrinsics();
 
 	cout << "done calibration." << endl;
 	cout << "saving..." << endl;
