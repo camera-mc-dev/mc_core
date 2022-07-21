@@ -206,7 +206,7 @@ void SaveImage(cv::Mat &img, std::string filename)
 	}
 
 
-	cout << "Saving " << filename << endl;
+// 	cout << "Saving " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos)
 	{
 // 		cout << "is floatImg " << endl;

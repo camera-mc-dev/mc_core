@@ -29,6 +29,7 @@ public:
 	std::string coreDataRoot;
 	std::string scriptsRoot;
 	std::string netsRoot;
+	std::string ffmpegPath;
 	
 	unsigned maxSingleWindowWidth;
 	unsigned maxSingleWindowHeight;
@@ -81,6 +82,7 @@ public:
 				cfg.lookup("coreDataRoot") = userHome + "/programming/mc_dev/mc_core/data/";
 				cfg.lookup("scriptsRoot")  = userHome + "/programming/mc_dev/mc_core/python";
 				cfg.lookup("netsRoot")     = userHome + "/programming/mc_dev/mc_nets/data/";
+				cfg.lookup("ffmpegPath")   = userHome + "/usr/bin/ffmpeg";
 				
 				cfg.lookup("maxSingleWindowWidth") = 1000;
 				cfg.lookup("maxSingleWindowHeight") = 800;
@@ -96,12 +98,14 @@ public:
 			coreDataRoot = (const char*) cfg.lookup("coreDataRoot");
 			scriptsRoot  = (const char*) cfg.lookup("scriptsRoot");
 			netsRoot     = (const char*) cfg.lookup("netsRoot");
+			ffmpegPath   = (const char*) cfg.lookup("ffmpegPath");
 			
 			maxSingleWindowWidth  = cfg.lookup("maxSingleWindowWidth");
 			maxSingleWindowHeight = cfg.lookup("maxSingleWindowHeight");
 		}
 		catch( libconfig::SettingException &e)
 		{
+			cout << "Error reading common config file: " << ss.str() << endl;
 			cout << "Setting error: " << endl;
 			cout << e.what() << endl;
 			cout << e.getPath() << endl;
@@ -109,6 +113,7 @@ public:
 		}
 		catch( libconfig::ParseException &e )
 		{
+			cout << "Error reading common config file: " << ss.str() << endl;
 			cout << "Parse error:" << endl;
 			cout << e.what() << endl;
 			cout << e.getError() << endl;
