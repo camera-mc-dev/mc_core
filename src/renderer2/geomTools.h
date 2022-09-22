@@ -35,6 +35,9 @@ namespace Rendering
 	std::shared_ptr<MeshNode> GenerateImageNode(float tlx, float tly, float width, cv::Mat img, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren );
 	// generate image node with the input aspect ratio.
 	std::shared_ptr<MeshNode> GenerateImageNode(float tlx, float tly, float width, float height, cv::Mat img, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren );
+	// generate image node without the image - give it blank texture to begin with.
+	std::shared_ptr<MeshNode> GenerateImageNode(float tlx, float tly, float width, float height, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren );
+	
 	std::shared_ptr<MeshNode> GenerateLineNode2D( std::vector< Eigen::Vector2f > points, float thickness, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren );
 	
 	std::shared_ptr<MeshNode> GenerateCircleNode2D( hVec2D centre, float radius, float thickness, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren );

@@ -57,6 +57,7 @@ namespace Rendering
 		}
 	
 	public:
+		std::string GetID() { return id; }
 		virtual ~SceneNode();
 
 		// add or remove children from the scene node,
