@@ -129,7 +129,9 @@ public:
 	void SortImageList();
 	
 	void ShuffleImageList();
-
+	
+	
+	std::vector<string> GetImageList() {return imageList;}
 private:
 
 	bool IsImage(string s);

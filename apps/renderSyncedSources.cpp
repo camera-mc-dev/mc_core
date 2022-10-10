@@ -280,6 +280,9 @@ int main(int argc, char* argv[])
 						nrows = std::max( nrows, grids[isc][ic][pc].row+1.0f );
 						ncols = std::max( nrows, grids[isc][ic][pc].col+1.0f );
 					}
+					cv::Point oCorner, xCorner, yCorner;
+					int xCornerCol, yCornerRow;
+					xCornerCol = yCornerRow = 0;
 					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
 					{
 						float x,y;
@@ -294,8 +297,36 @@ int main(int argc, char* argv[])
 						green = (col/ncols) * 255.0f;
 						blue  = 255.0f;
 						
+						if( row == 0 && col == 0 )
+						{
+							oCorner = cv::Point(x,y);
+						}
+						else if( row == 0 && col > xCornerCol )
+						{
+							xCorner = cv::Point(x,y);
+							xCornerCol = col;
+						}
+						else if( col == 0 && row > yCornerRow )
+						{
+							yCorner = cv::Point(x,y);
+							yCornerRow = row;
+						}
+						
 						cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
 					}
+					
+					//
+					// draw an arrow from origin to x-axis, y-axis corners.
+					//
+					if( xCornerCol > 0 && yCornerRow > 0 )
+					{
+						cv::line( img, oCorner, xCorner, cv::Scalar(255,255,255), 7 );
+						cv::line( img, oCorner, xCorner, cv::Scalar(0,0,255), 3 );
+						
+						cv::line( img, oCorner, yCorner, cv::Scalar(0,0,0), 7 );
+						cv::line( img, oCorner, yCorner, cv::Scalar(0,255,0), 3 );
+					}
+					
 				}
 				
 				imgCards[isc]->GetTexture()->UploadImage( img );
