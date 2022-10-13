@@ -69,7 +69,7 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 		std::string tag( input.begin(), input.begin()+a);
 		std::string info( input.begin()+a+1, input.end());
 		
-		if( tag.find(".hdf5") ) // we'll assume it is an .hdf5 file.
+		if( tag.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file.
 		{
 #ifdef HAVE_HIGH_FIVE
 			cout << input << " " << tag << " " << info << endl;
