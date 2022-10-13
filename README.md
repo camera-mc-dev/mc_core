@@ -176,4 +176,8 @@ To make the html book of the documentation:
   - run the `.book` file: `./mc_core.book`
     - the `.book` file is actually a python script which wraps up calls to `pandoc` for making a nice html book from the markdown files.
 
-...or if you're lazy, like Laurie, just open them in VSCode and enable markdown preview.
+## Building docker image
+
+1. pull or build opencv_op:4.6.0 (check opencv_docker for instructions to build that)
+2. run `(sudo) docker build . -t mc_core:4.6.0`
+

@@ -1,14 +1,35 @@
-FROM --platform=linux/amd64 mc_base
+ROM --platform=linux/amd64 opencv_opt:4.6.0
+
 ## scons stuff
-RUN apt update && apt install -y --no-install-recommends scons libswscale-dev libavformat-dev libconfig++-dev && rm -rf /var/lib/apt/lists/* 
-## our dependencies
-RUN apt update && apt install --no-install-recommends -y libsfml-dev libglew-dev libfreetype-dev libegl-dev libeigen3-dev libboost-filesystem-dev libmagick++-dev libconfig-dev libsnappy-dev libceres-dev libnanoflann-dev libhdf5-dev && rm -rf /var/lib/apt/lists/* 
-WORKDIR /root/mc_dev/mc_core
+RUN apt update && apt install -y --no-install-recommends scons libswscale-dev libavformat-dev libconfig++-dev
+
+# our dependencies (not included in base image)
+RUN apt install -y libassimp-dev 
+
+# and we need HighFive for hdf5 files
+WORKDIR /deps/
+RUN apt update
+RUN apt install libhdf5-dev -y --no-install-recommends
+RUN apt install libboost-serialization-dev -y --no-install-recommends
+RUN git clone https://github.com/BlueBrain/HighFive.git
+WORKDIR /deps/HighFive
+RUN mkdir build
+WORKDIR /deps/HighFive/build
+RUN cmake HIGHFIVE_UNIT_TESTS=OFF ../
+RUN make -j6
+RUN make install
+
+# and we use nanoflann in various places
+WORKDIR /deps/
+RUN git clone https://github.com/jlblancoc/nanoflann.git
+WORKDIR /deps/nanoflann
+RUN mkdir build
+WORKDIR /deps/nanoflann/build
+RUN cmake ../
+RUN make -j6
+RUN make install
+
+WORKDIR /home/mc_dev/mc_core
 COPY . .
+RUN scons -j8
 
-## install highfive
-WORKDIR HighFive/build
-RUN cmake .. -DHIGHFIVE_EXAMPLES=OFF -DHIGHFIVE_USE_BOOST=OFF && make install
-
-WORKDIR /root/mc_dev/mc_core
-RUN scons -j5 
