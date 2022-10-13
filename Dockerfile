@@ -4,7 +4,19 @@ FROM --platform=linux/amd64 opencv_opt:4.6.0
 RUN apt update && apt install -y --no-install-recommends scons libswscale-dev libavformat-dev libconfig++-dev
 
 # our dependencies (not included in base image)
-RUN apt install -y libassimp-dev 
+RUN apt install -y \
+	libsfml-dev \
+	libglew-dev \
+	libfreetype-dev \
+	libegl-dev \
+	libeigen3-dev \
+	libboost-filesystem-dev \
+	libmagick++-dev \
+	libconfig++-dev \
+	libsnappy-dev \
+	libceres-dev \
+	ffmpeg \
+    libassimp-dev 
 
 # and we need HighFive for hdf5 files
 WORKDIR /deps/
