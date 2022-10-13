@@ -71,6 +71,8 @@ public:
 				
 				cfgRoot.add("dataRoot", libconfig::Setting::TypeString);
 				cfgRoot.add("shadersRoot", libconfig::Setting::TypeString);
+				cfgRoot.add("netsRoot", libconfig::Setting::TypeString);
+				cfgRoot.add("ffmpegPath", libconfig::Setting::TypeString);
 				cfgRoot.add("coreDataRoot", libconfig::Setting::TypeString);
 				cfgRoot.add("scriptsRoot", libconfig::Setting::TypeString);
 

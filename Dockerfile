@@ -1,4 +1,4 @@
-ROM --platform=linux/amd64 opencv_opt:4.6.0
+FROM --platform=linux/amd64 opencv_opt:4.6.0
 
 ## scons stuff
 RUN apt update && apt install -y --no-install-recommends scons libswscale-dev libavformat-dev libconfig++-dev
@@ -16,7 +16,7 @@ RUN apt install -y \
 	libsnappy-dev \
 	libceres-dev \
 	ffmpeg \
-    libassimp-dev 
+        libassimp-dev 
 
 # and we need HighFive for hdf5 files
 WORKDIR /deps/
