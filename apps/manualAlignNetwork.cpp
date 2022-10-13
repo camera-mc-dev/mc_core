@@ -154,8 +154,12 @@ Settings ParseConfig( std::string cfn )
 				s.calibFiles[ic] = str;
 			}
 		}
-
-		s.originFrame  = cfg.lookup("originFrame");
+		
+		s.originFrame = 0;
+		if( cfg.exists("originFrame" ) )
+		{
+			s.originFrame  = cfg.lookup("originFrame");
+		}
 		s.targetDepth  = cfg.lookup("targetDepth");
 		
 		if( cfg.exists("alignXisNegative") )
@@ -506,8 +510,8 @@ transMatrix3D ComputeTransformationXfirst( Settings &s, AxisPoints axisPoints )
 	ang = 0;
 	if( s.negateYAxis )
 	{
-		// we want to get to a bearing of 180, which means we need to rotate by pi - bearing.... right?
-		ang = 3.14159 - bearing;
+		// we want to get to a bearing of 180, which means we need to rotate by pi + bearing.... right?
+		ang = 3.14159 + bearing;
 	}
 	else
 	{
@@ -629,8 +633,8 @@ transMatrix3D ComputeTransformationYfirst( Settings &s, AxisPoints axisPoints )
 	ang = 0;
 	if( s.negateXAxis )
 	{
-		// we want to get to a bearing of 180, which means we need to rotate by pi - bearing.... right?
-		ang = 3.14159 - bearing;
+		// we want to get to a bearing of 180, which means we need to rotate by pi + bearing.... right?
+		ang = 3.14159 + bearing;
 		cout << "negating x-axis so bearing -> " << bearing << endl;
 	}
 	else

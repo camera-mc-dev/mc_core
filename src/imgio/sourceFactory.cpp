@@ -69,9 +69,10 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 		std::string tag( input.begin(), input.begin()+a);
 		std::string info( input.begin()+a+1, input.end());
 		
-		if( inpth.extension().compare(".hdf5") == 0 )
+		if( tag.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file.
 		{
 #ifdef HAVE_HIGH_FIVE
+			cout << input << " " << tag << " " << info << endl;
 			retval.source.reset( new HDF5Source( input, calibFile ) );
 #else
 			throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");

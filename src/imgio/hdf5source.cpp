@@ -1,3 +1,5 @@
+#ifdef HAVE_HIGH_FIVE
+
 #include "imgio/hdf5source.h"
 #include "misc/tokeniser.h"
 
@@ -91,8 +93,8 @@ HDF5Source::HDF5Source( std::string in_filepath, std::string in_calibPath )
 	}
 	else
 	{
-		filepath = std::string( in_filepath.begin()+a+1, in_filepath.end() );
-		std::string numStr( in_filepath.begin(), in_filepath.begin()+a );
+		filepath = std::string( in_filepath.begin(), in_filepath.begin()+a );
+		std::string numStr( in_filepath.begin()+a+1, in_filepath.end() );
 		currentFrameNo = std::atoi( numStr.c_str() );
 	}
 	
@@ -110,7 +112,7 @@ HDF5Source::HDF5Source( std::string in_filepath, std::string in_calibPath )
 		std::string numStr = std::string( dsList[ lc ].begin(), dsList[ lc ].begin() + a );
 		unsigned fno = std::atoi( numStr.c_str() );
 		
-// 		cout << lc << " " << dsList[lc] << " " << fno << endl;
+//		cout << lc << " " << dsList[lc] << " " << fno << endl;
 		
 		idx2fno[ lc ] = fno;
 		fno2idx[ fno ] = lc;
@@ -171,7 +173,7 @@ int HDF5Source::GetNumImages()
 {
 	// what we really want to do is return our largest frame number
 	// so not this: return dsList.size();
-	cout << "hdf5 fnos: " <<  fno2idx.begin()->first << " " << fno2idx.rbegin()->first << endl;
+	//cout << "hdf5 fnos: " <<  fno2idx.begin()->first << " " << fno2idx.rbegin()->first << endl;
 	return fno2idx.rbegin()->first;
 }
 
@@ -184,18 +186,21 @@ bool HDF5Source::JumpToFrame(unsigned frame)
 
 void HDF5Source::FindImage()
 {
+//	cout << "Finding frame number: " << currentFrameNo << endl;
 	auto i = fno2idx.find( currentFrameNo );
 	if( i == fno2idx.end() )
 	{
-		// make a blank image the same size as the firt image we can get.
-		dsIdx = fno2idx.begin()->first;
+//		cout << "\t" << "no such frame no" << endl;
+		// make a blank image the same size as the first image we can get.
+		dsIdx = fno2idx.begin()->second;
 		GetImage();
 		
 		current = cv::Mat( current.rows, current.cols, current.type(), cv::Scalar(0) );
 	}
 	else
 	{
-		dsIdx = i->first;
+//		cout << "\t" << currentFrameNo << " had idx : " << i->second << endl;
+		dsIdx = i->second;
 		GetImage();
 	}
 }
@@ -207,7 +212,7 @@ void HDF5Source::GetImage()
 	auto ss = SplitLine( dsList[ dsIdx ], "_");
 	for( unsigned c = 0; c < ss.size(); ++c )
 	{
-		cout << c << " " << ss[c] << endl;
+//		cout << c << " " << ss[c] << endl;
 	}
 	// we should have [ frameNumber, rows, cols, channels, type ]
 	if( ss[3].compare("1") == 0 && ss[4].compare("b") == 0 )
@@ -236,3 +241,4 @@ void HDF5Source::GetImage()
 	dsi.read( current.data );
 }
 
+#endif

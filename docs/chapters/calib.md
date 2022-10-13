@@ -299,19 +299,18 @@ gridFinder:
 	MSER_delta = 3;
 	MSER_minArea = 50;
 	MSER_maxArea = 40000;
-	MSER_maxVariation = 1.0f;
-	blobDetector = MSER;
+	MSER_maxVariation = 1.0;
+	blobDetector = "MSER";
 	potentialLinesNumNearest = 8;
-	parallelLineAngleThresh = 5;
+	parallelLineAngleThresh = 5.0;
 	parallelLineLengthRatioThresh = 0.7;
-	gridLinesParallelThresh = 25;
-	gridLinesPerpendicularThresh = 60;
+	gridLinesParallelThresh = 25.0;
+	gridLinesPerpendicularThresh = 60.0;
 	gapThresh = 0.8;
-	alignDotSizeDiffThresh = 25;
-	alignDotDistanceThresh = 10;
-	maxGridlineError = 32;
-	
-}
+	alignDotSizeDiffThresh = 25.0;
+	alignDotDistanceThresh = 10.0;
+	maxGridlineError = 32.0;
+};
 ```
 
 The `MSER` specific settings can be understood with reference to the OpenCV documentation or the `MSER` paper.
@@ -325,15 +324,15 @@ For some camera arrangements, getting the grids will be enough. But for many oth
 To use the point matcher, make sure that you uncomment the `matchesFile` setting in your config file, then run the tool:
 
 ```bash
-  $ ./mc_core/build/optimised/bin/pointMatches network.cfg
+  $ ./mc_core/build/optimised/bin/pointMatcher network.cfg
 ```
 
 This will bring up a single window containing the views of 2 cameras. There are some mouse controls which you can see on screen, but you will find these keyboard shortcuts valuable as well:
 
-  - a, s    : change camera in left view
-  - z, x    : change camera in right view
-  - up,down : change current point id
-  - [, ]    : change frame backward, forward. Hold shift for larger jump.
+  - <kbd>a</kbd>, <kbd>s</kbd>    : change camera in left view
+  - <kbd>z</kbd>, <kbd>x</kbd>    : change camera in right view
+  - <kbd>up</kbd>,<kbd>down</kbd> : change current point id
+  - <kbd>[</kbd>, <kbd>]</kbd>    : change frame backward, forward. Hold <kbd>shift</kbd> for larger jump.
 
 To use the point matcher, simply cycle to the view you are interested in, set a point ID, and then click on the image. This will then bring up a blow-up view around the region of the image where you clicked. Click again on this blow-up view to set a sub-pixel accurate point annotation.
 

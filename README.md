@@ -9,7 +9,7 @@
   - image io
   - maths and miscellaneous core functionality
 
-The CAMERA wiki provides an overview of the various other parts of `mc_dev`.
+Documentation in the `mc_base` repository provides basic information about the other parts of the framework.
 
 ## Getting the source
 
@@ -19,38 +19,21 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
 
 ```bash
   $ cd ~/where/you/keep/your/code
-  $ git clone camera@rivendell.cs.bath.ac.uk:mc_base mc_dev
+  $ git clone git@github.com:camera-mc-dev/mc_base.git mc_dev
   $ cd mc_dev
-  $ git clone camera@rivendell.cs.bath.ac.uk:mc_core
+  $ git clone git@github.com:camera-mc-dev/mc_core.git
 ```
-
-## Building
-
-The project is built using the `scons` build system. If you have not already done so, you will need to install `scons` now, probably using your package manager or Homebrew on Mac. e.g. for Ubuntu based systems:
-
-```bash
-  $ sudo apt install scons
-```
-
-Next, change into your `mc_core` directory, e.g.:
-
-```bash
-  $ cd ~/where/you/keep/your/code/mc_dev/mc_core
-```
-
-To build everything in optimised mode just type (using 5 build jobs):
-
-```bash
-  $ scons -j5
-```
-
-Obviously, that will fail if you have not yet installed all the required dependencies or modified the build to find those dependencies.
 
 ## Dependencies
 
 `mc_core` and thus all of `mc_dev` depends on a number of external libraries. These can mostly be installed through your package manager.
 
-  - OpenCV: Up to 3.4. Recommend you build yourself.
+  - OpenCV: 3.4.9 will work. Although it can come from a package manager, you should build it yourself to be sure you have:
+    - You will need the contrib packages
+    - You will need to enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+    - Recommend enabling OpenMP for taking advantage of some parallel optimisations
+    - Use CUDA if you have it.
+    - Update to 4.x branch is on the ToDo list...
   - Rendering: 
     - SFML: Create and manage OpenGL contexts and handle interactivity
     - GLEW: So we can use modern OpenGL
@@ -63,14 +46,29 @@ Obviously, that will fail if you have not yet installed all the required depende
     - `sudo apt install libboost-filesystem-dev`
   - Magick++: image loading library - I had fondness for this over OpenCV, but may remove requirement.
     - `sudo apt install libmagick++-dev`
-  - libconfig : parse config files.
-    - `sudo apt install libconfig-dev`
+  - libconfig++ : parse config files.
+    - `sudo apt install libconfig++-dev`
   - snappy : Google's fast compression library - used for custom `.charImg` and .`floatImg` 
     - `sudo apt install libsnappy-dev`
   - ceres solver
     - `sudo apt install libceres-dev`
+  - nanoflann
+    - https://github.com/jlblancoc/nanoflann
+    - A nice little library for fast nearest neighbour search trees with Eigen interface
+    - Usual CMake install process
+  - High5 *optional*: An HDF5 file library
+    - https://github.com/BlueBrain/HighFive
+    - If not required, edit the `FindHDF5()` in `mcdev_core_config.py` like so:
+    ```python
+    def FindHDF5(env):
+    # We use HDF5 files when we create and load a training dataset.
+    #env.ParseConfig("pkg-config hdf5 --libs --cflags")
+    #env.Append(LIBS=['hdf5'])
+    #env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
+    pass
+    ```
 
-Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority.
+Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority. Example for installing OpenCV here: https://learnopencv.com/install-opencv-3-4-4-on-ubuntu-18-04/
 
 ## Specifing where dependencies are
 
@@ -121,6 +119,38 @@ env.Append(LINKFLAGS=['-framework', 'OpenGL'])
 For more details on how the build system is set up, see the main documentation.
 
 
+## Building
+
+The project is built using the `scons` build system. If you have not already done so, you will need to install `scons` now, probably using your package manager or Homebrew on Mac. e.g. for Ubuntu based systems:
+
+```bash
+  $ sudo apt install scons
+```
+
+Next, change into your `mc_core` directory, e.g.:
+
+```bash
+  $ cd ~/where/you/keep/your/code/mc_dev/mc_core
+```
+
+To build everything in optimised mode just type (using 5 build jobs):
+
+```bash
+  $ scons -j5
+```
+
+*Optional:* To specify an install directory, for example, `/opt/mc_bin/`:
+
+```bash
+  $ scons <target> install=true installDir=<path/to/install/location>
+```
+e.g.
+
+```bash
+  $ scons -j5 install=true installDir=</opt/mc_bin/>
+```
+Fianlly, `~/.mc_dev.common.cfg` should be updated to ensure that paths in this config file are correct. Further details [here](./docs/chapters/overview.md).
+
 
 ## Tools
 
@@ -146,8 +176,8 @@ To make the html book of the documentation:
   - run the `.book` file: `./mc_core.book`
     - the `.book` file is actually a python script which wraps up calls to `pandoc` for making a nice html book from the markdown files.
 
-
 ## Building docker image
 
 1. pull or build opencv_op:4.6.0 (check opencv_docker for instructions to build that)
 2. run `(sudo) docker build . -t mc_core:4.6.0`
+

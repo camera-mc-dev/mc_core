@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import meBook
+import os
 
 # "meBook" is a python class that wraps up the process of taking 
 # a markdown formatted document and using pandoc to output html,ebook
@@ -26,11 +27,14 @@ bk.coverImg = "imgs/tst.jpg"
 #bk.outputTypes = ["html", "word", "epub"]
 bk.outputTypes = ["html"]
 
-bk.MakeChapter( 0, "Readme", ["../README.md"] )
-bk.MakeChapter( 1, "Calibration", ["chapters/calib.md"] )
-bk.MakeChapter( 2, "Library overview", ["chapters/overview.md"])
-bk.MakeChapter( 3, "The Renderer", ["chapters/renderer.md"])
-bk.MakeChapter( 4, "Calibration algorithms", ["chapters/calibAlgs.md"])
+# does the mc_base repo's readme exist beneath us?
+if os.path.exists("../../README.md"):
+	bk.MakeChapter( 0, "Framework Overview", ["../../README.md"] )
+bk.MakeChapter( 1, "Core Overview", [ "../README.md"] )
+bk.MakeChapter( 2, "Calibration", ["chapters/calib.md"] )
+bk.MakeChapter( 3, "Library overview", ["chapters/overview.md"])
+bk.MakeChapter( 4, "The Renderer", ["chapters/renderer.md"])
+bk.MakeChapter( 5, "Calibration algorithms", ["chapters/calibAlgs.md"])
 
 
 

@@ -61,6 +61,10 @@ void CamNetCalibrator::ReadConfig()
 		if( cfg.exists("forceOneCam") )
 			forceOneCam = cfg.lookup("forceOneCam");
 			
+		intrinsicsOnly = false;
+		if( cfg.exists("intrinsicsOnly") )
+			intrinsicsOnly = cfg.lookup("intrinsicsOnly");
+		
 		onlyExtrinsicsForBA = false;
 		if( cfg.exists("onlyExtrinsicsForBA") )
 			onlyExtrinsicsForBA = cfg.lookup("onlyExtrinsicsForBA");
@@ -149,7 +153,11 @@ void CamNetCalibrator::ReadConfig()
 		}
 		else
 		{
-			isrc = (ImageSource*) new VideoSource(imgDirs[ic], "none");
+			std::string cfn = imgDirs[ic] + std::string(".calib");
+			if( boost::filesystem::exists( cfn ) )
+				isrc = (ImageSource*) new VideoSource(imgDirs[ic], cfn);
+			else
+				isrc = (ImageSource*) new VideoSource(imgDirs[ic], "none");
 			isDirectorySource.push_back(false);
 		}
 		sources.push_back( isrc );
@@ -228,48 +236,55 @@ void CamNetCalibrator::Calibrate()
 {
 	GetGrids();
 	CalibrateIntrinsics();
-
-
-	// make sure we only have grids that are visible in more than
-	// a single camera - unless we only have one camera!
-	//std::vector< std::vector< std::vector< cv::Point2f > > > valGrids;
-	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
-
-	unsigned numTotalGrids = grids[0].size();
-	for( unsigned cc = 0; cc < grids.size(); ++cc )
-	{
-		numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
-	}
 	
-	valGrids.resize(grids.size());
-	gridFrames.clear();
-	for( unsigned gc = 0; gc < numTotalGrids; ++gc )
+	if( intrinsicsOnly )
 	{
-		unsigned cnt = 0;
+		Ls.assign( grids.size(), transMatrix3D::Identity() );
+	}
+	else
+	{
+		
+
+		// make sure we only have grids that are visible in more than
+		// a single camera - unless we only have one camera!
+		std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
+
+		unsigned numTotalGrids = grids[0].size();
 		for( unsigned cc = 0; cc < grids.size(); ++cc )
 		{
-			if( grids[cc][gc].size() > 0 )
-				++cnt;
+			numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
 		}
-
-		if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+		
+		valGrids.resize(grids.size());
+		gridFrames.clear();
+		for( unsigned gc = 0; gc < numTotalGrids; ++gc )
 		{
+			unsigned cnt = 0;
 			for( unsigned cc = 0; cc < grids.size(); ++cc )
 			{
-				valGrids[cc].push_back( grids[cc][gc] );
+				if( grids[cc][gc].size() > 0 )
+					++cnt;
 			}
-			gridFrames.push_back(gc);
+
+			if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+			{
+				for( unsigned cc = 0; cc < grids.size(); ++cc )
+				{
+					valGrids[cc].push_back( grids[cc][gc] );
+				}
+				gridFrames.push_back(gc);
+			}
 		}
+
+		grids.clear();
+		grids = valGrids;
+
+		DetermineGridVisibility();
+
+		//exit(1);
+
+		CalibrateExtrinsics();
 	}
-
-	grids.clear();
-	grids = valGrids;
-
-	DetermineGridVisibility();
-
-	//exit(1);
-
-	CalibrateExtrinsics();
 
 	cout << "done calibration." << endl;
 	cout << "saving..." << endl;
@@ -1228,7 +1243,6 @@ float CamNetCalibrator::CalcReconError()
 	std::vector< std::vector<float> > auxPointsErrs;
 	
 	gridPointsErrs.resize( numCams );
-	auxPointsErrs.resize( numCams );
 	for( unsigned wpc = 0; wpc < worldPoints.size(); ++wpc )
 	{
 		// which grid did it come from?
@@ -1269,11 +1283,50 @@ float CamNetCalibrator::CalcReconError()
 		}
 	}
 	
+	auxPointsErrs.resize( numCams );
+	for( unsigned amc = 0; amc < auxMatches.size(); ++amc )
+	{
+		PointMatch &m = auxMatches[amc];
+		
+		if( m.has3D )
+		{
+			hVec3D p3d = m.p3D;
+			
+			// what views is the point in?
+			for( unsigned cc = 0; cc < numCams; ++cc )
+			{
+				Calibration c;
+				c.width  = sources[cc]->GetCurrent().cols;
+				c.height = sources[cc]->GetCurrent().rows;
+				c.L = Ls[cc];
+				for( unsigned x = 0; x < 3; ++x )
+					for( unsigned y = 0; y < 3; ++y )
+						c.K(y,x) = Ks[cc].at<double>(y,x);
+				c.distParams = ks[cc];
+					
+				if( m.p2D.find( cc ) != m.p2D.end()  &&  m.proj2D.find( cc ) != m.proj2D.end() )
+				{
+					hVec2D ev = m.p2D[cc] - m.proj2D[cc];
+					auxPointsErrs[cc].push_back( ev.norm() );
+				}
+				else if( m.p2D.find( cc ) != m.p2D.end() )
+				{
+					hVec2D proj = c.Project(p3d);
+					hVec2D ev = m.p2D[cc] - proj;
+					auxPointsErrs[cc].push_back( ev.norm() );
+				}
+			}
+		}
+	}
+	
+	
 	cout << endl << endl;
 	cout << "====================================================================================================" << endl;
-	cout << "======================     Current reconstruction errors  (grid points)   ==========================" << endl;
+	cout << "======================     Current reconstruction errors                  ==========================" << endl;
 	cout << "====================================================================================================" << endl;
 	cout << endl << endl;
+	
+	cout << " == grid points == " << endl;
 	float grandMean = 0.0f;
 	int grandCount = 0;
 	for( unsigned cc = 0; cc < numCams; cc++ )
@@ -1285,7 +1338,48 @@ float CamNetCalibrator::CalcReconError()
 			for( unsigned ec = 0; ec < gridPointsErrs[cc].size(); ++ec )
 				mean += gridPointsErrs[cc][ec];
 			mean /= gridPointsErrs[cc].size();
-			cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+			
+			if( gridPointsErrs[cc].size() > 0 )
+			{
+				cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+			}
+			else
+			{
+				cout << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
+			}
+			grandMean += mean;
+			++grandCount;
+		}
+		else
+		{
+			cout << "camera " << cc << "     not-set    " << endl;
+		}
+	}
+	cout << "grand-mean: " << grandMean/grandCount << endl;
+	cout << endl << endl << endl << endl;
+	
+	
+	cout << " == aux points == " << endl;
+	grandMean = 0.0f;
+	grandCount = 0;
+	for( unsigned cc = 0; cc < numCams; cc++ )
+	{
+		if( isSetC[cc] )
+		{
+			std::sort( auxPointsErrs[cc].begin(), auxPointsErrs[cc].end() );
+			float mean = 0.0f;
+			for( unsigned ec = 0; ec < auxPointsErrs[cc].size(); ++ec )
+				mean += auxPointsErrs[cc][ec];
+			mean /= auxPointsErrs[cc].size();
+			
+			if( auxPointsErrs[cc].size() > 0 )
+			{
+				cout << "camera " << cc << "  mean: " << mean << "  max: " << auxPointsErrs[cc].back() <<  "    min: " << auxPointsErrs[cc][0] << "   median: " << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+			}
+			else
+			{
+				cout << "this error based only on aux points, and we ain't got any, so skipping the output" << endl;
+			}
 			grandMean += mean;
 			++grandCount;
 		}
@@ -1442,16 +1536,22 @@ void CamNetCalibrator::Visualise()
 	
 	
 	// find the first frame where there is a set grid.
-	unsigned gc = 0;
-	while( !isSetG[gc] )
+	int gc = 0;
+	while( gc < isSetG.size() && !isSetG[gc]  )
 	{
 		++gc;
 	}
 	
+	if( gc == isSetG.size() )
+		gc = -1;
+	
 	// now make sure all image sources are at the appropriate frame.
+	int viewFrame = 0;
+	if( gridFrames.size() > 0 )
+		viewFrame = gridFrames[gc]; 
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{
-		sources[isc]->JumpToFrame( gridFrames[gc] );
+		sources[isc]->JumpToFrame( viewFrame );
 	}
 	
 	// decide which camera we're viewing
@@ -1462,10 +1562,14 @@ void CamNetCalibrator::Visualise()
 	dren->SetBGImage( sources[ camID ]->GetCurrent() );
 	
 	
-	
-	cout << "grid set?:" << isSetG[gc] << endl;
-	for( unsigned cc = 0; cc < numCams; ++cc )
-		cout << grids[cc][gc].size() << " ";
+	if( isSetG.size() > 0 )
+	{
+		cout << "grid set?:" << isSetG[gc] << endl;
+		for( unsigned cc = 0; cc < numCams; ++cc )
+			cout << grids[cc][gc].size() << " ";
+	}
+	else
+		cout << "grid set?: no grids to set." << endl;
 	cout << "cams set?:" << endl;
 	hVec3D o; o << 0,0,0,1;
 	for( unsigned cc = 0; cc < numCams; ++cc )
@@ -1489,7 +1593,7 @@ void CamNetCalibrator::Visualise()
 		cout << Ks[cc] << endl << "-" << endl;
 		
 	}
-	cout << "frame: " << gridFrames[gc] << endl;
+	cout << "frame: " << viewFrame << endl;
 	
 	
 	
@@ -1499,7 +1603,7 @@ void CamNetCalibrator::Visualise()
 		if( camChanged )
 		{
 			// now make sure all image sources are at the appropriate frame.
-			sources[camID]->JumpToFrame( gridFrames[gc] );
+			sources[camID]->JumpToFrame( viewFrame );
 			
 			// get camera's bg image
 			cv::Mat img = sources[ camID ]->GetCurrent().clone();
@@ -3340,39 +3444,46 @@ void CamNetCalibrator::CheckAndFixScale()
 		meanRspacing /= count;
 		meanCspacing /= count;
 		
-		cout << "mean spacing: " << meanRspacing << " " << meanCspacing << endl;
-		
-		float rscale = gridRSpacing / meanRspacing;
-		float cscale = gridCSpacing / meanCspacing;
-		float scale  = (rscale + cscale) / 2.0f;
-		cout << "fixing scales: " << rscale << " " << cscale << endl;
-		
-		cout << " note, if fixing scales are very different, that's probably a hint that the calibration has gone awry... " << endl;
-		
-		// now we can just scale all camera translations.... honest...
-		for( unsigned cc = 0; cc < Ls.size(); ++cc )
+		if( count > 0 )
 		{
-			Ls[cc](0,3) *= scale;
-			Ls[cc](1,3) *= scale;
-			Ls[cc](2,3) *= scale;
+			cout << "mean spacing: " << meanRspacing << " " << meanCspacing << endl;
+			
+			float rscale = gridRSpacing / meanRspacing;
+			float cscale = gridCSpacing / meanCspacing;
+			float scale  = (rscale + cscale) / 2.0f;
+			cout << "fixing scales: " << rscale << " " << cscale << endl;
+			
+			cout << " note, if fixing scales are very different, that's probably a hint that the calibration has gone awry... " << endl;
+		
+			// now we can just scale all camera translations.... honest...
+			for( unsigned cc = 0; cc < Ls.size(); ++cc )
+			{
+				Ls[cc](0,3) *= scale;
+				Ls[cc](1,3) *= scale;
+				Ls[cc](2,3) *= scale;
+			}
+			
+			// and of course, all points! (Duh!)
+			for( unsigned pc = 0; pc < worldPoints.size(); ++pc )
+			{
+				worldPoints[pc](0) *= scale;
+				worldPoints[pc](1) *= scale;
+				worldPoints[pc](2) *= scale;
+			}
+			
+			// and obviously, who could possibly forget, I mean come on, honestly,
+			// really, _who_ could forget them, they are _utterly_ unforgettable...
+			// the auxPoints...
+			for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
+			{
+				auxMatches[ac].p3D(0) *= scale;
+				auxMatches[ac].p3D(1) *= scale;
+				auxMatches[ac].p3D(2) *= scale;
+			}
 		}
-		
-		// and of course, all points! (Duh!)
-		for( unsigned pc = 0; pc < worldPoints.size(); ++pc )
+		else
 		{
-			worldPoints[pc](0) *= scale;
-			worldPoints[pc](1) *= scale;
-			worldPoints[pc](2) *= scale;
-		}
-		
-		// and obviously, who could possibly forger, I mean come on, honestly,
-		// really, _who_ could forget them, they are _utterly_ unforgettable...
-		// the auxPoints...
-		for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
-		{
-			auxMatches[ac].p3D(0) *= scale;
-			auxMatches[ac].p3D(1) *= scale;
-			auxMatches[ac].p3D(2) *= scale;
+			cout << "no grids to do scale/spacing check" << endl;
 		}
 	}
 }

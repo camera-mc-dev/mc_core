@@ -28,6 +28,8 @@ public:
 	std::string shadersRoot;
 	std::string coreDataRoot;
 	std::string scriptsRoot;
+	std::string netsRoot;
+	std::string ffmpegPath;
 	
 	unsigned maxSingleWindowWidth;
 	unsigned maxSingleWindowHeight;
@@ -75,10 +77,12 @@ public:
 				cfgRoot.add("maxSingleWindowWidth", libconfig::Setting::TypeInt );
 				cfgRoot.add("maxSingleWindowHeight", libconfig::Setting::TypeInt );
 				
-				cfg.lookup("dataRoot")     = userHome + "/programming/mc_dev/data";
-				cfg.lookup("shadersRoot") = userHome + "/programming/mc_dev/shaders";
-				cfg.lookup("coreDataRoot") = userHome + "/programming/mc_dev/data";
-				cfg.lookup("scriptsRoot")  = userHome + "/programming/mc_dev/python";
+				cfg.lookup("dataRoot")     = userHome + "/programming/mc_dev/mc_core/data/";
+				cfg.lookup("shadersRoot")  = userHome + "/programming/mc_dev/mc_core/shaders/";
+				cfg.lookup("coreDataRoot") = userHome + "/programming/mc_dev/mc_core/data/";
+				cfg.lookup("scriptsRoot")  = userHome + "/programming/mc_dev/mc_core/python";
+				cfg.lookup("netsRoot")     = userHome + "/programming/mc_dev/mc_nets/data/";
+				cfg.lookup("ffmpegPath")   = userHome + "/usr/bin/ffmpeg";
 				
 				cfg.lookup("maxSingleWindowWidth") = 1000;
 				cfg.lookup("maxSingleWindowHeight") = 800;
@@ -93,12 +97,15 @@ public:
 			shadersRoot  = (const char*) cfg.lookup("shadersRoot");
 			coreDataRoot = (const char*) cfg.lookup("coreDataRoot");
 			scriptsRoot  = (const char*) cfg.lookup("scriptsRoot");
+			netsRoot     = (const char*) cfg.lookup("netsRoot");
+			ffmpegPath   = (const char*) cfg.lookup("ffmpegPath");
 			
 			maxSingleWindowWidth  = cfg.lookup("maxSingleWindowWidth");
 			maxSingleWindowHeight = cfg.lookup("maxSingleWindowHeight");
 		}
 		catch( libconfig::SettingException &e)
 		{
+			cout << "Error reading common config file: " << ss.str() << endl;
 			cout << "Setting error: " << endl;
 			cout << e.what() << endl;
 			cout << e.getPath() << endl;
@@ -106,6 +113,7 @@ public:
 		}
 		catch( libconfig::ParseException &e )
 		{
+			cout << "Error reading common config file: " << ss.str() << endl;
 			cout << "Parse error:" << endl;
 			cout << e.what() << endl;
 			cout << e.getError() << endl;
