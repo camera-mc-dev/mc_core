@@ -111,6 +111,38 @@ std::shared_ptr<Rendering::MeshNode> Rendering::GenerateImageNode(float tlx, flo
 	return mn;
 }
 
+std::shared_ptr<Rendering::MeshNode> Rendering::GenerateImageNode(float tlx, float tly, float width, float height, std::string id, std::weak_ptr<Rendering::AbstractRenderer> ren )
+{
+	auto card = Rendering::GenerateCard(width, height, false);
+	std::shared_ptr<Texture> tex = std::shared_ptr<Texture>( new Texture(ren) );
+	cv::Mat img( 10, 10, CV_32FC3, cv::Scalar(0,0,0) );
+	tex->UploadImage(img);
+	card->UploadToRenderer(ren);
+	
+	std::shared_ptr<Rendering::MeshNode> mn;
+	Rendering::NodeFactory::Create(mn, id);
+	
+	mn->SetTexture(tex);
+	mn->SetMesh(card);
+	
+	auto r = ren.lock();
+	if( r )
+	{
+		mn->SetShader( r->GetShaderProg("basicShader") );
+	}
+	else
+	{
+		throw std::runtime_error("invalid or expired renderer when generating image node");
+	}
+	
+	transMatrix3D T = transMatrix3D::Identity();
+	T(0,3) = tlx;
+	T(1,3) = tly;
+	mn->SetTransformation(T);
+	
+	return mn;
+}
+
 std::shared_ptr<Mesh> Rendering::GenerateFilledCircle(float radius, unsigned sections)
 {
 	std::shared_ptr<Mesh> circle( new Mesh(sections+1, sections) );
