@@ -14,6 +14,7 @@ namespace Rendering
 	class LineplotRenderer : public Rendering::BasicRenderer
 	{
 		friend class RendererFactory;
+		template<class T0, class T1 > friend class RenWrapper;
 		
 	protected:
 		LineplotRenderer(unsigned width, unsigned height, std::string title);
