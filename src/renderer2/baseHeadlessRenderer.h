@@ -17,11 +17,17 @@
 #include "commonConfig/commonConfig.h"
 
 #ifdef USE_EGL
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#ifdef Success
-#undef Success
-#endif
+	#include <EGL/egl.h>
+	#include <EGL/eglext.h>
+	#ifdef Success
+		#undef Success
+	#ifdef Status
+		#undef Status
+	#endif
+	#ifdef Complex
+		#undef Complex
+	#endif
+	#endif
 #endif
 
 namespace Rendering
@@ -29,7 +35,9 @@ namespace Rendering
 	
 	class BaseHeadlessRenderer : public AbstractRenderer
 	{
-		friend class RendererFactory;	
+		friend class RendererFactory;
+		template<class T0, class T1 > friend class RenWrapper;
+		
 		// The constructor should be private or protected so that we are forced 
 		// to use the factory...
 	protected:
