@@ -316,10 +316,23 @@ int main(int argc, char *argv[] )
 	
 
 
-	// how big are the images?
+	// are all the images the same ratio, or should we force a square window instead?
+	bool allSameRatio = true;
 	cv::Mat img = sources[0]->GetCurrent();
 	float ar = img.rows / (float) img.cols;
-
+	for( unsigned c = 1; c < sources.size(); ++c )
+	{
+		cv::Mat img = sources[c]->GetCurrent();
+		float ar2 = img.rows / (float) img.cols;
+		
+		if( ar2 != ar ) // probably not good enough, what with float rounding. But, feeling lazy.
+			allSameRatio = false; 
+	}
+	
+	if( !allSameRatio )
+		ar = 1.0f;
+	
+	
 	// create the renderer for display purposes.
 	cout << "creating window" << endl;
 	std::shared_ptr<CalCheckRenderer> ren;
@@ -379,35 +392,6 @@ int main(int argc, char *argv[] )
 		ren->Get3dRoot()->AddChild( camNodes[isc] );
 	}
 	
-// 	// test...
-// 	hVec3D tcent; tcent << -358.06, -2109.7, 0.0, 1.0;
-// 	auto cn = Rendering::GenerateCubeNode( tcent, 50, "test cube", ren );
-// 	cn->SetTexture(nullTex);
-// 	cn->SetShader( ren->GetShaderProg("basicLitColourShader"));
-// 	ren->Get3dRoot()->AddChild( cn );
-	
-	// we also want to show the origin of the world space as a very simple mesh.
-	// I still have not done a shader that can have per-vertex colours, so forgive
-	// me if I use a little geometry to label each axis in the form of a link
-	// between the x and y axes, and a bar on the y axis.
-// 	auto axes  = std::make_shared<Rendering::Mesh>( Rendering::Mesh( 8, 5, 2) );
-// 	axes->vertices << 0, 1000,    0,    0,    200,   0,  200,-200,
-// 	                  0,    0, 1000,    0,      0, 200,  200, 200,
-// 	                  0,    0,    0, 1000,      0,   0,    0,   0,
-// 	                  1,    1,    1,    1,      1,   1,    1,   1;
-// 	
-// 	            // x, y, z,  x->y,  ybar
-// 	axes->faces << 0, 0, 0,   4,      6,
-//                    1, 2, 3,   5,      7;
-// 	axes->UploadToRenderer(ren);
-// 	
-// 	std::shared_ptr<Rendering::MeshNode> axesNode;
-// 	Rendering::NodeFactory::Create(axesNode, "axesNode");
-// 	axesNode->SetMesh( axes );
-// 	axesNode->SetTexture(nullTex);
-// 	axesNode->SetBaseColour(magenta);
-// 	axesNode->SetShader( ren->GetShaderProg("basicColourShader"));
-
 	auto axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
 // 	auto axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
 	
@@ -415,8 +399,8 @@ int main(int argc, char *argv[] )
 	
 	ren->Get2dFgRoot()->AddChild( textRoot );
 	
-
 	
+	Calibration calib;
 	bool clicked = false;
 	int camChange = 1;
 	hVec2D clickPos, p2d;
@@ -431,12 +415,51 @@ int main(int argc, char *argv[] )
 			cam = std::max(0, cam);
 			cam = std::min( (int)sources.size()-1, cam );
 			cv::Mat img = sources[cam]->GetCurrent();
-			ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
-			ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
-			Calibration &calib = sources[cam]->GetCalibration();
 			
-// 			ren->Get3dCamera()->SetFromCalibration(calib, 300, 15000);
-			ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+			ren->DeleteBGImage();
+			
+			//
+			// When we set the calibration, we need to take into account if the window has a different aspect ratio 
+			// to the images.
+			//
+			if( !allSameRatio )
+			{
+				//
+				// This should allow us to handle mix of different cameras being used.
+				// ar (window aspect ratio) should be 1 in this case.
+				//
+				calib = sources[cam]->GetCalibration();
+				if( img.rows > img.cols )
+				{
+					ren->Get2dBgCamera()->SetOrthoProjection(0, img.rows, 0, img.rows, -10, 10);
+					ren->Get2dFgCamera()->SetOrthoProjection(0, img.rows, 0, img.rows, -10, 10);
+					calib.width  = img.rows;
+					calib.height = img.rows;
+				}
+				else
+				{
+					ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.cols, -10, 10);
+					ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.cols, -10, 10);
+					calib.width  = img.cols;
+					calib.height = img.cols;
+				}
+				
+				ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+				
+			}
+			else
+			{
+				//
+				// this is easy mode and just the code that we have always had when we never had to deal
+				// with rotated images.
+				//
+				ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
+				ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
+				calib = sources[cam]->GetCalibration();
+			
+				ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+			}
+			
 			
 			p2d = calib.Project(p);
 			p2d = calib.UndistortPoint(p2d);
