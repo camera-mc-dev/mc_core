@@ -92,6 +92,7 @@ public:
 	std::string leftCam, rightCam;
 	unsigned    pid;
 	std::map< std::string, unsigned > frameInds;
+	cv::Mat curLeft, curRight;
 	
 	CommonConfig ccfg;
 	
@@ -308,7 +309,7 @@ void PointMatcher::ClickImgRegion( hVec2D p )
 // 		cout << p3.transpose() << endl;
 		
 		matches[pid].id = pid;
-		matches[pid].imgPoints[leftCam] = GetSubPixel(p3, sources[leftCam]->GetCurrent() ) ;
+		matches[pid].imgPoints[leftCam] = GetSubPixel(p3, curLeft ) ;
 		
 		
 	}
@@ -320,7 +321,7 @@ void PointMatcher::ClickImgRegion( hVec2D p )
 // 		cout << p3.transpose() << endl;
 		
 		matches[pid].id = pid;
-		matches[pid].imgPoints[rightCam] = GetSubPixel(p3, sources[rightCam]->GetCurrent() ) ;
+		matches[pid].imgPoints[rightCam] = GetSubPixel(p3, curRight ) ;
 		
 
 	}
@@ -597,8 +598,18 @@ void PointMatcher::SetImages()
 	l = sources[ leftCam ]->GetCurrent();
 	r = sources[ rightCam ]->GetCurrent();
 	
-	lImg = Rendering::GenerateImageNode(0, 0, winX/2, l, "leftImage", ren );
-	rImg = Rendering::GenerateImageNode(winX/2, 0, winX/2, r, "rightImage", ren );
+	curLeft  = cv::Mat( std::max( l.rows, l.cols ), std::max( l.rows, l.cols ), l.type(), cv::Scalar(0) );
+	curRight = cv::Mat( std::max( r.rows, r.cols ), std::max( r.rows, r.cols ), r.type(), cv::Scalar(0) );
+	
+	cv::Rect ldest( cv::Point(0,0), l.size() );
+	l.copyTo( curLeft( ldest ) );
+	
+	cv::Rect rdest( cv::Point(0,0), r.size() );
+	r.copyTo( curRight( rdest ) );
+	
+	
+	lImg = Rendering::GenerateImageNode(     0, 0, winX/2,  curLeft,  "leftImage", ren );
+	rImg = Rendering::GenerateImageNode(winX/2, 0, winX/2, curRight, "rightImage", ren );
 	
 	
 	
@@ -611,20 +622,24 @@ void PointMatcher::SetImages()
 	textMaker->RenderString( rightCam, 25, 0.0, 1.0, 1.0, rfCam );
 	
 	T = transMatrix3D::Identity();
-	transMatrix3D S; S = T;	// i.e. identity.
+	transMatrix3D SL; SL = T;	// i.e. identity.
+	transMatrix3D SR; SR = T;	// i.e. identity.
 	
 	// first, a scaling so that s* pi => ps
-	float s = (winX/2) / (float) l.cols;
-	S(0,0) = S(1,1) = s;
+	float sl = (winX/2) / (float) curLeft.cols;
+	SL(0,0) = SL(1,1) = sl;
+	
+	float sr = (winX/2) / (float) curRight.cols;
+	SR(0,0) = SR(1,1) = sr;
 	
 	// translation caused by the top bar.
 	T(1,3) = 30;
-	lPointsRoot->SetTransformation( T * S );
+	lPointsRoot->SetTransformation( T * SL );
 	cout << "teft T: " << endl << lPointsRoot->GetTransformation() << endl << endl;
 	
 	// right view also has a translation in X.
 	T(0,3) = winX/2;
-	rPointsRoot->SetTransformation( T * S );
+	rPointsRoot->SetTransformation( T * SR );
 	cout << "right T: " << endl << rPointsRoot->GetTransformation() << endl << endl;
 	
 	SetPoints();
