@@ -248,20 +248,23 @@ namespace Rendering
 				scenes[ scene ].enableDepth = isEnabled;
 			}
 		}
-		
-	protected:
-		
-		int width, height;
-		
-		// some things can't go in the constructor, so each renderer needs to have an initialise. Sucks.
-		virtual void FinishConstructor();
 
 		// multiple scene graphs are possible, and the renderer will render them in
 		// the order that they appear here. Each scene graph should contain one
 		// active camera scene node for rendering with, which need not be the
 		// root scene node (indeed, it probably wont be, as that is likely to be
 		// a shader node)
+		//
+		// NOTE: Temporarily making scenes public due to a lack of willingness
+		//       to fix a friendship issue with the RenWrapper class
 		std::vector< SceneGroup > scenes;
+				
+	protected:
+		
+		int width, height;
+		
+		// some things can't go in the constructor, so each renderer needs to have an initialise. Sucks.
+		virtual void FinishConstructor();
 		
 		// render...
 		void Render();
