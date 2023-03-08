@@ -1,5 +1,5 @@
 #include "imgio/vidWriter.h"
-#include "imgio/imagesource.h"
+#include "imgio/sourceFactory.h"
 
 #include <iostream>
 using std::cout;
@@ -43,11 +43,21 @@ int main(int argc, char* argv[])
 	
 	cout << argc << endl;
 	
-	ImageDirectory src(argv[1]);
+	//ImageDirectory src(argv[1]);
+	auto sp = CreateSource( argv[1] );
+	auto src = sp.source;
 	int fps = atoi(argv[3]);
 	
 	std::shared_ptr< VidWriter > vo;
-	cv::Mat tmp = src.GetCurrent();
+	cv::Mat tmp = src->GetCurrent();
+	if( tmp.cols % 2 != 0 )
+	{
+		tmp = cv::Mat( tmp.rows, tmp.cols + 1, tmp.type() );
+	}
+	if( tmp.rows % 2 != 0 )
+	{
+		tmp = cv::Mat( tmp.rows+1, tmp.cols, tmp.type() );
+	}
 	if( argc == 4 )
 	{
 		vo.reset( new VidWriter( argv[2], "h265", tmp, atoi( argv[3] ), 18, "yuv420p" ) );
@@ -63,7 +73,7 @@ int main(int argc, char* argv[])
 	
 	do
 	{
-		cv::Mat tmp0 = src.GetCurrent();
+		cv::Mat tmp0 = src->GetCurrent();
 		cv::Mat tmp1;
 		if( tmp0.type() == CV_32FC3 )
 		{
@@ -83,9 +93,23 @@ int main(int argc, char* argv[])
 			exit(0);
 		}
 		
+		if( tmp1.cols % 2 != 0 )
+		{
+			cv::Mat tmp2( tmp1.rows, tmp1.cols+1, tmp1.type(), cv::Scalar(0,0,0) );
+			tmp1.copyTo( tmp2( cv::Rect( 0,0, tmp1.cols, tmp1.rows ) ) );
+			tmp1 = tmp2;
+		}
+		
+		if( tmp1.rows % 2 != 0 )
+		{
+			cv::Mat tmp2( tmp1.rows + 1, tmp1.cols, tmp1.type(), cv::Scalar(0,0,0) );
+			tmp1.copyTo( tmp2( cv::Rect( 0,0, tmp1.cols, tmp1.rows ) ) );
+			tmp1 = tmp2;
+		}
+		
 		vo->Write( tmp1 );
 	}
-	while( src.Advance() );
+	while( src->Advance() );
 	
 	
 }
