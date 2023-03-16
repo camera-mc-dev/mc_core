@@ -64,7 +64,10 @@ VideoSource::VideoSource(std::string in_vidPath, std::string in_calPath)
 	vidPath = in_vidPath;
 
 	frameIdx = 0;
-	JumpToFrame(0);	// otherwise we seem to be out of step
+	numberOfFirstFrame = cvvc.get(cv::CAP_PROP_POS_FRAMES);
+	cout << "video has first frame with index: " << numberOfFirstFrame << endl;
+	cout << "but don't worry, we compensate so that we're 0 indexed!" << endl;
+// 	JumpToFrame(0);	// otherwise we seem to be out of step
 }
 
 VideoSource::~VideoSource()
@@ -75,8 +78,10 @@ VideoSource::~VideoSource()
 
 bool VideoSource::Advance()
 {
+	
 	++frameIdx;
 	cvvc.grab();
+	
 	
 	try
 	{
@@ -86,6 +91,8 @@ bool VideoSource::Advance()
 	{
 		return false;
 	}
+	
+	
 	
 }
 
@@ -107,7 +114,8 @@ bool VideoSource::Regress()
 
 bool VideoSource::JumpToFrame(unsigned frame)
 {
-	cvvc.set(cv::CAP_PROP_POS_FRAMES, frame);
+	// It seems like the capture frames might be indexed from 1. Very annoying to find this out quite so many years later!
+	cvvc.set(cv::CAP_PROP_POS_FRAMES, frame + numberOfFirstFrame);
 	frameIdx = frame;
 	
 	
