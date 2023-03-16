@@ -17,6 +17,8 @@ using std::endl;
 #include "opencv2/features2d.hpp"
 #include "opencv2/xfeatures2d.hpp"
 
+#include "imgproc/idiapMSER/mser.h"
+
 
 class CircleDetector : public cv::Feature2D
 {
@@ -941,10 +943,28 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 	
 	if( blobDetector == MSER_t )
 	{
-		// MSER makes an excellent blob detector for
-		// black (white) circles on a white (black) background but is very slow.
-		cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
-		mser->detect( grey, tmpkps );
+// 		// MSER makes an excellent blob detector for
+// 		// black (white) circles on a white (black) background but is very slow.
+// 		cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
+// 		mser->detect( grey, tmpkps );
+		
+		// I find the OpenCV MSER implementation to be rather slow.
+		// As a little experiment, we can try the IDIAP version (even though OpenCV says it uses that algorithm...)
+		float MSER_minDiversity = 0.33;
+		MSER mser8(MSER_delta, MSER_minArea / (float)(grey.rows*grey.cols), MSER_maxArea / (float)(grey.rows*grey.cols), MSER_maxVariation, MSER_minDiversity, true);
+		
+		std::vector<MSER::Region> regions;
+		mser8(grey.data, grey.cols, grey.rows, regions);
+		
+		tmpkps.resize( regions.size() );
+		for( unsigned rc = 0; rc < regions.size(); ++rc )
+		{
+			tmpkps[rc].size = sqrt( regions[rc].area_ );
+			
+			tmpkps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
+			tmpkps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
+		}
+		
 	}
 	else if( blobDetector == SURF_t )
 	{
