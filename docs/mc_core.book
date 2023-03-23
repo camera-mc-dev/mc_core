@@ -23,7 +23,7 @@ bk.style = "book.css"
 bk.title    = "mc_core"
 bk.author   = "Murray"
 bk.date     = [2021,10,29]
-bk.coverImg = "imgs/tst.jpg"
+bk.coverImg = "imgs/cover.jpg"
 #bk.outputTypes = ["html", "word", "epub"]
 bk.outputTypes = ["html"]
 
