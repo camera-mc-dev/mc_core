@@ -158,9 +158,10 @@ Rendering::BaseHeadlessRenderer::BaseHeadlessRenderer(unsigned in_width, unsigne
 		exit(0);
 	}
 	
-	#ifndef __APPLE__
+#ifndef __APPLE__
 	GLenum err = glewInit();
-	if( err = GLEW_ERROR_NO_GLX_DISPLAY )
+#if defined(GLEW_ERROR_NO_GLX_DISPLAY)
+	if( err == GLEW_ERROR_NO_GLX_DISPLAY )
 	{
 		std::stringstream estr;
 		cout << "Error initialiseing glew: " << "(" << err << "): " << glewGetErrorString(err);
@@ -172,8 +173,15 @@ Rendering::BaseHeadlessRenderer::BaseHeadlessRenderer(unsigned in_width, unsigne
 		estr << "Error initialising glew: " << "(" << err << "): " << glewGetErrorString(err);
 		throw std::runtime_error( estr.str() );
 	}
-	
-	#endif
+#else
+	if( err != GLEW_OK )
+	{
+		std::stringstream estr;
+		estr << "Error initialising glew: " << "(" << err << "): " << glewGetErrorString(err);
+		throw std::runtime_error( estr.str() );
+	}
+#endif
+#endif
 	
 	
 	
