@@ -159,20 +159,20 @@ Rendering::BaseHeadlessRenderer::BaseHeadlessRenderer(unsigned in_width, unsigne
 	}
 	
 	#ifndef __APPLE__
-|   GLenum err = glewInit();
-|   if( err = GLEW_ERROR_NO_GLX_DISPLAY )
-|   {
-|   |   std::stringstream estr;
-|   |   cout << "Error initialiseing glew: " << "(" << err << "): " << glewGetErrorString(err);
-|   |   cout << " - BUT! some random dude online said we can ignore this error. What's the bets they're right?" << endl;
-|   }
-|   else if( err != GLEW_OK )
-|   {
-|   |   std::stringstream estr;
-|   |   estr << "Error initialising glew: " << "(" << err << "): " << glewGetErrorString(err);
-|   |   throw std::runtime_error( estr.str() );
-|   }
-
+	GLenum err = glewInit();
+	if( err = GLEW_ERROR_NO_GLX_DISPLAY )
+	{
+		std::stringstream estr;
+		cout << "Error initialiseing glew: " << "(" << err << "): " << glewGetErrorString(err);
+		cout << " - BUT! some random dude online said we can ignore this error. What's the bets they're right?" << endl;
+	}
+	else if( err != GLEW_OK )
+	{
+		std::stringstream estr;
+		estr << "Error initialising glew: " << "(" << err << "): " << glewGetErrorString(err);
+		throw std::runtime_error( estr.str() );
+	}
+	
 	#endif
 	
 	
