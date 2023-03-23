@@ -1242,6 +1242,8 @@ float CamNetCalibrator::CalcReconError()
 	std::vector< std::vector<float> > gridPointsErrs;
 	std::vector< std::vector<float> > auxPointsErrs;
 	
+	std::ofstream errfi( "/tmp/mc_calib_err" );
+	
 	gridPointsErrs.resize( numCams );
 	for( unsigned wpc = 0; wpc < worldPoints.size(); ++wpc )
 	{
@@ -1326,7 +1328,16 @@ float CamNetCalibrator::CalcReconError()
 	cout << "====================================================================================================" << endl;
 	cout << endl << endl;
 	
+	
+	errfi << endl << endl;
+	errfi << "====================================================================================================" << endl;
+	errfi << "======================     Current reconstruction errors                  ==========================" << endl;
+	errfi << "====================================================================================================" << endl;
+	errfi << endl << endl;
+	
+	
 	cout << " == grid points == " << endl;
+	errfi << " == grid points == " << endl;
 	float grandMean = 0.0f;
 	int grandCount = 0;
 	for( unsigned cc = 0; cc < numCams; cc++ )
@@ -1342,10 +1353,12 @@ float CamNetCalibrator::CalcReconError()
 			if( gridPointsErrs[cc].size() > 0 )
 			{
 				cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+				errfi << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
 			}
 			else
 			{
 				cout << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
+				errfi << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
 			}
 			grandMean += mean;
 			++grandCount;
@@ -1353,13 +1366,18 @@ float CamNetCalibrator::CalcReconError()
 		else
 		{
 			cout << "camera " << cc << "     not-set    " << endl;
+			errfi << "camera " << cc << "     not-set    " << endl;
 		}
 	}
 	cout << "grand-mean: " << grandMean/grandCount << endl;
 	cout << endl << endl << endl << endl;
 	
+	errfi << "grand-mean: " << grandMean/grandCount << endl;
+	errfi << endl << endl << endl << endl;
+	
 	
 	cout << " == aux points == " << endl;
+	errfi << " == aux points == " << endl;
 	grandMean = 0.0f;
 	grandCount = 0;
 	for( unsigned cc = 0; cc < numCams; cc++ )
@@ -1375,10 +1393,12 @@ float CamNetCalibrator::CalcReconError()
 			if( auxPointsErrs[cc].size() > 0 )
 			{
 				cout << "camera " << cc << "  mean: " << mean << "  max: " << auxPointsErrs[cc].back() <<  "    min: " << auxPointsErrs[cc][0] << "   median: " << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				errfi << "camera " << cc << "  mean: " << mean << "  max: " << auxPointsErrs[cc].back() <<  "    min: " << auxPointsErrs[cc][0] << "   median: " << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
 			}
 			else
 			{
 				cout << "this error based only on aux points, and we ain't got any, so skipping the output" << endl;
+				errfi << "this error based only on aux points, and we ain't got any, so skipping the output" << endl;
 			}
 			grandMean += mean;
 			++grandCount;
@@ -1386,10 +1406,16 @@ float CamNetCalibrator::CalcReconError()
 		else
 		{
 			cout << "camera " << cc << "     not-set    " << endl;
+			errfi << "camera " << cc << "     not-set    " << endl;
 		}
 	}
 	cout << "grand-mean: " << grandMean/grandCount << endl;
 	cout << endl << endl << endl << endl;
+	
+	errfi << "grand-mean: " << grandMean/grandCount << endl;
+	errfi << endl << endl << endl << endl;
+	
+	errfi.close();
 	
 	return 0.0f;
 }
