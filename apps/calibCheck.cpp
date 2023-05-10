@@ -363,6 +363,25 @@ int main(int argc, char *argv[] )
 	std::vector< std::shared_ptr<Rendering::MeshNode> > camNodes(sources.size());
 	Eigen::Vector4f magenta;
 	magenta << 1.0, 0, 1.0, 1.0;
+	
+	bool scaleIsMM = false;
+	std::vector<float> dists;
+	for( unsigned isc = 0; isc < sources.size(); ++isc )
+	{
+		hVec3D c = sources[isc]->GetCalibration().GetCameraCentre();
+		
+		dists.push_back( c.head(3).norm() );
+	}
+	std::sort( dists.begin(), dists.end() );
+	if( dists[ dists.size()/2 ] > 200 )
+		scaleIsMM = true;
+	
+	if( scaleIsMM )
+		cout << "looks like calib is using mm" << endl;
+	else
+		cout << "looks like calib is using m" << endl;
+	
+	
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{
 		hVec3D zero; zero << 0,0,0,1.0f;
@@ -370,14 +389,20 @@ int main(int argc, char *argv[] )
 		
 		// we'll actually tweak the vertices slightly to more obviously show
 		// which way the camera is facing.
-		camCubes[isc]->vertices <<  -20, -20,  20,  20,    -50,-50, 50,  50,
-		                            -20,  20,  20, -20,    -50, 50, 50, -50,
-		                              0,   0,   0,   0,     50, 50, 50,  50,
-		                              1,   1,   1,   1,      1,  1,  1,   1;
-// 		camCubes[isc]->vertices <<  -0.02, -0.02,  0.02,  0.02,    -0.05,-0.05, 0.05,  0.05,
-// 		                            -0.02,  0.02,  0.02, -0.02,    -0.05, 0.05, 0.05, -0.05,
-// 		                              0,       0,     0,     0,     0.05, 0.05, 0.05,  0.05,
-// 		                              1,       1,     1,     1,        1,    1,    1,     1;
+		if( scaleIsMM )
+		{
+			camCubes[isc]->vertices <<  -20, -20,  20,  20,    -50,-50, 50,  50,
+			                            -20,  20,  20, -20,    -50, 50, 50, -50,
+			                              0,   0,   0,   0,     50, 50, 50,  50,
+			                              1,   1,   1,   1,      1,  1,  1,   1;
+		}
+		else
+		{
+			camCubes[isc]->vertices <<  -0.02, -0.02,  0.02,  0.02,    -0.05,-0.05, 0.05,  0.05,
+			                            -0.02,  0.02,  0.02, -0.02,    -0.05, 0.05, 0.05, -0.05,
+			                              0,       0,     0,     0,     0.05, 0.05, 0.05,  0.05,
+			                              1,       1,     1,     1,        1,    1,    1,     1;
+		}
 		camCubes[isc]->UploadToRenderer(ren);
 		
 		std::stringstream ss;
@@ -392,8 +417,11 @@ int main(int argc, char *argv[] )
 		ren->Get3dRoot()->AddChild( camNodes[isc] );
 	}
 	
-	auto axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
-// 	auto axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
+	std::shared_ptr<Rendering::SceneNode> axesNode;
+	if( scaleIsMM )
+		axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
+	else
+		axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
 	
 	ren->Get3dRoot()->AddChild(axesNode);
 	
