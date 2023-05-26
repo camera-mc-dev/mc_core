@@ -82,11 +82,49 @@ float IntersectRays( const hVec2D &s0,  hVec2D &d0, const hVec2D &s1,  hVec2D &d
 
 hVec3D IntersectRayPlane( const hVec3D &p0, const hVec3D &dir, const Eigen::Vector4f &plane)
 {
+	float t = IntersectRayPlane0( p0, dir, plane);
+	
+	return p0 + t*dir;
+}
+
+float IntersectRayPlane0( const hVec3D &p0, const hVec3D &dir, const Eigen::Vector4f &plane)
+{
 	float d = plane(3);
 	hVec3D n; n.head(3) = plane.head(3); n(3) = 0;
-	float t = -(p0.dot(n) + d) / dir.dot(n);
+	return -(p0.dot(n) + d) / dir.dot(n);
+}
 
-	return p0 + t*dir;
+bool IntersectRayAABox3D( const hVec3D &p0, const hVec3D &dir, std::vector< std::vector<float> > bounds, float &tm, float &tM )
+{
+	//
+	// There are massively efficient ways of doing this.
+	// Sorry.
+	//
+	
+	// bounds is { {mx,Mx}, {my,My}, {mz,Mz}}
+	assert( bounds.size() == 3 );
+	
+	std::vector<Eigen::Vector4f> planes(3);
+	planes[0] << 1,0,0,0;
+	planes[1] << 0,1,0,0;
+	planes[2] << 0,0,1,0;
+	std::vector<float> ts;
+	
+	tm = -9999999999;
+	tM =  9999999999;
+	for( unsigned ac = 0; ac < planes.size(); ++ac )
+	{
+		planes[ac](3) = bounds[ac][0];
+		float t0 = IntersectRayPlane0( p0, dir, planes[ac] );
+		
+		planes[ac](3) = bounds[ac][1];
+		float t1 = IntersectRayPlane0( p0, dir, planes[ac] );
+		
+		tm = std::max( tm, std::min(t0,t1) );
+		tM = std::min( tM, std::max(t0,t1) );
+	}
+	
+	return tM > tm;
 }
 
 
