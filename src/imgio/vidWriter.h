@@ -7,7 +7,7 @@
 // So, instead of that, we're going to try and _pipe_ the data to the ffmpeg command which 
 // we assume is somewhere on the system.
 //
-#include <cv.hpp>
+include <opencv2/opencv.hpp>
 #include <cstdio>
 
 class VidWriter

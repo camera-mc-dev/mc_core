@@ -4,7 +4,7 @@
 #include "calib/calibration.h"
 #include "misc/types.h"
 
-#include <cv.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp> // only keep this line until we get up to openCV 3.0!
 
 #include <string>

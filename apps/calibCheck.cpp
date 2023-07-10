@@ -1,4 +1,5 @@
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
+
 #include <iostream>
 #include <vector>
 #include <set>
@@ -24,7 +25,6 @@ using std::vector;
 
 #include "commonConfig/commonConfig.h"
 
-#include "cv.hpp"
 #include <iostream>
 #include <vector>
 #include <set>

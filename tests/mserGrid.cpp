@@ -6,7 +6,7 @@ using std::endl;
 #include "renderer2/basicRenderer.h"
 
 #include <vector>
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 using std::vector;
 
 #include <opencv2/xfeatures2d.hpp>
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
 	double SIFT_contThresh = 0.01; // increase to reduce features (default 0.04)
 	double SIFT_edgeThresh = 10;   // decrease to reduce features (default 10)
 	double SIFT_sigma      = 1.6;
-	cv::Ptr<cv::xfeatures2d::SIFT> sift = cv::xfeatures2d::SIFT::create(SIFT_numFeats, SIFT_nLayers, SIFT_contThresh, SIFT_edgeThresh, SIFT_sigma);
+	cv::Ptr<cv::SIFT> sift = cv::SIFT::create(SIFT_numFeats, SIFT_nLayers, SIFT_contThresh, SIFT_edgeThresh, SIFT_sigma);
 	
 	
 	double SURF_thresh = 5000;
