@@ -17,6 +17,13 @@ using std::vector;
 
 int main(int argc, char* argv[])
 {
+	if( argc != 2 && argc != 3 )
+	{
+		cout << "test mser grid detector: " << endl;
+		cout << argv[0] << " <source> [jump to frame] " << endl;
+		cout << endl;
+		exit(0);
+	}
 	// is it a directory?
 	ImageSource *src;
 	if( boost::filesystem::is_directory( argv[1] ))
@@ -28,12 +35,13 @@ int main(int argc, char* argv[])
 		src = (ImageSource*) new VideoSource( argv[1], "none");
 	}
 	
-// 	src->JumpToFrame(2822);
+	if( argc == 3 )
+		src->JumpToFrame( atoi(argv[2]) );
 	
-	int MSER_delta = 5;
+	int MSER_delta = 2;
 	int MSER_minArea = 3*2;
 	int MSER_maxArea = 20*20;
-	float MSER_maxVariation = 0.08;
+	float MSER_maxVariation = 0.4;
 	cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
 	cv::Ptr< cv::ORB > orb = cv::ORB::create();
 	
@@ -51,13 +59,13 @@ int main(int argc, char* argv[])
 	std::shared_ptr< Rendering::BasicPauseRenderer > ren;
 	Rendering::RendererFactory::Create( ren, 1280, 720, "MSER test" );
 	
-	CircleGridDetector cgDet(1920, 1080, false, false, CircleGridDetector::MSER_t);
+	CircleGridDetector cgDet(1920, 1080, false, true, CircleGridDetector::MSER_t);
 	cgDet.MSER_delta   = 5;
 	cgDet.MSER_maxArea = 50*50;
-	cgDet.MSER_minArea = 3*3;
-	cgDet.MSER_maxVariation = 0.2;
+	cgDet.MSER_minArea = 5;
+	cgDet.MSER_maxVariation = 0.1;
 	cgDet.parallelLineLengthRatioThresh = 0.85;
-	cgDet.parallelLineAngleThresh = 5.0;
+	cgDet.parallelLineAngleThresh = 15.0;
 	
 	bool done = false;
 	bool paused = false;
@@ -65,6 +73,8 @@ int main(int argc, char* argv[])
 	cv::Mat img,grey, grey2;
 	while( !done )
 	{
+		cout << src->GetCurrentFrameID() << endl;
+		
 		img = src->GetCurrent();
 		cv::cvtColor(  img,  grey, cv::COLOR_BGR2GRAY );
 		cv::cvtColor( grey, grey2, cv::COLOR_GRAY2BGR );
