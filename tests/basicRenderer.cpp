@@ -18,8 +18,8 @@ using namespace Rendering;
 
 int main(void)
 {
-	std::shared_ptr<BasicHeadlessRenderer> ren;
-	Rendering::RendererFactory::Create(ren, 1024, 512, "basic headless renderer test" );
+	std::shared_ptr<BasicRenderer> ren;
+	Rendering::RendererFactory::Create(ren, 1024, 512, "basic renderer test" );
 	
 	cout << "err after create: " <<  glGetError() << endl;
 	
@@ -67,15 +67,7 @@ int main(void)
 	ren->StepEventLoop();
 	cout << "a: " << glGetError() << endl;
 		
-	cv::Mat grab = ren->Capture();
-	
-	cout << "b: " << endl;
-	SaveImage(grab, "tst.jpg");
-	
-	cv::Mat i( 1024, 1024, CV_32FC3, cv::Scalar(0,0,0,0) );
-	ren->RenderToTexture(i);
-	i = i * 255.0f;
-	SaveImage(i, "tst2.jpg");
+	while( !ren->StepEventLoop() );
 	
 	
 }

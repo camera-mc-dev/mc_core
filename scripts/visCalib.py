@@ -26,6 +26,10 @@ class Calib:
 		L0 = [float(v) for v in ss[11:27]]
 		self.L = np.array( L0 ).reshape((4,4))
 		
+		print( self.L )
+		print( np.linalg.inv( self.L ) )
+		print("--")
+		
 		# distortions
 		self.k = [float(v) for v in ss[27:]]
 
@@ -49,7 +53,7 @@ cfs = sys.argv[1:]
 
 calibs = [ Calib(f) for f in cfs ]
 
-n = 0.2
+n = 1.0
 #n = 500
 
 # camera origins
@@ -70,6 +74,9 @@ camYs = np.array( [ np.dot( np.linalg.inv(c.L), y ) for c in calibs ] )
 # camera zs
 z = np.array( [[0,0,n,1]] ).T
 camZs = np.array( [ np.dot( np.linalg.inv(c.L), z ) for c in calibs ] )
+
+mnZ = np.mean( camZs, axis=0 )
+print( mnZ )
 
 
 sceneOrigin = np.array( [[[0],[0],[0]]] )
