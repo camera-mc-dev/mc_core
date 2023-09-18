@@ -1,6 +1,6 @@
 ## The Library
 
-`mc_core` exists to provide basic and fundamental tools for the rest of the `mc_dev` framework, especially camera calibration and basic rendering functions for debug and display.
+`mc_core` exists to provide basic and fundamental tools for the rest of the `mc_dev` framework, especially camera calibration and basic rendering functions for debug and display[^renNote].
 
 The calibration tools have already been documented in the previous chapter, and the remaining portions of this book will focus more on the actual software, implementations, etc.. for future developers.
 
@@ -12,22 +12,23 @@ The `mc_core` repository is split between three directories:
   - `apps/`
   - `tests/`
 
-As per the other parts of `mc_dev` we have various directories under `src/` which each contain C++ source files grouped together in common functions. These are all compiled to binaries and gathered together into a single library, `mc-core/build/<build-mode>/src/libMC-core.a`
+As per the other parts of `mc_dev` we have various directories under `src/` which each contain C++ source files grouped together in common themes. These are all compiled to binaries and gathered together into a single library, `mc-core/build/<build-mode>/src/libMC-core.a`
 
 Under `apps/` you will find the single-source-file tools provided with the library for calibration, video source viewing, etc... These will all be compiled to binaries under `mc-core/build/<build-mode>/bin`.
 
-Under `tests/` you will find any small videos for testing features of the library. These will all be compiled to binaries under `mc-core/build/<build-mode>/tests`
+Under `tests/` you will find any small apps for testing features of the library. These will all be compiled to binaries under `mc-core/build/<build-mode>/tests`
 
 ### Library
 
 The main parts of the `mc_core` library are:
 
-   - `src/calib`: The calibration algorithms
+   - `src/calib`       : The calibration algorithms
    - `src/commonConfig`: Small class to handle common configuration for all framework tools
-   - `src/imgio`: All source relating to image loading, saving and sources
-   - `src/math`: All source related to maths.
-   - `src/misc`: Several miscellaneous functions and classes.
-   - `src/renderer2`: All the rendering classes.
+   - `src/imgio`       : All source relating to image loading, saving and sources
+   - `src/math`        : All source related to maths.
+   - `src/misc`        : Several miscellaneous functions and classes.
+   - `src/renderer2`   : All the rendering classes.
+   - `src/imgproc`     : clone of the [IDIAP MSER](https://github.com/idiap/mser) repository as it is faster than the OpenCV implementation.
 
 ### Common Config
 
@@ -38,17 +39,17 @@ Whenever a framework tool is loaded that uses the `CommonConfig` class, the clas
 Note that before anybody can use one of the `mc_dev` tools, they will need to adjust their personal `.mc_dev.common.cfg` file. A typical file will look like:
 
 ```bash
-dataRoot = "/Users/me475/programming/mc_dev/data/";
-shadersRoot = "/Users/me475/programming/mc_dev/shaders/";
-coreDataRoot = "/Users/me475/programming/mc_dev/data/";
-scriptsRoot = "/Users/me475/programming/mc_dev/python/";
-maxSingleWindowWidth = 2200;
-maxSingleWindowHeight = 1200;
+dataRoot = "/data2/";
+shadersRoot  = "/home/dadams42/programming/mc_dev/mc_core/shaders/";
+coreDataRoot = "/home/dadams42/programming/mc_dev/mc_core/data/";
+scriptsRoot  = "/home/dadams42/programming/mc_dev/mc_core/python/";
+netsRoot     = "/home/dadams42/programming/mc_dev/mc_nets/data/";
+ffmpegPath   = "/usr/bin/ffmpeg";
+maxSingleWindowWidth =  1200;
+maxSingleWindowHeight = 800;
 ```
 
-Here, the user can set their preferred global `dataRoot`, meaning they can leave that setting out of other config files.
-
-The more important things to set are to make sure that the `shadersRoot` points to the shaders for the `mc_core` renderer, and the path to the core data, which at time of writing consists of a directory containing a single font file.
+Here, the user can set their preferred global `dataRoot`, meaning they can leave that setting out of other config files. Other settings should be obvious. We need to know the path to `ffmpeg` if the user wants to write out video files - it was much easier to pipe data to ffmpeg than it was to use the various ffmpeg libraries / API.
 
 ### Image Loading/Saving
 
@@ -63,7 +64,7 @@ The `SaveImage` and `LoadImage` functions primarily make use of `Magick++` for l
 
 The `.floatImg` and `.charImg` formats were created to deal with two small problems:
 
-  - The lack of a fast and simple float32 image format that suits our needs and has no other baggage.
+  - The lack of a fast and simple float32 image format that suited our needs and had no other baggage.
   - The need to read/write at pace without completely killing disk space.
 
 The two file formats are binary file formats with a very simple structure. There is a short header with a magic number and details of size of the file and whether it is float or byte (character) data. The data is mildly compressed using Google's [Snappy](https://github.com/google/snappy) which favours speed over disk space.
@@ -109,8 +110,13 @@ The image sender is a neat pair of classes which can be used to transmit an imag
 
 ### The renderer
 
-The renderer will be documented in more detail in its own chapter.
+We define an abstract renderer class, and from this, extend two `base` classes - one which uses a backend of SFML, and one which uses EGL. From those we spawn basic renderers or more specific renderers. A top notch software engineer will sneer at us but what we have works and only occassionally gets cumbersome. Each renderer is a wrapper for some set of scenes, and each scene a simplistic scene graph consisting of basic nodes, camera nodes and mesh nodes. We're not after making a high end rendering tool here - this is simple debug stuff.
+
+One of the more useful features is the ability to set the OpenGL camera matrix to match a calibration matrix - at least the linear part of it. If you want to render a mesh into the scene you would have to draw the _undistorted_ camera view as background, then do the OpenGL render (and optionally distort again after that). 
 
 ### Calibration
 
 Details of the calibration algorithms will be given in their own chapter.
+
+
+[^renNote]: Initially the intention was to use some kind of standard graphics engine (e.g. Ogre, Panda... Unreal) for rendering, but the pest of those was generally inflexibility around scene, world and camera coordinate systems. Thus, we ended up throwing together our own dodgy scene graph around OpenGL to allow us to get the coordinate systems we typically use with vision and indeed the ability to match the OpenGL camera projection to our camera calibrations. Just if you were wondering.

@@ -114,17 +114,20 @@ bool IntersectRayAABox3D( const hVec3D &p0, const hVec3D &dir, std::vector< std:
 	tM =  9999999999;
 	for( unsigned ac = 0; ac < planes.size(); ++ac )
 	{
-		planes[ac](3) = bounds[ac][0];
+		planes[ac](3) = -bounds[ac][0];
 		float t0 = IntersectRayPlane0( p0, dir, planes[ac] );
 		
-		planes[ac](3) = bounds[ac][1];
+		planes[ac](3) = -bounds[ac][1];
 		float t1 = IntersectRayPlane0( p0, dir, planes[ac] );
 		
 		tm = std::max( tm, std::min(t0,t1) );
 		tM = std::min( tM, std::max(t0,t1) );
 	}
 	
-	return tM > tm;
+	tm = std::max( 0.0f, tm );
+	tM = std::max( 0.0f, tM );
+	
+	return (tM > tm) && (tm >= 0);
 }
 
 

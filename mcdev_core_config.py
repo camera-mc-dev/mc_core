@@ -21,7 +21,7 @@ def SetCompiler(env):
 		exit(0)
 	
 	# Enable C++ 11
-	env.Append(CPPFLAGS=['-std=c++11'])
+	env.Append(CPPFLAGS=['-std=c++17'])
 	
 	# all warnings, but also show how to disable each
 	# warning if necessary.
@@ -76,7 +76,7 @@ def FindOpenGL(env):
 
 def FindOpenCV(env):
 	# We use OpenCV for lots of things.
-	env.ParseConfig("pkg-config opencv --cflags --libs")
+	env.ParseConfig("pkg-config opencv4 --cflags --libs")
 
 	# OpenCV now needs this... well, on Mac anyway...
 	# Note: This assumes Opencv was installed with Homebrew.
@@ -95,7 +95,7 @@ def FindEigen(env):
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
 	env.Append(LIBS=['boost_system','boost_filesystem'])
-
+	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
 
 def FindMagick(env):
 	# Image magick has advantages over OpenCV in my experience.

@@ -187,9 +187,9 @@ void Rendering::CameraNode::SetPerspectiveProjection( transMatrix2D K, float w, 
 	// to the appropriate OpenGL normalised device coordinates. Hopefully...
 	transMatrix3D M;
 	M << 2*K(0,0)/w,   2*K(0,1)/w, -( w - 2*K(0,2))/w      ,                        0,
-				  0,  -2*K(1,1)/h,  ( h - 2*K(1,2))/h      ,                        0,
-				  0,            0, -(near+far)/(near-far)  ,  2*far*near/(near - far),
-				  0,            0,                        1,                        0;
+	              0,  -2*K(1,1)/h,  ( h - 2*K(1,2))/h      ,                        0,
+	              0,            0, -(near+far)/(near-far)  ,  2*far*near/(near - far),
+	              0,            0,                        1,                        0;
 	projMatrix = M;
 }
 

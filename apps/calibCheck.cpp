@@ -1,4 +1,5 @@
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
+
 #include <iostream>
 #include <vector>
 #include <set>
@@ -24,7 +25,6 @@ using std::vector;
 
 #include "commonConfig/commonConfig.h"
 
-#include "cv.hpp"
 #include <iostream>
 #include <vector>
 #include <set>
@@ -153,6 +153,8 @@ int main(int argc, char *argv[] )
 	float targetDepth = 0;
 	unsigned originFrame = 0;
 	std::string matchesFile("none");
+	bool renderCube = false;
+	std::vector< std::vector<float> > cube;
 	try
 	{
 		cfg.readFile(argv[1]);
@@ -190,6 +192,18 @@ int main(int argc, char *argv[] )
 				s = dataRoot + testRoot + (const char*) cfs[ic];
 				calibFiles[ic] = s;
 			}
+		}
+		
+		if( cfg.exists("cube") )
+		{
+			libconfig::Setting &cs = cfg.lookup("cube");
+			assert( cs.getLength() == 3 );
+			cube.resize(3);
+			for( unsigned ac = 0; ac < cs.getLength(); ++ac )
+			{
+				cube[ac] = { cs[ac][0], cs[ac][1] };
+			}
+			renderCube = true;
 		}
 		
 		if( cfg.exists("matchesFile") )
@@ -381,6 +395,31 @@ int main(int argc, char *argv[] )
 	else
 		cout << "looks like calib is using m" << endl;
 	
+	std::shared_ptr<Rendering::MeshNode> cubeNode;
+	if( renderCube )
+	{
+		hVec3D zero; zero << 0,0,0,1.0f;
+		auto cubeMesh = Rendering::GenerateWireCube(zero, 20);
+		
+		cubeMesh->vertices << cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],
+		                      cube[1][0], cube[1][1], cube[1][1], cube[1][0],    cube[1][0], cube[1][1], cube[1][1], cube[1][0],
+		                      cube[2][0], cube[2][0], cube[2][0], cube[2][0],    cube[2][1], cube[2][1], cube[2][1], cube[2][1],
+		                               1,          1,          1,          1,             1,          1,          1,          1;
+		
+		cubeMesh->UploadToRenderer(ren);
+		
+		Eigen::Vector4f cubeCol;
+		magenta << 0.6, 0.8, 0.6, 0.5;
+		
+		
+		Rendering::NodeFactory::Create(cubeNode, "cubeNode" );
+		cubeNode->SetMesh( cubeMesh );
+		cubeNode->SetBaseColour(magenta);
+		cubeNode->SetTexture(nullTex);
+		cubeNode->SetShader( ren->GetShaderProg("basicColourShader"));
+		
+		ren->Get3dRoot()->AddChild( cubeNode );
+	}
 	
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{

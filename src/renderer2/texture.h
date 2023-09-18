@@ -1,7 +1,7 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
 
 #include "renderer2/abstractRenderer.h"
 

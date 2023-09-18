@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`mc_core` is the central repository for the `mc_dev` set of repositories. As the name suggests, it provides all of the core functionality that is shared between the various parts of the project. Primarily, this consits of:
+`mc_core` provides core functionality for all the `mc_dev` repositories. Primarily, this consits of:
 
   - Camera calibration
   - 3D rendering
@@ -13,7 +13,7 @@ Documentation in the `mc_base` repository provides basic information about the o
 
 ## Getting the source
 
-The source is mostly developed by Murray Evans as part of the university of Bath's CAMERA research group. The source can be pulled from the CAMERA git server *rivendell* - please see the wiki for details on using and accessing the git server.
+The source is mostly developed by Murray Evans as part of the university of Bath's CAMERA research group. The source can be pulled from `github.com` or from CAMERA's own `gitolite` server.
 
 Altough the `mc_core` repo can be compiled without any of the other `mc_` repositories, it is highly recommended (especially if you intend to make use of any other `mc_dev` repos) to first check out the `mc_base` repository.
 
@@ -28,12 +28,12 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
 
 `mc_core` and thus all of `mc_dev` depends on a number of external libraries. These can mostly be installed through your package manager.
 
-  - OpenCV: 3.4.9 will work. Although it can come from a package manager, you should build it yourself to be sure you have:
-    - You will need the contrib packages
-    - You will need to enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+  - OpenCV: 4.8.0 was most recently used. We typically build it ourselves to control the configuration:
+    - enable the contrib packages
+    - enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+    - enable `OPENCV_GENERATE_PKGCONFIG`
     - Recommend enabling OpenMP for taking advantage of some parallel optimisations
     - Use CUDA if you have it.
-    - Update to 4.x branch is on the ToDo list...
   - Rendering: 
     - SFML: Create and manage OpenGL contexts and handle interactivity
     - GLEW: So we can use modern OpenGL
@@ -58,7 +58,7 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
     - Usual CMake install process
   - High5 *optional*: An HDF5 file library
     - https://github.com/BlueBrain/HighFive
-    - If not required, edit the `FindHDF5()` in `mcdev_core_config.py` like so:
+    - If not required, edit the `FindHDF5()` in `mcdev_core_config.py` like so (comment out and `pass` the function):
     ```python
     def FindHDF5(env):
     # We use HDF5 files when we create and load a training dataset.
@@ -67,8 +67,9 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
     #env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
     pass
     ```
+  - scons: Python based build system.
 
-Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring and so, at the present time, `mc_dev` can not be compiled against 4.x - we expect to rectify this in the near future but it is low priority. Example for installing OpenCV here: https://learnopencv.com/install-opencv-3-4-4-on-ubuntu-18-04/
+Although OpenCV *can* typically be installed through a package manager, we advise building it yourself because you can a) ensure you enable all the parts you might want, including CUDA and OpenMP support, as well as the `contrib` modules and the non-free modules (for using SIFT and SURF features for example). The 4.x branch of OpenCV appears to have included some notable restructuring, but many `mc_dev` repos include a branch for compiling against OpenCV 4.x - just be prepared to fix a few things.
 
 ## Specifing where dependencies are
 
@@ -157,9 +158,9 @@ Fianlly, `~/.mc_dev.common.cfg` should be updated to ensure that paths in this c
 `mc_core` supplies the following tools:
 
   - `renderSyncedSources`: Given a list of image sources (directory of image files, individual videos) which are time sychronised (i.e. frame `f` of source `na` is the same as frame `f` of source `nb` ) this will show the image sources as a grid in one window. Can handle up to 16 sources at once.
-  - `renderSyncedSourcesHeadless`: As above, but does the rendering using EGL so that there is no need for a window, or even a window manager. The grid of images is instead written to disk.
+  - `renderSyncedSourcesHeadless`: As above, but does the rendering using EGL so that there is no need for a window, or even a window manager. Rendered images are instead written to disk.
   - `convertImg`: given an image `a` will convert the image and save out as `b`. This is particularly useful when using `mc_dev`'s custom `.charImg` and `.floatImg` files.
-  - `circleGridCamNetwork`: This performs calibration of a network of cameras, where the input is a set of synchronised images sources where each camera observed a calibration target consisting of a grid of circles.
+  - `circleGridCamNetwork`: This performs calibration of a network of cameras using observations of a suitable calibration grid.
   - `calibCheck`: Tool for visualising the result of a calibration. Draws cameras and origin on each view.
   - `pointMatcher`: Calibration can often benefit from an extra set of point matches between camera views, particularly in circular arrangements of cameras where half the cameras see the un-patterned back side of the calibration grid. This tool allows the user to annotate such matches.
   - `manualAlignNetwork`: Given a calibration and a set of points (desired origin, point on desired x-axis, point on desired y-axis) this tool will reorient the calibration so that it has the desired origin and orientation.
@@ -174,6 +175,11 @@ To make the html book of the documentation:
   - install pandoc: `sudo apt install pandoc`
   - enter the docs directory: `cd docs/`
   - run the `.book` file: `./mc_core.book`
-    - the `.book` file is actually a python script which wraps up calls to `pandoc` for making a nice html book from the markdown files.
+    - the `.book` file is actually a python script which wraps up calls to `pandoc` for making a nice html book from the markdown files, so you could equally run `python mc_core.book`
 
-...or if you're lazy, like Laurie, just open them in VSCode and enable markdown preview.
+# Building docker image
+
+1. pull or build opencv_op:4.6.0 (check opencv_docker for instructions to build that)
+2. run `(sudo) docker build . -t mc_core:4.6.0`
+
+
