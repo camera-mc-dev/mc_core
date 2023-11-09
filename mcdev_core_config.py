@@ -95,7 +95,7 @@ def FindEigen(env):
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
 	env.Append(LIBS=['boost_system','boost_filesystem'])
-
+	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
 
 def FindMagick(env):
 	# Image magick has advantages over OpenCV in my experience.

@@ -28,12 +28,12 @@ Altough the `mc_core` repo can be compiled without any of the other `mc_` reposi
 
 `mc_core` and thus all of `mc_dev` depends on a number of external libraries. These can mostly be installed through your package manager.
 
-  - OpenCV: 3.4.9 will work. Although it can come from a package manager, you should build it yourself to be sure you have:
-    - You will need the contrib packages
-    - You will need to enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+  - OpenCV: 4.8.0 was most recently used. We typically build it ourselves to control the configuration:
+    - enable the contrib packages
+    - enable `OPENCV_ENABLE_NONFREE` as we use SIFT and SURF
+    - enable `OPENCV_GENERATE_PKGCONFIG`
     - Recommend enabling OpenMP for taking advantage of some parallel optimisations
     - Use CUDA if you have it.
-    - OpenCV 4.x is supported in a seperate branch (it basically changes a few `#include` lines)
   - Rendering: 
     - SFML: Create and manage OpenGL contexts and handle interactivity
     - GLEW: So we can use modern OpenGL
