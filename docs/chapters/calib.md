@@ -159,7 +159,7 @@ useExistingIntrinsics = false;
 # 4: as 3 plus aspect ratio
 # 5: as 4 plus skew
 #
-# 3 is normall a good option.
+# 3 is normally a good option.
 #
 #
 # the distortion parameters are r^2, r^4, tx, ty, r^6
@@ -307,15 +307,19 @@ gridFinder:
 	gridLinesParallelThresh = 25.0;
 	gridLinesPerpendicularThresh = 60.0;
 	gapThresh = 0.8;
-	alignDotSizeDiffThresh = 25.0;
+	 = 25.0;
 	alignDotDistanceThresh = 10.0;
 	maxGridlineError = 32.0;
 };
 ```
 
-The `MSER` specific settings can be understood with reference to the OpenCV documentation or the `MSER` paper.
+For `MSER` we found the implementation from [IDIAP](https://github.com/idiap/mser) to be faster than OpenCV and shamelessly cloned their code into `mc_core`. `MSER` is a natural approach to locating the grid circles because it just looks for dark blobs surrounded by light regions (or light blobs surrounded by dark) and is a bit more robust than circle detectors. The `MSER` parameters are best understood with reference to the paper but in general, reducing `maxVariation` or increasing `delta` will reduce the number of features that are detected. The area options limit the size of detected features and is probably the first thing to consider if you need to tune the detector.
 
-There are a lot of other settings there. If the grid detector has been documented when you read this, you will find more details in that documentation. Otherwise, you'll have to consult the code. And yes, there are other options that using `MSER` but stick to `MSER` as it is robust if slow.
+Grid detection works by first detecting MSER features, then drawing a line from each feature to its `potentialLinesNumNearest` nearest neighbours. Each of those lines _could_ represent a section of a grid line, but which lines really do? We filter out some features by checking that each line `a` has at least one other line to which it is parallel and which is about the same length (with leeway provided by the `parallelLineAngleThresh` and `parallelLineLengthRatioThresh`) when considering just the lines `b` involving the two features of line `a`. As such, those thesholds can be adjusted to allow more lines through and detect more grids, but increase the chance of detecting bad grids. Next, we observe that true grid lines will pass through multiple features. Indeed, true grid lines should pass very close to atleast `n = min(numRows,numCols)` features. So, we rate each line by the total distance to `n` closest features and sort the lines from best to worst. We then take the best line and start collecting lines that are parallel to that line ( with `gridLinesParallelThresh` giving some (lots of!) leeway ) until the lines exceed `maxGridlineError`. Then we go back to the start and look for the first line that is perpendicular (angle larger than `gridLinesPerpendicularThresh`) and hunt down all lines parallel to that line. We now have two sets of parallel(ish) lines with each set perpendicular(ish) to the other. We filter those sets to get the subset with most consistent gaps between them (`gapThresh` says how close a gap must be to get into a subset) and then try to figure out which set of lines is the rows of the grid and which the columns based on how many lines are left in each set. If the grid is expected to have alignment dots, we predict where those could be and look for suitable features that are within the right size and distance of the prediction (`alignDotSizeDiffThresh`, `alignDotDistanceThresh`) and use that to determine the orientation of the grid, otherwise we do it heuristically with the expectation that 'down' is towards the bottom of the screen and the grid (0,0) is its top left circle - it really helps to not have a square grid for this heuristic. 
+
+It's a brutally heuristic algorithm but remarkably effective and rarely is it worth tuning the line parameters unless you really need to get some perspective-oblique boards detected). 
+
+
 
 ### Augment grids with points matches
 
