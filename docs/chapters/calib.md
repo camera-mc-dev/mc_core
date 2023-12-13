@@ -26,7 +26,7 @@ In $K$ we have the following parameters:
 
 Note that the focal length will be defined in *pixels*, not in mm or cm or otherwise. You can convert it if you really really wanted to, but if you need to do that you're going beyond the scope of this document.
 
-The distortion model consists of 5 parameters provided as the array $k = [\begin{array}{ccccc} k_0 & k_1 & k_2 & k_3 & k_4 \end{array} ]$ for a radial and tangential distortion as per [OpenCV]([https://docs.opencv.org/4.5.3/dc/dbb/tutorial_py_calibration.html)
+The distortion model consists of 5 parameters provided as the array $k = [\begin{array}{ccccc} k_0 & k_1 & k_2 & k_3 & k_4 \end{array} ]$ for a radial and tangential distortion as per [OpenCV](https://docs.opencv.org/4.5.3/dc/dbb/tutorial_py_calibration.html) - our $k_0$ to $k_4$ are in the same order and OpenCV's `(k1,k2,p1,p2,k3)`.
 
 ## Calibration target
 
@@ -43,6 +43,7 @@ When you get ideal lighting and relatively close observations of the calibration
 ## Calibrating a network of cameras
 
 The calibration process is typically as follows:
+
   1) Capture images
   2) create calibration configuration file
   2) detect grids
@@ -82,11 +83,13 @@ When you look at the network of cameras you have created, it is key to consider 
 
 Get this stage right, and the following stages will be trivial.
 
+If you need to, it should be possible to do an intrinsic calibration of each camera on its own and later do the extrinsic.
+
 ### Configuration file for calibration tools
 
 The configuration file for all of the calibration tools is generally the same file, though not all options are used by all tools. The configuration file uses the format defined by `libconfig`.
 
-As with almost every config file used by `mc_dev`, the config file starts by specifying the `data root` and the `test root`. If you are not already familiar with `mc_dev`'s splitting up of data paths, the idea is that the `dataRoot` might change between different computers, but the `testRoot` will stay the same - so you can use the same configuration file across different computers. Note that this means `dataRoot` is optional as if you don't specify it, it will be taken from your `~/.mc_dev.common.cfg` file.
+As with almost every config file used by `mc_dev`, the config file starts by specifying the `dataRoot` and the `testRoot`. If you are not already familiar with `mc_dev`'s splitting up of data paths, the idea is that the `dataRoot` might change between different computers, but the `testRoot` will stay the same - so you can use the same configuration file across different computers. Note that this means `dataRoot` is optional as if you don't specify it, it will be taken from your `~/.mc_dev.common.cfg` file.
 
 ```bash
 dataRoot = "/datasets/"
@@ -195,6 +198,10 @@ forceOneCam = true;
 # cameras for a new camera to be added. Note that all cameras will eventually
 # be added - it will then just be one at a time if there's not enough shares.
 #
+# If you really struggled to get shared grids for a camera, you can set this 
+# to 0. Then the tool will allow the camera to be added to the system using
+# only auxilliary point matches.
+#
 minSharedGrids = 80;
 
 #
@@ -222,6 +229,8 @@ visualise = 0;
 # This specifies the file that contains the matches.
 #
 # Leave it commented out if you are not using manual point matches.
+#
+# Manual point matches can be created using the pointMatcher tool
 #
 matchesFile = "matches"
 ```
