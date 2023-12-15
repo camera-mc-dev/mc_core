@@ -26,7 +26,7 @@ In $K$ we have the following parameters:
 
 Note that the focal length will be defined in *pixels*, not in mm or cm or otherwise. You can convert it if you really really wanted to, but if you need to do that you're going beyond the scope of this document.
 
-The distortion model consists of 5 parameters provided as the array $k = [\begin{array}{ccccc} k_0 & k_1 & k_2 & k_3 & k_4 \end{array} ]$ for a radial and tangential distortion as per [OpenCV]([https://docs.opencv.org/4.5.3/dc/dbb/tutorial_py_calibration.html)
+The distortion model consists of 5 parameters provided as the array $k = [\begin{array}{ccccc} k_0 & k_1 & k_2 & k_3 & k_4 \end{array} ]$ for a radial and tangential distortion as per [OpenCV](https://docs.opencv.org/4.5.3/dc/dbb/tutorial_py_calibration.html) - our $k_0$ to $k_4$ are in the same order and OpenCV's `(k1,k2,p1,p2,k3)`.
 
 ## Calibration target
 
@@ -43,6 +43,7 @@ When you get ideal lighting and relatively close observations of the calibration
 ## Calibrating a network of cameras
 
 The calibration process is typically as follows:
+
   1) Capture images
   2) create calibration configuration file
   2) detect grids
@@ -82,11 +83,13 @@ When you look at the network of cameras you have created, it is key to consider 
 
 Get this stage right, and the following stages will be trivial.
 
+If you need to, it should be possible to do an intrinsic calibration of each camera on its own and later do the extrinsic.
+
 ### Configuration file for calibration tools
 
 The configuration file for all of the calibration tools is generally the same file, though not all options are used by all tools. The configuration file uses the format defined by `libconfig`.
 
-As with almost every config file used by `mc_dev`, the config file starts by specifying the `data root` and the `test root`. If you are not already familiar with `mc_dev`'s splitting up of data paths, the idea is that the `dataRoot` might change between different computers, but the `testRoot` will stay the same - so you can use the same configuration file across different computers. Note that this means `dataRoot` is optional as if you don't specify it, it will be taken from your `~/.mc_dev.common.cfg` file.
+As with almost every config file used by `mc_dev`, the config file starts by specifying the `dataRoot` and the `testRoot`. If you are not already familiar with `mc_dev`'s splitting up of data paths, the idea is that the `dataRoot` might change between different computers, but the `testRoot` will stay the same - so you can use the same configuration file across different computers. Note that this means `dataRoot` is optional as if you don't specify it, it will be taken from your `~/.mc_dev.common.cfg` file.
 
 ```bash
 dataRoot = "/datasets/"
@@ -159,7 +162,7 @@ useExistingIntrinsics = false;
 # 4: as 3 plus aspect ratio
 # 5: as 4 plus skew
 #
-# 3 is normall a good option.
+# 3 is normally a good option.
 #
 #
 # the distortion parameters are r^2, r^4, tx, ty, r^6
@@ -195,6 +198,10 @@ forceOneCam = true;
 # cameras for a new camera to be added. Note that all cameras will eventually
 # be added - it will then just be one at a time if there's not enough shares.
 #
+# If you really struggled to get shared grids for a camera, you can set this 
+# to 0. Then the tool will allow the camera to be added to the system using
+# only auxilliary point matches.
+#
 minSharedGrids = 80;
 
 #
@@ -222,6 +229,8 @@ visualise = 0;
 # This specifies the file that contains the matches.
 #
 # Leave it commented out if you are not using manual point matches.
+#
+# Manual point matches can be created using the pointMatcher tool
 #
 matchesFile = "matches"
 ```
@@ -307,15 +316,19 @@ gridFinder:
 	gridLinesParallelThresh = 25.0;
 	gridLinesPerpendicularThresh = 60.0;
 	gapThresh = 0.8;
-	alignDotSizeDiffThresh = 25.0;
+	 = 25.0;
 	alignDotDistanceThresh = 10.0;
 	maxGridlineError = 32.0;
 };
 ```
 
-The `MSER` specific settings can be understood with reference to the OpenCV documentation or the `MSER` paper.
+For `MSER` we found the implementation from [IDIAP](https://github.com/idiap/mser) to be faster than OpenCV and shamelessly cloned their code into `mc_core`. `MSER` is a natural approach to locating the grid circles because it just looks for dark blobs surrounded by light regions (or light blobs surrounded by dark) and is a bit more robust than circle detectors. The `MSER` parameters are best understood with reference to the paper but in general, reducing `maxVariation` or increasing `delta` will reduce the number of features that are detected. The area options limit the size of detected features and is probably the first thing to consider if you need to tune the detector.
 
-There are a lot of other settings there. If the grid detector has been documented when you read this, you will find more details in that documentation. Otherwise, you'll have to consult the code. And yes, there are other options that using `MSER` but stick to `MSER` as it is robust if slow.
+Grid detection works by first detecting MSER features, then drawing a line from each feature to its `potentialLinesNumNearest` nearest neighbours. Each of those lines _could_ represent a section of a grid line, but which lines really do? We filter out some features by checking that each line `a` has at least one other line to which it is parallel and which is about the same length (with leeway provided by the `parallelLineAngleThresh` and `parallelLineLengthRatioThresh`) when considering just the lines `b` involving the two features of line `a`. As such, those thesholds can be adjusted to allow more lines through and detect more grids, but increase the chance of detecting bad grids. Next, we observe that true grid lines will pass through multiple features. Indeed, true grid lines should pass very close to atleast `n = min(numRows,numCols)` features. So, we rate each line by the total distance to `n` closest features and sort the lines from best to worst. We then take the best line and start collecting lines that are parallel to that line ( with `gridLinesParallelThresh` giving some (lots of!) leeway ) until the lines exceed `maxGridlineError`. Then we go back to the start and look for the first line that is perpendicular (angle larger than `gridLinesPerpendicularThresh`) and hunt down all lines parallel to that line. We now have two sets of parallel(ish) lines with each set perpendicular(ish) to the other. We filter those sets to get the subset with most consistent gaps between them (`gapThresh` says how close a gap must be to get into a subset) and then try to figure out which set of lines is the rows of the grid and which the columns based on how many lines are left in each set. If the grid is expected to have alignment dots, we predict where those could be and look for suitable features that are within the right size and distance of the prediction (`alignDotSizeDiffThresh`, `alignDotDistanceThresh`) and use that to determine the orientation of the grid, otherwise we do it heuristically with the expectation that 'down' is towards the bottom of the screen and the grid (0,0) is its top left circle - it really helps to not have a square grid for this heuristic. 
+
+It's a brutally heuristic algorithm but remarkably effective and rarely is it worth tuning the line parameters unless you really need to get some perspective-oblique boards detected). 
+
+
 
 ### Augment grids with points matches
 

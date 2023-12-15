@@ -34,8 +34,6 @@ bk.MakeChapter( 1, "Core Overview", [ "../README.md"] )
 bk.MakeChapter( 2, "Calibration", ["chapters/calib.md"] )
 bk.MakeChapter( 3, "Library overview", ["chapters/overview.md"])
 bk.MakeChapter( 4, "The Renderer", ["chapters/renderer.md"])
-bk.MakeChapter( 5, "Calibration algorithms", ["chapters/calibAlgs.md"])
-
 
 
 
