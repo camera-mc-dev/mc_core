@@ -156,7 +156,7 @@ bool ImageDirectory::Advance()
 		current = nextImage.clone();
 		if( current.rows == 0 || current.cols == 0 )
 		{
-			std::cout << "ImageDirectory: Got empty image from nextImage?" << std::endl;
+			// std::cout << "ImageDirectory: Got empty image from nextImage?" << std::endl;
 			lock.unlock();
 		}
 		else

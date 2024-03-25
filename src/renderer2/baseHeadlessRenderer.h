@@ -27,6 +27,9 @@
 	#ifdef Complex
 		#undef Complex
 	#endif
+	#ifdef None
+		#undef None
+	#endif
 	#endif
 #endif
 

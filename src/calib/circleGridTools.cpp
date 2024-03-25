@@ -741,11 +741,11 @@ bool CircleGridDetector::FindGrid( cv::Mat in_img, unsigned in_rows, unsigned in
 	auto t5 = std::chrono::steady_clock::now();
 	
 	
-	cout << "\tMSER     : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
-	cout << "\tinit lns : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
-	cout << "\tgrid lns : " << std::chrono::duration <double, std::milli> (t3-t2).count() << "ms" << endl;
-	cout << "\trows/cols: " << std::chrono::duration <double, std::milli> (t4-t3).count() << "ms" << endl;
-	cout << "\tverts    : " << std::chrono::duration <double, std::milli> (t5-t4).count() << "ms" << endl;
+// 	cout << "\tMSER     : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
+// 	cout << "\tinit lns : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
+// 	cout << "\tgrid lns : " << std::chrono::duration <double, std::milli> (t3-t2).count() << "ms" << endl;
+// 	cout << "\trows/cols: " << std::chrono::duration <double, std::milli> (t4-t3).count() << "ms" << endl;
+// 	cout << "\tverts    : " << std::chrono::duration <double, std::milli> (t5-t4).count() << "ms" << endl;
 	
 	return gotGL && gotOrder;
 }
@@ -1041,8 +1041,8 @@ void CircleGridDetector::FindKeypoints(bool isGridLightOnDark)
 	auto t2 = std::chrono::steady_clock::now();
 	
 	
-	cout << "\t\tdetect   : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
-	cout << "\t\tpost : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
+// 	cout << "\t\tdetect   : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
+// 	cout << "\t\tpost : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
 	
 }
 

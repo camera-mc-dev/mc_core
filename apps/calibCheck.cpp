@@ -134,6 +134,9 @@ void LoadPointMatches( std::string matchesFile, std::map< unsigned, PointMatch >
 	cout << "loaded " << numMatches << endl;
 }
 
+std::vector< ImageSource* > sources;
+void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube );
+
 int main(int argc, char *argv[] )
 {
 	
@@ -155,6 +158,10 @@ int main(int argc, char *argv[] )
 	std::string matchesFile("none");
 	bool renderCube = false;
 	std::vector< std::vector<float> > cube;
+	
+	bool resCheck = false;
+	
+	
 	try
 	{
 		cfg.readFile(argv[1]);
@@ -204,6 +211,11 @@ int main(int argc, char *argv[] )
 				cube[ac] = { cs[ac][0], cs[ac][1] };
 			}
 			renderCube = true;
+			
+			if( cfg.exists("resCheck") )
+			{
+				resCheck = cfg.lookup("resCheck");
+			}
 		}
 		
 		if( cfg.exists("matchesFile") )
@@ -276,6 +288,10 @@ int main(int argc, char *argv[] )
 		sources[isc]->JumpToFrame( originFrame );
 	}
 	
+	if( resCheck )
+	{
+		ResCheck( sources, cube );
+	}
 	
 	// work out where all the cameras are.
 	cout << "original camera centres: " << endl;
@@ -661,4 +677,79 @@ int main(int argc, char *argv[] )
 		camChange = 0;
 		clicked = false;
 	}
+}
+
+
+void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube )
+{
+	genMatrix pts = genMatrix::Zero( 4, 9 );
+	pts << 0.0, cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],
+		   0.0, cube[1][0], cube[1][1], cube[1][1], cube[1][0],    cube[1][0], cube[1][1], cube[1][1], cube[1][0],
+		   0.0, cube[2][0], cube[2][0], cube[2][0], cube[2][0],    cube[2][1], cube[2][1], cube[2][1], cube[2][1],
+		   1.0,          1,          1,          1,          1,             1,          1,          1,          1;
+	
+	float omean, ocnt;
+	omean = 0.0f;
+	ocnt  = 0;
+	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	{
+		Calibration &calib = sources[sc]->GetCalibration();
+		std::vector<float> dists;
+		hVec3D o, x, y;
+		o << 0,0,0,1;
+		x << 1,0,0,1;
+		y << 0,1,0,1;
+		
+		o = calib.TransformToWorld( o );
+		x = calib.TransformToWorld( x );
+		y = calib.TransformToWorld( y );
+		
+		hVec3D xd = x - o;
+		hVec3D yd = y - o;
+		
+		hVec2D o2 = calib.Project( o );
+		
+		for( unsigned pc = 0; pc < pts.cols(); ++pc )
+		{
+			hVec3D a = pts.col(pc);
+			hVec3D b = a;
+			hVec2D a2, b2;
+			
+			float d = 0.0f;
+			a2 = calib.Project(a);
+			do
+			{
+				d += 0.1;
+				b = a + xd*d;
+				b2 = calib.Project(b);
+			}
+			while( (b2-a2).norm() < 1.0f );
+			
+			dists.push_back(d);
+			cout << std::setw(5) << d << " ";
+			d = 0.0f;
+			
+			do
+			{
+				d += 0.1;
+				b = a + yd*d;
+				b2 = calib.Project(b);
+			}
+			while( (b2-a2).norm() < 1.0f );
+			
+			dists.push_back(d);
+			cout << std::setw(5) << d << " | ";
+		}
+		
+		float md = 0.0f;
+		for( unsigned c = 0; c < dists.size(); ++c )
+		{
+			md += dists[c];
+			omean += dists[c];
+			ocnt += 1;
+		}
+		md /= dists.size();
+		cout << "md: " << md << endl;
+	}
+	cout << "omd: " << omean / ocnt << endl;
 }

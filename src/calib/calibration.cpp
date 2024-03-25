@@ -203,7 +203,7 @@ bool Calibration::Read( std::string filename )
 	boost::filesystem::ifstream infi( p );
 	if(!infi.is_open())
 	{
-		cout << "?: " << p.string() << endl;
+		// cout << "?: " << p.string() << endl;
 		return false;
 	}
 
