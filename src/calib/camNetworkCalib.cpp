@@ -78,6 +78,13 @@ void CamNetCalibrator::ReadConfig()
 			auxMatchesFile = dataRoot + testRoot + (const char*)cfg.lookup("matchesFile");
 		}
 		
+		rootCam = 99999999;
+		if( cfg.exists("rootCam") )
+		{
+			rootCam = cfg.lookup("rootCam");
+		}
+		
+		
 		numIntrinsicsToSolve = 3;
 		if( cfg.exists("numIntrinsicsToSolve" ) )
 		{
@@ -2010,9 +2017,15 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 		}
 	}
 
-	cout << "gtu: " << gridsToUse.size() << endl;
+	//
+	// If we've not got all that many grids available, we can choose to ignore 
+	// the grids and instead use auxilliary points instead.
+	//
 	if( gridsToUse.size() < minGridsToInitialiseCam )
-		return false;
+		if( auxMatches.size() > 4 )
+			gridsToUse.clear();
+		else
+			return false;
 
 	// construct vectors of the 2D and 3D points that we're going to use.
 	// this first set come from the grids....
@@ -2559,30 +2572,36 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 		}
 		if( maxShare < minSharedGrids )
 			minSharedGrids = maxShare-1;
-		rootCam = 0;
-		// this is a first call.
-		// we want to pick the root camera as well.
-
-		// find the camera which shares overlap with the most other cameras.
-		unsigned bestSharing = 0;
-		for( unsigned cc0 = 0; cc0 < Ls.size(); ++cc0 )
+		
+		
+		
+		//
+		// Unless the config file is overriding us, we will choose the camera 
+		// with the most other cameras as our root camera.
+		//
+		if( rootCam >= Ls.size() )
 		{
-			unsigned shareCount = 0;
-			for( unsigned cc1 = 0; cc1 < Ls.size(); ++cc1 )
+			// find the camera which shares overlap with the most other cameras.
+			unsigned bestSharing = 0;
+			for( unsigned cc0 = 0; cc0 < Ls.size(); ++cc0 )
 			{
-				if( sharing(cc0, cc1) > minSharedGrids )
-					++shareCount;
-			}
-			if( shareCount > bestSharing )
-			{
-				bestSharing = shareCount;
-				rootCam = cc0;
+				unsigned shareCount = 0;
+				for( unsigned cc1 = 0; cc1 < Ls.size(); ++cc1 )
+				{
+					if( sharing(cc0, cc1) > minSharedGrids )
+						++shareCount;
+				}
+				if( shareCount > bestSharing )
+				{
+					bestSharing = shareCount;
+					rootCam = cc0;
+				}
 			}
 		}
 		
-
+		
 		variCams.push_back(rootCam);
-
+		
 		isSetC[ rootCam ] = true;
 	}
 	else
