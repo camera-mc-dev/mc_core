@@ -202,7 +202,23 @@ forceOneCam = true;
 # to 0. Then the tool will allow the camera to be added to the system using
 # only auxilliary point matches.
 #
+# Note too that if you set this high enough, cameras that don't have enough grids 
+# but which do have auxMatches, will try to be calibrated from the auxMatches - thus 
+# you can force a camera to solve from auxMatches.
+#
 minSharedGrids = 80;
+
+
+#
+# When calibrating, the algorithm will pick the camera with the most shared views 
+# as the "rootCam" - i.e the camera that is initialised as the origin and to which
+# all other cameras as built around.
+#
+# Sometimes, that can be a bad choice and the network wont fully solve. As such, you
+# can force a difference root camera. Set to a large number of comment out for 
+# default behaviour, or the index of the camera to try.
+#
+rootCam = 99999
 
 #
 # Bundle adjustment is the heavy processing part of the calibration
