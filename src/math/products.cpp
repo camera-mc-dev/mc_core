@@ -17,3 +17,18 @@ hVec3D Cross(const hVec3D &a, const hVec3D &b)
 	res << p(0), p(1), p(2), 0.0;
 	return res;
 }
+
+
+
+Eigen::Vector4f GetPlane( const hVec3D &p, const hVec3D &r0, const hVec3D &r1 )
+{
+	// normal from cross product.
+	hVec3D n = Cross( r0, r1 );
+	
+	// d from dot product
+	float d = p.dot( n );
+	
+	Eigen::Vector4f res;
+	res << n.head(3), d;
+	return res;
+}

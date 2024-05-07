@@ -1,4 +1,6 @@
 #include "calib/calibration.h"
+#include "math/intersections.h"
+#include "math/products.h"
 
 #include <iostream>
 using std::cout;
@@ -274,4 +276,89 @@ bool Calibration::Write( std::string filename )
 	outfi.close();
 
 	return true;
+}
+
+
+
+
+
+
+
+
+//
+// Given a line between p0 -> p1, clip the line so that it fits inside the 
+// camera's view frustum, and return new points p0b, p1b
+//
+void Calibration::ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b )
+{
+	hVec3D dir = p1 - p0;
+	
+	// this suits my needs, probably. If either point is behind the camera,
+	// don't bother.
+	hVec3D tstp0, tstp1;
+	tstp0 = TransformToCamera( p0 );
+	tstp1 = TransformToCamera( p1 );
+	//cout << tstp0.transpose() << endl;
+	//cout << tstp1.transpose() << endl;
+	if( tstp0(2) < 0 || tstp1(2) < 0 )
+	{
+		p0b << 0,0,0,0;
+		p1b << 0,0,0,0;
+		return;
+	}
+	
+	
+	// get the 4 planes of the frustum... ummm. what about front/back?
+	hVec3D rtl, rtr, rbr, rbl;
+	hVec2D ptl, ptr, pbr, pbl;
+	ptl << 0,0,1.0;
+	ptr << width,0,1.0;
+	pbr << width,height,1.0;
+	pbl << 0,height,1.0;
+	rtl = Unproject( ptl );
+	rtr = Unproject( ptr );
+	rbr = Unproject( pbr );
+	rbl = Unproject( pbl );
+	
+	Eigen::Vector4f pt, pr, pb, pl;
+	hVec3D c = GetCameraCentre();
+	pt = GetPlane( c, rtl, rtr );
+	pr = GetPlane( c, rtr, rbr );
+	pb = GetPlane( c, rbr, rbl );
+	pl = GetPlane( c, rbl, rtl );
+	
+	// intersect ray with each plane.
+	// there's probably a real risk of the plane and ray
+	// being parallel...
+	std::vector< float > t(4);
+	t[0] = IntersectRayPlane0( p0, dir, pt);
+	t[1] = IntersectRayPlane0( p0, dir, pr);
+	t[2] = IntersectRayPlane0( p0, dir, pb);
+	t[3] = IntersectRayPlane0( p0, dir, pl);
+	
+	std::sort( t.begin(), t.end() );
+	
+	// only care about the middle two...
+	float f0 = std::max( 0.0f, t[1] );
+	float f1 = std::min( 1.0f, t[2] );
+	
+	// ... but be careful. Maybe we don't intersect the image.
+	if( f1 <= f0 )
+	{
+		p0b << 0,0,0,0;
+		p1b << 0,0,0,0;
+		return;
+	}
+	
+	//cout << p0.transpose() << endl;
+	//cout << p1.transpose() << endl;	
+	//cout << t[0] << " : " << ( p0 + t[0] * dir ).transpose() << endl;
+	//cout << t[1] << " : " << ( p0 + t[1] * dir ).transpose() << endl;
+	//cout << t[2] << " : " << ( p0 + t[2] * dir ).transpose() << endl;
+	//cout << t[3] << " : " << ( p0 + t[3] * dir ).transpose() << endl;
+	//cout << "------" << endl;
+		
+	p0b = p0 + f0 * dir;
+	p1b = p0 + f1 * dir;
+
 }
