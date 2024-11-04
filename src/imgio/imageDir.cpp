@@ -276,7 +276,7 @@ void ImageDirectory::ShuffleImageList()
 bool ImageDirectory::IsImage(string s)
 {
 	unsigned end = s.size();
-	if( s.find(".jpg") == end-4     || s.find(".JPG") == end-4  ||  
+	if( s.find(".jpg") == end-4     || s.find(".JPG") == end-4  ||  s.find(".jpeg") == end-5  ||  
 	    s.find(".png") == end-4     || s.find(".PNG") == end-4  ||
 	    s.find(".bmp") == end-4     || s.find(".BMP") == end-4  ||
 	    s.find(".tiff") == end-5    ||
