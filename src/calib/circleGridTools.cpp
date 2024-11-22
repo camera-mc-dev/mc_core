@@ -1,6 +1,7 @@
 #include "calib/circleGridTools.h"
 #include "math/distances.h"
 #include "math/intersections.h"
+#include "math/matrixGenerators.h"
 #include "commonConfig/commonConfig.h"
 
 #include <iostream>
@@ -286,7 +287,7 @@ void BuildGrid(vector< cv::Point3f > &gridCorners, unsigned rows, unsigned cols,
 
 
 
-CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesis, bool visualise, blobDetector_t in_bdt)
+CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesis, bool visualise, blobDetector_t in_bdt, hVec2D down)
 {
 	float ar = h / (float)w;
 	maxGridlineError = 32.0f;
@@ -294,6 +295,9 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 	showVisualiser = visualise;
 	useGridPointHypothesis = useHypothesis;
 	
+	assert( down(2) == 0.0f );
+	assert( down.norm() > 0.0f );
+	this->down = down / down.norm(); // make sure down is unit dir. 
 	
 	MSER_delta = 5;
 	MSER_minArea = 8;
@@ -351,11 +355,15 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 
 
 
-CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg )
+CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg, hVec2D down )
 {
 	cd_minMagThresh = 0.1;
 	cd_detThresh = 0.35;
 	cd_rescale = 1.0;
+	
+	assert( down(2) == 0.0f );
+	assert( down.norm() > 0.0f );
+	this->down = down / down.norm(); // make sure down is unit dir. 
 	
 	try
 	{
@@ -1820,48 +1828,70 @@ bool CircleGridDetector::SelectRowsCols(bool hasAlignmentDots)
 	{
 		// we just have to do our best possible guess, which is not going to be robust.
 		
-		// if we assume the calibration board has a more or less consistent orientation,
-		// we will assume that the (0,0) circle is the top left in the image.
+		// Let's say that we know what direction down is. We can assume that down is 
+		// at the bottom of the image, or we can get that information from a user 
+		// supplied config option.
 		
-		// col/row tells us if it is column or row _on the grid_, nothing
-		// about what direction it is in the image (unless that was how we decided col/row above).
-		hVec2D imgRowDir, imgColDir;
-		bool imgIsSwapped = false;
-		if( fabs( colDir(1) ) > fabs(colDir(0)) )
+		// If memory serves, and it is a long time since I did anything to this code,
+		// the col dir points from col 0 towards col n
+		// and row dir points from row 0 towards row n
+		
+		// Now, lacking any information other than where down is,
+		// and an assumption that the col dir should point down and col 0 row 0 should be 
+		// at the top left of the board...
+		
+// 		cout << " row lines: " << endl;
+// 		for(unsigned lc = 0; lc < rowLines.size(); ++lc )
+// 		{
+// 			const CircleGridDetector::kpLine &l = rowLines[lc];
+// 			
+// 			cout << lc << " : (" << kps[l.a].pt.x << ", " <<  kps[l.a].pt.y << " ) -> ( "
+// 			                     << kps[l.b].pt.x << ", " <<  kps[l.b].pt.y << " )" << endl;
+// 		}
+// 		
+// 		cout << " col lines: " << endl;
+// 		for(unsigned lc = 0; lc < colLines.size(); ++lc )
+// 		{
+// 			const CircleGridDetector::kpLine &l = colLines[lc];
+// 			
+// 			cout << lc << " : (" << kps[l.a].pt.x << ", " <<  kps[l.a].pt.y << " ) -> ( "
+// 			                     << kps[l.b].pt.x << ", " <<  kps[l.b].pt.y << " )" << endl;
+// 		}
+		
+		hVec2D cdn = colDir / colDir.norm();
+// 		cout << "col dir:  " << cdn.transpose() << endl;
+// 		cout << "down dir: " << down.transpose() << endl;
+		float a = acos( down.dot( cdn ) );
+// 		cout << "ang: " << a << endl;
+		if( a > 3.1415 / 2.0 )
 		{
-			imgColDir = colDir;
-			imgRowDir = rowDir;
-		}
-		else
-		{
-			imgIsSwapped = true;
-			imgRowDir = colDir;
-			imgColDir = rowDir;
+			// order of columns implies reversing rowLines
+// 			cout << "col direction implies row line reverse" << endl;
+			std::reverse( rowLines.begin(), rowLines.end() );
+			
+			// and thus, the rowDir
+			rowDir *= -1.0;
+			
 		}
 		
-	
-		if( imgColDir(1) < 0 )
+		// if 0,0 on the grid should be its top left and we know the 
+		// row direction, the implication is that the colum direction is 
+		// 90 degrees rotated from that.
+		// don't think I've got 2D rotation matrix generator so.... fudge it with 3D.
+		hVec3D cdn3; cdn3 << cdn(0), cdn(1), 0.0, 0.0;
+		auto R = RotMatrixEuler( 0, 0, -3.1415/2.0, EO_ZYX );
+		hVec3D aim3 = R * cdn3;
+		hVec2D aim; aim << aim3(0), aim3(1), 0.0f;
+		hVec2D rdn = rowDir / rowDir.norm();
+// 		cout << "row dir: " << rdn.transpose() << endl;
+// 		cout << "aim dir: " << aim.transpose() << endl;
+		a = acos( aim.dot( rdn ) );
+		if( a > 3.1415 / 2.0 )
 		{
-			if( imgIsSwapped )
-			{
-				std::reverse( colLines.begin(), colLines.end() );
-			}
-			else
-			{
-				std::reverse( rowLines.begin(), rowLines.end() );
-			}
+// 			cout << "row direction implies col line reverse" << endl;
+			std::reverse( colLines.begin(), colLines.end() );
 		}
-		if( imgRowDir(0) < 0 )
-		{
-			if( imgIsSwapped )
-			{
-				std::reverse( rowLines.begin(), rowLines.end() );
-			}
-			else
-			{
-				std::reverse( colLines.begin(), colLines.end() );
-			}
-		}
+		
 	}
 	
 	if( showVisualiser )

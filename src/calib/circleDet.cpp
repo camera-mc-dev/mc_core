@@ -231,13 +231,13 @@ void GridCircleFinder( cv::Mat in_grey, float minMagThresh, float detThresh, flo
 	
 	auto t6 = std::chrono::steady_clock::now();
 	
-	cout << "scale  : " << std::chrono::duration <double, std::milli>(t1-t0).count() << " ms " << endl;
-	cout << "init-k : " << std::chrono::duration <double, std::milli>(t2-t1).count() << " ms " << endl;
-	cout << "grad   : " << std::chrono::duration <double, std::milli>(t3-t2).count() << " ms " << endl;
-	cout << "mag    : " << std::chrono::duration <double, std::milli>(t4-t3).count() << " ms " << endl;
-	cout << "vote   : " << std::chrono::duration <double, std::milli>(t5-t4).count() << " ms " << endl;
-	cout << "det    : " << std::chrono::duration <double, std::milli>(t6-t5).count() << " ms " << endl;
-	cout << "tot    : " << std::chrono::duration <double, std::milli>(t6-t0).count() << " ms " << endl;
+// 	cout << "scale  : " << std::chrono::duration <double, std::milli>(t1-t0).count() << " ms " << endl;
+// 	cout << "init-k : " << std::chrono::duration <double, std::milli>(t2-t1).count() << " ms " << endl;
+// 	cout << "grad   : " << std::chrono::duration <double, std::milli>(t3-t2).count() << " ms " << endl;
+// 	cout << "mag    : " << std::chrono::duration <double, std::milli>(t4-t3).count() << " ms " << endl;
+// 	cout << "vote   : " << std::chrono::duration <double, std::milli>(t5-t4).count() << " ms " << endl;
+// 	cout << "det    : " << std::chrono::duration <double, std::milli>(t6-t5).count() << " ms " << endl;
+// 	cout << "tot    : " << std::chrono::duration <double, std::milli>(t6-t0).count() << " ms " << endl;
 	
 	
 }

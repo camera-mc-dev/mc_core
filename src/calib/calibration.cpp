@@ -298,8 +298,9 @@ void Calibration::ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b 
 	hVec3D tstp0, tstp1;
 	tstp0 = TransformToCamera( p0 );
 	tstp1 = TransformToCamera( p1 );
-	//cout << tstp0.transpose() << endl;
-	//cout << tstp1.transpose() << endl;
+	cout << "==========" << endl;
+	cout << tstp0.transpose() << endl;
+	cout << tstp1.transpose() << endl;
 	if( tstp0(2) < 0 || tstp1(2) < 0 )
 	{
 		p0b << 0,0,0,0;
@@ -350,13 +351,13 @@ void Calibration::ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b 
 		return;
 	}
 	
-	//cout << p0.transpose() << endl;
-	//cout << p1.transpose() << endl;	
-	//cout << t[0] << " : " << ( p0 + t[0] * dir ).transpose() << endl;
-	//cout << t[1] << " : " << ( p0 + t[1] * dir ).transpose() << endl;
-	//cout << t[2] << " : " << ( p0 + t[2] * dir ).transpose() << endl;
-	//cout << t[3] << " : " << ( p0 + t[3] * dir ).transpose() << endl;
-	//cout << "------" << endl;
+	cout << p0.transpose() << endl;
+	cout << p1.transpose() << endl;	
+	cout << t[0] << " : " << ( p0 + t[0] * dir ).transpose() << endl;
+	cout << t[1] << " : " << ( p0 + t[1] * dir ).transpose() << endl;
+	cout << t[2] << " : " << ( p0 + t[2] * dir ).transpose() << endl;
+	cout << t[3] << " : " << ( p0 + t[3] * dir ).transpose() << endl;
+	cout << "------" << endl;
 		
 	p0b = p0 + f0 * dir;
 	p1b = p0 + f1 * dir;

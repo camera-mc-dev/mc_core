@@ -37,6 +37,17 @@ void CamNetCalibrator::ReadConfig()
 			srcId2Indx[ (const char*) idirs[ic] ] = ic;
 		}
 		maxGridsForInitial = cfg.lookup("maxGridsForInitial");
+		
+		if( cfg.exists("downHints") )
+		{
+			libconfig::Setting &dhints = cfg.lookup("downHints");
+			assert( dhints.getLength() == imgDirs.size() );
+			downHints.resize( dhints.getLength() );
+			for( unsigned c = 0; c < downHints.size(); ++c )
+			{
+				downHints[c] << dhints[c][0], dhints[c][1], 0.0f;
+			}
+		}
 
 		// Basic information about the grid
 		gridRows = cfg.lookup("grid.rows");
@@ -311,7 +322,7 @@ void CamNetCalibrator::Calibrate()
 
 }
 
-void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t &coutLock)
+void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t &coutLock, hVec2D downHint)
 {
 	// Print startup message.
 	//coutLock.lock();
@@ -327,11 +338,11 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	CircleGridDetector *cgd;
 	if( cfg.exists("gridFinder" ) )
 	{
-		cgd = new CircleGridDetector( dir->GetCurrent().cols,dir->GetCurrent().rows, cfg.lookup("gridFinder") );
+		cgd = new CircleGridDetector( dir->GetCurrent().cols,dir->GetCurrent().rows, cfg.lookup("gridFinder"), downHint );
 	}
 	else
 	{
-		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis);
+		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis, false, CircleGridDetector::MSER_t, downHint );
 	}
 	
 	cout << "potentialLinesNumNearest     : " << cgd->potentialLinesNumNearest      << endl;
@@ -366,24 +377,34 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 		currentImage = dir->GetCurrent();
 		cv::cvtColor(currentImage, grey, cv::COLOR_BGR2GRAY);
 		++imgCount;
-
+		gridProg[isc] = imgCount;
+		
 		// Find grid.
 		cgd->FindGrid(grey, gridRows, gridCols, gridHasAlignmentDots, isGridLightOnDark,  gps);
-
+		
 		// if we didn't find anything, we still want to push
 		// in something, even if empty.
 		grids[isc].push_back(gps);
-
+		
 		// Increment grid number if valid grid found.
 		if( gps.size() > 0 )
 		{
 			++gridCount;
+			
+			++gridFound[isc];
 		}
-
+		
 		// Print status message.
 // 		coutLock.lock();
 		omp_set_lock( &coutLock );
-		cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
+		//cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
+		
+		for( unsigned c = 0; c < gridCount.size(); ++c )
+		{
+			cout << "Dir No. " << c << " : " << gridFound[c] << " grids out of " << gridProg[c] << " images " << endl;
+		}
+		cout << "-------------------------------------" << endl;
+		
 		omp_unset_lock( &coutLock );
 // 		coutLock.unlock();
 
@@ -465,11 +486,21 @@ void CamNetCalibrator::GetGrids()
 				
 				for( unsigned pc = 0; pc < grids[isc][gc].size(); ++pc )
 				{
-					assert( grids[isc][gc][pc].row < gridRows );
-					assert( grids[isc][gc][pc].col < gridCols );
-					                      
-					assert( grids[isc][gc][pc].row >= 0 );
-					assert( grids[isc][gc][pc].col >= 0 );
+					bool check = 
+					              grids[isc][gc][pc].row < gridRows &&
+					              grids[isc][gc][pc].col < gridCols &&
+					              
+					              grids[isc][gc][pc].row >= 0       &&
+					              grids[isc][gc][pc].col >= 0        ;
+					
+					if( !check )
+					{
+						cout << "\t grid failed check - ignoring." << endl;
+						++icount;
+						grids[isc][gc].clear();
+						break;
+					}
+					
 				}
 			}
 			cout << count << " " << icount << endl;
@@ -478,24 +509,21 @@ void CamNetCalibrator::GetGrids()
 	else
 	{
 		cout << "Getting grids - be patient!" << endl;
-
-		// Create vector of threads. One for each source.
-		vector<std::thread> gridThreads;
-		gridThreads.clear();
-		gridThreads.resize(sources.size());
-
+		
+		
 		// Determine number of concurrent threads supported.
 		unsigned long numThreads = std::thread::hardware_concurrency();
 		cout << numThreads << " concurrent threads are supported.\n";
 		cout << "sources: " << sources.size() << endl;
-
 		
+		gridProg.assign( sources.size(), 0 );
+		gridFound.assign( sources.size(), 0 );
 		omp_lock_t coutLock;
 		omp_init_lock( &coutLock );
 		#pragma omp parallel for
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
-			FindGridThread( sources[isc], isc, coutLock );
+			FindGridThread( sources[isc], isc, coutLock, downHints[isc] );
 		}
 	
 	}
