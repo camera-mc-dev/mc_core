@@ -105,7 +105,20 @@ int main( int argc, char *argv[] )
 	}
 	outfi.close();
 	
+	ss.str("");
 	
+	ss << "cmap/frame-" << std::setw(4) << std::setfill('0') << fc << "/points3D.txt";
+	outfi.open( ss.str() );
+	outfi << "# 3D point list with one line of data per point:\n#   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)" << endl;
+	for( unsigned pc = 0; pc < p3d.cols(); ++pc )
+	{
+		outfi << pc << " " 
+		      << p3d(0,pc) << " " << p3d(1,pc) << " " << p3d(2,pc) << " "   // x, y, z
+		      << p3d(6,pc) << " " << p3d(5,pc) << " " << p3d(4,pc) << " "   // r, g, b
+		      << p3d(7,pc) << endl;                                         // error.
+		// we're ignoring track and hoping to get away with it.
+	}
+	outfi << " Number of points: " << p3d.cols() << ", mean track length: 0" << endl;
 	
 	
 }
@@ -258,8 +271,9 @@ genMatrix GetPoints( std::map< std::string, std::shared_ptr< ImageDirectory > > 
 	
 	
 	std::vector< hVec3D > points;
-	std::vector< cv::Vec3b > colours;
+	std::vector< Eigen::Vector4f > colours;
 	std::vector< int > usedClusts;
+	std::vector< float > errors;
 	for( auto cli = clusters.begin(); cli != clusters.end(); ++cli )
 	{
 		std::vector< hVec3D > cents, dirs;
@@ -274,18 +288,35 @@ genMatrix GetPoints( std::map< std::string, std::shared_ptr< ImageDirectory > > 
 		{
 			hVec3D p = IntersectRays( cents, dirs );
 			points.push_back( p );
-
-			int row, col;
-			auto k   = cli->second[ 0 ];
-			auto p2d = kps[ k.sn ][ k.kpc ];
-			row = p2d(1);
-			col = p2d(0);
-
-			cv::Mat i = sources[ k.sn ]->GetCurrent();
-			cv::Vec3b px = i.at< cv::Vec3b > (row,col);
-			colours.push_back( px );
-
-			//TODO: Robustness.
+			
+			Eigen::Vector4f colour;
+			colour << 0,0,0,0;
+			float error = 0.0f;
+			for( unsigned pc = 0; pc < cli->second.size(); ++pc )
+			{
+				int row, col;
+				auto k   = cli->second[ pc ];
+				auto p2d = kps[ k.sn ][ k.kpc ];
+				row = p2d(1);
+				col = p2d(0);
+				
+				cv::Mat i = sources[ k.sn ]->GetCurrent();
+				cv::Vec3b px = i.at< cv::Vec3b > (row,col);
+				
+				colour(0) += px[0];
+				colour(1) += px[1];
+				colour(2) += px[2];
+				colour(3) += 1.0f;
+				
+				hVec2D pp = calibs[ k.sn ].Project( p );
+				error += (pp - p2d).norm();
+			}
+			error /= colour(3);
+			colour /= colour(3);
+			colours.push_back( colour );
+			errors.push_back( error );
+			
+			
 			
 			usedClusts.push_back( cli->first );
 		}
@@ -314,10 +345,10 @@ genMatrix GetPoints( std::map< std::string, std::shared_ptr< ImageDirectory > > 
 	}
 	outfi.close();
 	
-	genMatrix pts( 4+3, points.size() );
+	genMatrix pts( 4+3+1, points.size() );
 	for( unsigned pc = 0; pc < points.size(); ++pc )
 	{
-		pts.col( pc ) << points[pc](0), points[pc](1), points[pc](2), 1.0, colours[pc][0], colours[pc][1], colours[pc][2];
+		pts.col( pc ) << points[pc](0), points[pc](1), points[pc](2), 1.0, colours[pc].head(3), errors[pc];
 	}
 	
 	return pts;
