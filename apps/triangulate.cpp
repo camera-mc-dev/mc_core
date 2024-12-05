@@ -115,7 +115,7 @@ int main( int argc, char *argv[] )
 	{
 		outfi << pc << " " 
 		      << p3d(0,pc) << " " << p3d(1,pc) << " " << p3d(2,pc) << " "   // x, y, z
-		      << p3d(6,pc) << " " << p3d(5,pc) << " " << p3d(4,pc) << " "   // r, g, b
+		      << (int)p3d(6,pc) << " " << (int)p3d(5,pc) << " " << (int)p3d(4,pc) << " "   // r, g, b
 		      << p3d(7,pc) << endl;                                         // error.
 		// we're ignoring track and hoping to get away with it.
 	}
