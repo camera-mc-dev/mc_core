@@ -119,7 +119,7 @@ int main( int argc, char *argv[] )
 		      << p3d(7,pc) << endl;                                         // error.
 		// we're ignoring track and hoping to get away with it.
 	}
-	outfi << " Number of points: " << p3d.cols() << ", mean track length: 0" << endl;
+	outfi << "# Number of points: " << p3d.cols() << ", mean track length: 0" << endl;
 	outfi.close();	
 	
 }
