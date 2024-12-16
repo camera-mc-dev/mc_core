@@ -27,15 +27,17 @@ using std::vector;
 
 enum method_t {VIEW_CENT_RING};
 
+#define MODE_CALIB_ONLY 0
+#define MODE_SOURCES    1
+
+
 struct Settings
 {
 	std::string dataRoot;
 	std::string testRoot;
 	vector< std::string > imgDirs;
 	vector< std::string > vidFiles;
-	std::map< unsigned, std::string > calibFiles;
-	std::map< std::string, unsigned > srcId2Indx;
-	std::map< unsigned, std::string > srcIndx2Id;
+	std::vector< std::string > calibFiles;
 	
 	method_t alignMethod;
 	int highCamera;
@@ -46,40 +48,118 @@ struct Settings
 
 void CreateSources( Settings &s, std::vector< ImageSource* > &sources );
 Settings ParseConfig( std::string cfn );
-void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera );
+void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera );
 
 
 int main(int argc, char *argv[] )
 {
-	if( argc != 2 )
+	if( argc != 2 && argc < 4)
 	{
-		cout << "Tool to automatically realign/recentre a set of calibrated cameras" << endl;
-		cout << "Assumes cameras are in a ring or half dome and looking at a \"centre\"." << endl;
-		cout << "Usage: " << endl;
-		cout << argv[0] << " < calibration config file > " << endl;
+		cout << "Tool to automatically realign/recentre a set of calibrated cameras"                  << endl;
+		cout << "Assumes cameras are in a ring or half dome and looking at a \"centre\"."             << endl;
+		cout << "Usage: "                                                                             << endl;
+		cout << argv[0] << " < calibration config file > "                                            << endl;
+		cout << endl;
+		cout << "If we don't have a config file, just a set of image directory sources, then we have" << endl;
+		cout << "this option, giving the calibrations on the command line."                           << endl;
+		cout << "This version wont actually load the images either."                                  << endl;
+		cout << endl;
+		cout << " <method> : one of viewCentRing or... no other options right now ;p"                 << endl;
+		cout << " <high calib>  : the calib file for the camera that should be highest"               << endl;
+		cout << "                 after alignment."                                                   << endl;
+		cout << " <all calibs>  : all calib files _including_ the high calib."                        << endl;
+		cout << endl;
+		cout << argv[0] << " < method > < high calib > [ all calibs ]"                                << endl;
+		cout << endl;
 		exit(1);
 	}
 	
-	Settings settings = ParseConfig( argv[1] );
-	
+	cout << "Loading..." << endl;
+	Settings settings;
+	std::vector< Calibration > calibs;
 	std::vector< ImageSource* > sources;
-	CreateSources( settings, sources );
+	int mode;
+	if( argc == 2 )
+	{
+		settings = ParseConfig( argv[1] );
+		CreateSources( settings, sources );
+		for( unsigned c = 0; c < sources.size(); ++c )
+		{
+			calibs[c] = sources[c]->GetCalibration();
+		}
+		mode = MODE_SOURCES;
+	}
+	else if( argc >= 4 )
+	{
+		std::string methodStr( argv[1] );
+		if( methodStr.compare("viewCentRing") == 0 )
+		{
+			settings.alignMethod = VIEW_CENT_RING;
+		}
+		else
+		{
+			throw std::runtime_error( "Don't know the alignment method." );
+		}
+		
+		std::string highCamStr( argv[2] );
+		for( unsigned c = 3; c < argc; ++c )
+		{
+			settings.calibFiles.push_back( argv[c] );
+			cout << c << " : " << argv[c];
+			
+			
+			if( highCamStr.compare( argv[c] ) == 0 )
+			{
+				settings.highCamera = settings.calibFiles.size()-1;
+				cout << " ###### ";
+			}
+			
+			cout << endl;
+			
+		}
+		
+		calibs.resize( settings.calibFiles.size() );
+		for( unsigned c = 0; c < settings.calibFiles.size(); ++c )
+		{
+			cout << c << "/" << settings.calibFiles.size() << " : " << settings.calibFiles[c] << endl;
+			calibs[c].Read( settings.calibFiles[c] );
+		}
+		
+		mode = MODE_CALIB_ONLY;
+	}
 	
 	
 	if( settings.alignMethod == VIEW_CENT_RING )
 	{
-		AlignRingViewCent( sources, settings.highCamera );
-		AlignRingViewCent( sources, settings.highCamera );
+		cout << "view cent ring align." << endl;
+		cout << "  - phase 1..." << endl;
+		AlignRingViewCent( calibs, settings.highCamera );
+		cout << "  - phase 2..." << endl;
+		AlignRingViewCent( calibs, settings.highCamera );
+		cout << "done" << endl;
 	}
 	else
 	{
 		cout << "Couldn't do anything, you should have had an error before now." << endl;
 		exit(2);
 	}
-
-	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	
+	cout << "saving" << endl;
+	
+	if( mode == MODE_CALIB_ONLY )
 	{
-		sources[sc]->SaveCalibration();
+		for( unsigned c = 0; c < calibs.size(); ++c )
+		{
+			calibs[c].Write( settings.calibFiles[c] );
+		}
+	}
+	else if( mode == MODE_SOURCES )
+	{
+		for( unsigned sc = 0; sc < sources.size(); ++sc )
+		{
+			sources[sc]->GetCalibration() = calibs[sc];
+			sources[sc]->SaveCalibration();
+		}
 	}
 	
 	
@@ -116,8 +196,6 @@ Settings ParseConfig( std::string cfn )
 			{
 				std::string str;
 				str = s.dataRoot + s.testRoot + (const char*) idirs[ic];
-				s.srcId2Indx[(const char*)idirs[ic]] = s.imgDirs.size();
-				s.srcIndx2Id[ s.imgDirs.size() ] = (const char*)idirs[ic];
 				s.imgDirs.push_back(str);
 			}
 		}
@@ -129,9 +207,6 @@ Settings ParseConfig( std::string cfn )
 				std::string str;
 				str = s.dataRoot + s.testRoot + (const char*) vfs[ic];
 				s.vidFiles.push_back(str);
-				
-				s.srcId2Indx[(const char*)vfs[ic]] = s.vidFiles.size();
-				s.srcIndx2Id[ s.vidFiles.size() ] = (const char*)vfs[ic];
 			}
 			
 			libconfig::Setting &cfs = cfg.lookup("calibFiles");
@@ -292,7 +367,7 @@ public:
 
 
 
-void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera )
+void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera )
 {
 	
 	//
@@ -300,12 +375,12 @@ void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera )
 	//
 
 	cout << "Camera centres and view dirs: " << endl;
-	std::vector< hVec3D > centres( sources.size() ), viewDirs( sources.size() );
+	std::vector< hVec3D > centres( calibs.size() ), viewDirs( calibs.size() );
 	hVec3D zdir(4); zdir << 0,0,1,0;
-	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	for( unsigned sc = 0; sc < calibs.size(); ++sc )
 	{
-		centres[sc]  = sources[sc]->GetCalibration().GetCameraCentre();
-		viewDirs[sc] = sources[sc]->GetCalibration().TransformToWorld( zdir );
+		centres[sc]  = calibs[sc].GetCameraCentre();
+		viewDirs[sc] = calibs[sc].TransformToWorld( zdir );
 		cout << "\t - " << sc << ": " << centres[sc].transpose() << " : " << viewDirs[sc].transpose() << endl;
 	}
 	cout << endl;
@@ -385,9 +460,9 @@ void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera )
 	//
 	transMatrix3D M = T * R.inverse();
 	
-	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	for( unsigned sc = 0; sc < calibs.size(); ++sc )
 	{
-		Calibration &c = sources[sc]->GetCalibration();
+		Calibration &c = calibs[sc];
 		c.L = c.L * M;
 	}
 	
@@ -395,9 +470,9 @@ void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera )
 	// Now find the new centres, and find out the mean of them.
 	//
 	hVec3D meanCent; meanCent << 0,0,0,0;
-	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	for( unsigned sc = 0; sc < calibs.size(); ++sc )
 	{
-		centres[sc]  = sources[sc]->GetCalibration().GetCameraCentre();
+		centres[sc]  = calibs[sc].GetCameraCentre();
 		meanCent += centres[sc];
 	}
 	meanCent /= meanCent(3);
@@ -406,9 +481,9 @@ void AlignRingViewCent( std::vector< ImageSource* > &sources, int highCamera )
 	{
 		Eigen::Vector3f ax; ax << 0,1,0;
 		transMatrix3D R = RotMatrix( ax, 3.1415 );
-		for( unsigned sc = 0; sc < sources.size(); ++sc )
+		for( unsigned sc = 0; sc < calibs.size(); ++sc )
 		{
-			Calibration &c = sources[sc]->GetCalibration();
+			Calibration &c = calibs[sc];
 			c.L = c.L * R;
 		}
 	}

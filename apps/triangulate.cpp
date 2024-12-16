@@ -80,11 +80,11 @@ int main( int argc, char *argv[] )
 	}
 		
 	genMatrix p3d = GetPoints( sources, calibs, keypoints, matches, maxErr );
-	
+	cout << "got " << p3d.cols() << " points " << endl;
 	
 	std::stringstream ss;
 	ss << "cmap/frame-" << std::setw(4) << std::setfill('0') << fc << "/points3D.ply";
-	
+	cout << ss.str() << endl;
 	std::ofstream outfi( ss.str() );
 	
 	outfi << "ply" << endl;
@@ -108,18 +108,19 @@ int main( int argc, char *argv[] )
 	ss.str("");
 	
 	ss << "cmap/frame-" << std::setw(4) << std::setfill('0') << fc << "/points3D.txt";
+	cout << ss.str() << endl;
 	outfi.open( ss.str() );
 	outfi << "# 3D point list with one line of data per point:\n#   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)" << endl;
 	for( unsigned pc = 0; pc < p3d.cols(); ++pc )
 	{
 		outfi << pc << " " 
 		      << p3d(0,pc) << " " << p3d(1,pc) << " " << p3d(2,pc) << " "   // x, y, z
-		      << p3d(6,pc) << " " << p3d(5,pc) << " " << p3d(4,pc) << " "   // r, g, b
+		      << (int)p3d(6,pc) << " " << (int)p3d(5,pc) << " " << (int)p3d(4,pc) << " "   // r, g, b
 		      << p3d(7,pc) << endl;                                         // error.
 		// we're ignoring track and hoping to get away with it.
 	}
 	outfi << " Number of points: " << p3d.cols() << ", mean track length: 0" << endl;
-	
+	outfi.close();	
 	
 }
 
@@ -246,7 +247,7 @@ genMatrix GetPoints( std::map< std::string, std::shared_ptr< ImageDirectory > > 
 		clustIds[ kpid0 ] = cid++;
 		clustIds[ kpid1 ] = cid++;
 		
-		cout << cid << " " << clustIds.size() << endl;
+		// cout << cid << " " << clustIds.size() << endl;
 	}
 	
 	

@@ -399,7 +399,7 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 		omp_set_lock( &coutLock );
 		//cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
 		
-		for( unsigned c = 0; c < gridCount.size(); ++c )
+		for( unsigned c = 0; c < gridFound.size(); ++c )
 		{
 			cout << "Dir No. " << c << " : " << gridFound[c] << " grids out of " << gridProg[c] << " images " << endl;
 		}
