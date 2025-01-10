@@ -3,12 +3,13 @@
 
 struct SSortableIndex
 {
+	SSortableIndex() {};
 	SSortableIndex( int i, float v ) { idx = i; val = v; }
 	int idx;
 	float val;
-	bool operator<( const SortableSourceDist &oth) const
+	bool operator<( const SSortableIndex &oth) const
 	{
-		return dist < oth.dist;
+		return val < oth.val;
 	}
 };
 
