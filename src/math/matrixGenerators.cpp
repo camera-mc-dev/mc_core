@@ -59,6 +59,16 @@ transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target )
 }
 
 
+transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, float far )
+{
+	transMatrix3D M;
+	M << 2*K(0,0)/w,   2*K(0,1)/w, -( w - 2*K(0,2))/w      ,                        0,
+	              0,  -2*K(1,1)/h,  ( h - 2*K(1,2))/h      ,                        0,
+	              0,            0, -(near+far)/(near-far)  ,  2*far*near/(near - far),
+	              0,            0,                        1,                        0;
+	return M;
+}
+
 // useful stuff...
  transMatrix3D ScaleMatrix(float sx, float sy, float sz)
 {
@@ -69,7 +79,7 @@ transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target )
 	return S;
 }
 
- transMatrix3D TranslationMatrix(float tx, float ty, float tz)
+transMatrix3D TranslationMatrix(float tx, float ty, float tz)
 {
 	transMatrix3D T = transMatrix3D::Identity();
 	T(0,3) = tx;
