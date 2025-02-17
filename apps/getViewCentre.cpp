@@ -1,13 +1,14 @@
 #include <iostream>
-#include <ofstream>
+#include <fstream>
 #include <vector>
 #include <string>
 using std::cout;
 using std::endl;
 using std::vector;
 
+#include "calib/calibration.h"
 #include "math/intersections.h"
-include "math/matrixGenerators.h"
+#include "math/matrixGenerators.h"
 
 int main(int argc, char *argv[] )
 {
