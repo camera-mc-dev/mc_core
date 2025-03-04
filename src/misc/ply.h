@@ -12,4 +12,7 @@ genRowMajMatrix LoadPlyPointRGB( std::string infn );
 genRowMajMatrix LoadPlyTxtPointRGB( std::string infn );
 
 
+genRowMajMatrix LoadPlyPointNormalRGB( std::string infn );
+
+
 #endif

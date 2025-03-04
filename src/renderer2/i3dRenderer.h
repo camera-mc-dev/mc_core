@@ -1,7 +1,10 @@
 #ifndef MC_I3DRENDERER_H
 #define MC_I3DRENDERER_H
 
+
+#include <chrono>
 #include "renderer2/basicRenderer.h"
+#include "calib/calibration.h"
 
 namespace Rendering
 {
@@ -25,7 +28,7 @@ namespace Rendering
 		
 	protected:
 		I3DRenderer(unsigned width, unsigned height, std::string title);
-					
+		
 	public:
 		
 		virtual ~I3DRenderer();
@@ -52,6 +55,9 @@ namespace Rendering
 		
 		void Set3DCamera( Calibration c, float near, float far )
 		{
+			viewCalib = c;
+			this->near = near;
+			this->far  = far;
 			scenes[1].activeCamera->SetFromCalibration( c, near, far );
 			scenes[2].activeCamera->SetFromCalibration( c, near, far );
 		}
@@ -77,6 +83,16 @@ namespace Rendering
 		virtual void InitialiseGraphs();
 		
 		
+		hVec2D prevMousePos;
+		bool leftMousePressed, rightMousePressed;
+		
+		void TransformView( transMatrix3D T );
+		void RotateView( hVec2D mm, float time );
+		
+		Calibration viewCalib;
+		float near, far;
+		
+		std::chrono::time_point<std::chrono::steady_clock> prevRenderTime;
 	};
 };
 

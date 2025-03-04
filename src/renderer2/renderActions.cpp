@@ -19,8 +19,18 @@ Rendering::DrawMeshAction::DrawMeshAction(AbstractRenderer* in_ren, std::string 
 	tex        = texID;
 	baseColour = in_baseColour;
 	
-	numElements = mesh->faces.cols();
-	numVertsPerElement = mesh->faces.rows();
+	if( mesh->faces.cols() > 0 )
+	{
+		hasFaces    = true;
+		numElements = mesh->faces.cols();
+		numVertsPerElement = mesh->faces.rows();
+	}
+	else
+	{
+		hasFaces    = false;
+		numElements = mesh->vertices.cols();
+		numVertsPerElement = 1;
+	}
 }
 
 Rendering::DrawMeshAction::~DrawMeshAction()
@@ -149,13 +159,14 @@ void Rendering::DrawMeshAction::Perform(RenderState &renderState)
 	{
 		noVertexColours = false;
 		glEnableVertexAttribArray(ivc);  // Vertex colour.
-
+		
 		err = glGetError();
 		if( err != GL_NO_ERROR )
 		{
 			cout << "draw mesh attribs d: " << err << endl;
 		}
 	}
+	
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glVertexAttribPointer(iv, 4, GL_FLOAT, GL_FALSE, 0, 0);
@@ -201,19 +212,31 @@ void Rendering::DrawMeshAction::Perform(RenderState &renderState)
 			cout << "draw mesh buffers d: " << err << endl;
 		}
 	}
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fbo);
-
+	
+	if( hasFaces )
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fbo);
+		
+		err = glGetError();
+		if( err != GL_NO_ERROR )
+		{
+			cout << "draw mesh buffers e: " << err << endl;
+		}
+	}
+	
 	err = glGetError();
 	if( err != GL_NO_ERROR )
 	{
-		cout << "draw mesh buffers e: " << err << endl;
+		cout << "draw mesh pre: " << err << endl;
 	}
 
 	// cout << "ne : " << numElements << endl;
 	// cout << "nve: " << numVertsPerElement << endl;
 	switch( numVertsPerElement )
 	{
+		case 1:
+			glDrawArrays( GL_POINTS, 0, numElements );
+			break;
 		case 2:
 			glDrawElements(GL_LINES, numElements*2, GL_UNSIGNED_INT, 0);
 			break;
@@ -221,9 +244,15 @@ void Rendering::DrawMeshAction::Perform(RenderState &renderState)
 			glDrawElements(GL_TRIANGLES, numElements*3, GL_UNSIGNED_INT, 0);
 			break;
 		default:
-			throw std::runtime_error("Mesh render action can only handle lines or triangles.");
+			throw std::runtime_error("Mesh render action can only handle points, lines or triangles.");
 	}
-
+	
+	err = glGetError();
+	if( err != GL_NO_ERROR )
+	{
+		cout << "draw mesh post draw: " << err << endl;
+	}
+	
 	glDisableVertexAttribArray(iv);
 	if( !noNormals )
 		glDisableVertexAttribArray(in);
@@ -235,7 +264,7 @@ void Rendering::DrawMeshAction::Perform(RenderState &renderState)
 	err = glGetError();
 	if( err != GL_NO_ERROR )
 	{
-		cout << "draw mesh post: " << err << endl;
+		cout << "draw mesh post action: " << err << endl;
 	}
 
 	glDisable(GL_BLEND);
