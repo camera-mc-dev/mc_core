@@ -8,6 +8,7 @@ using std::vector;
 
 #include "math/intersections.h"
 #include "math/matrixGenerators.h"
+#include "calib/calibration.h"
 
 int main(int argc, char *argv[] )
 {
