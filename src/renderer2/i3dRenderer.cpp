@@ -256,7 +256,7 @@ void Rendering::I3DRenderer::RotateView( hVec2D mm, float time )
 		a *= time;
 		hVec3D rax = Cross( fwd, mm3 );
 		
-		transMatrix3D R = RotMatrix( rax, a );
+		transMatrix3D R = RotMatrix( rax, -a );
 		
 		viewCalib.L = R * viewCalib.L; // ?
 		

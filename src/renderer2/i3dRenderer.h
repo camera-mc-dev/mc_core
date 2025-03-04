@@ -76,7 +76,10 @@ namespace Rendering
 			throw std::runtime_error( "i3DRenderer can't really render to texture - there's no point!" );
 		}
 		
-		
+		Calibration GetViewCalib()
+		{
+			return viewCalib;
+		}
 		
 	protected:
 		
