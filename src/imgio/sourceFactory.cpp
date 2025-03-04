@@ -57,6 +57,14 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			}
 			else
 			{
+				if( calibFile.compare( "none" ) == 0 )
+				{
+					// can we find a calib file?
+					std::stringstream ss;
+					ss << input << ".calib";
+					if( boost::filesystem::exists( ss.str() ) )
+						calibFile = ss.str()
+				}
 				retval.source.reset( new VideoSource( input, calibFile ) );
 			}
 			
