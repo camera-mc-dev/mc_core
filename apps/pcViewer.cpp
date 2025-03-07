@@ -3,6 +3,7 @@
 #include "renderer2/geomTools.h"
 #include "commonConfig/commonConfig.h"
 #include "math/mathTypes.h"
+#include "math/matrixGenerators.h"
 #include "imgio/sourceFactory.h"
 #include "calib/calibration.h"
 
@@ -12,6 +13,143 @@
 using std::cout;
 using std::endl;
 
+class PCVRenderer : public Rendering::I3DRenderer
+{
+	friend class Rendering::RendererFactory;
+	template<class T0, class T1 > friend class RenWrapper;
+	
+protected:
+	PCVRenderer(unsigned width, unsigned height, std::string title) :
+	      Rendering::I3DRenderer(width, height, title)
+	{
+	}
+	
+	virtual bool HandleEvents()
+	{
+		sf::Event ev;
+		bool done = false;
+		while( win.pollEvent(ev) )
+		{
+			if( ev.type == sf::Event::Closed )
+				done = true;
+					
+			if( ev.type == sf::Event::KeyReleased )
+			{
+				if (ev.key.code == sf::Keyboard::C )
+				{
+					cout << "Camera pose (L) at current frame: " << endl;
+					cout << viewCalib.L << endl << endl;
+					hVec3D t;
+					float rx,ry,rz;
+					hVec3D o; o << 0,0,0,1;
+					cout << "tx ty tz : roll pitch yaw" << endl;
+					TransformToEuler( viewCalib.L, t, rx, ry, rz, EO_YXZ );
+					cout << t.transpose() << " " << rz*180.0/3.1415 << " " << rx*180.0/3.1415 << " " << ry*180.0/3.1415 << endl;
+					cout << "camera origin at: " << ( viewCalib.L.inverse() * o ).transpose() << endl << endl;
+					cout << "-------" << endl;
+					
+					
+					//
+					// The trouble is, colmap-pcd (colmap in general?) applies a weird transformation to the input point cloud 
+					// and thus also to the input camera.
+					//
+					// x <- -.y;
+					// y <- -.z;
+					// z <-  .x;
+					transMatrix3D flipMat;
+					flipMat << 0,  0,  1, 0,
+					          -1,  0,  0, 0,
+					           0, -1,  0, 0,
+					           0,  0,  0, 1;
+					transMatrix3D Lpcd = flipMat * viewCalib.L;
+					
+					//
+					// We can then use colmap-pcd by:
+					//   1) pre-transforming the input pointcloud by Lpcd
+					//   2) running colmap-pcd 
+					//   3) transforming the resulting reconstruction by Lcpd.inverse()
+					//
+					std::ofstream Tfi0( "view.transform" );
+					Tfi0 << viewCalib.L << endl;
+					Tfi0.close();
+					
+					std::ofstream Tfi1( "view.colmap-pcd.transform" );
+					Tfi1 << Lpcd << endl;
+					Tfi1.close();
+					
+					cout << "================================================================" << endl;
+					cout << "saved current view transform to : ./view.transform"               << endl;
+					cout << "saved modified view transform to: ./view.colmap-pcd.transform"    << endl;
+					
+					
+					
+					
+					//
+					// Of course, we'd much rather get colmap-pcd to use the point cloud in _this_ orientation.
+					// The easiest way of doing that, you would think, is to nullify the transformation that 
+					// colmap-pcd applies to the point-cloud and initial camera position.
+					//
+					// This is the transformation that colmap does:
+					// x <- -.y;
+					// y <- -.z;
+					// z <-  .x;
+					//
+					// And that is easily represented as a matrix, and if we invert that matrix 
+					// and pre-apply the transformation to the point cloud, then when colmap-pcd 
+					// does its stupid transform we end up back where we started.
+					//
+					// By the same token, colmap-pcd messes with the camera parameters we specify,
+					// and we can tweak the parameters to nullify that effect.
+					//
+					// if colmap does _this_ to the input camera parameters...
+					// roll  <-  roll
+					// pitch <- -pitch
+					// yaw   <- -yaw
+					// x <- -y 
+					// y <- -z
+					// z <-  x
+					//
+					// then we should be able to just... cancel that out with...
+					// x <- z
+					// y <- -x
+					// z <- -y
+					// roll  <- roll
+					// pitch <- -pitch
+					// yaw   <- -yaw
+					//
+					
+					flipMat << 0, -1,  0, 0,
+					           0,  0, -1, 0,
+					           1,  0,  0, 0,
+					           0,  0,  0, 1;
+					
+					
+					
+					std::ofstream Tfi2( "view.nullify-colmap-pcd.transform" );
+					Tfi2 << flipMat.inverse() << endl << endl;
+					Tfi2 << "view params tx ty tz roll pitch yaw" << endl;
+					Tfi2 << t(2) << " " << -t(0) << " " << -t(1) << " : " << rz*180.0/3.1415 << " " << -rx*180.0/3.1415 << " " << -ry*180.0/3.1415 << endl;
+					Tfi2.close();
+					
+					cout << "saved nullified view transform to: ./view.nullify-colmap-pcd.transform"    << endl;
+					cout << "================================================================" << endl;
+				}
+			}
+			
+			if( ev.type == sf::Event::MouseButtonReleased )
+			{
+				// not using 
+			}
+		}
+		return done;
+	}
+	
+public:
+	
+	virtual ~PCVRenderer()
+	{
+	}
+};
 
 
 int main( int argc, char *argv[] )
@@ -106,7 +244,7 @@ int main( int argc, char *argv[] )
 	//
 	// Create a "standard" interactive 3D renderer
 	//
-	std::shared_ptr<Rendering::I3DRenderer> ren;
+	std::shared_ptr<PCVRenderer> ren;
 	Rendering::RendererFactory::Create( ren, winW,winH, "point cloud viewer" );
 	
 	
@@ -178,7 +316,11 @@ int main( int argc, char *argv[] )
 	cout << "setting view calib" << endl;
 	Calibration viewCalib;
 	if( calibs.size() > 0 )
+	{
 		viewCalib = calibs[0];
+		float sc = winW / (float)calibs[0].width;
+		viewCalib.RescaleImage( sc );
+	}
 	else
 	{
 		viewCalib.width = winW;

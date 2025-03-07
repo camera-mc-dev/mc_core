@@ -128,14 +128,8 @@ void Rendering::I3DRenderer::InitialiseGraphs()
 }
 
 
-bool Rendering::I3DRenderer::StepEventLoop()
+bool Rendering::I3DRenderer::HandleEvents()
 {
-	Render();
-	
-	auto t0 = std::chrono::steady_clock::now();
-	auto ft = std::chrono::duration <double, std::milli>(t0-prevRenderTime).count() / 1000.0;
-	
-	win.setActive();
 	sf::Event ev;
 	bool done = false;
 	while( win.pollEvent(ev) )
@@ -153,7 +147,12 @@ bool Rendering::I3DRenderer::StepEventLoop()
 			// not using 
 		}
 	}
-	
+	return done;
+}
+
+
+void Rendering::I3DRenderer::HandleCamera( float ft )
+{
 	
 	transMatrix3D T = transMatrix3D::Identity();
 	if( sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
@@ -225,6 +224,20 @@ bool Rendering::I3DRenderer::StepEventLoop()
 	}
 	else
 		leftMousePressed = false;
+}
+
+bool Rendering::I3DRenderer::StepEventLoop()
+{
+	Render();
+	
+	auto t0 = std::chrono::steady_clock::now();
+	auto ft = std::chrono::duration <double, std::milli>(t0-prevRenderTime).count() / 1000.0;
+	
+	win.setActive();
+	
+	bool done = HandleEvents();
+	HandleCamera( ft );
+	
 	
 	prevRenderTime = t0;
 	

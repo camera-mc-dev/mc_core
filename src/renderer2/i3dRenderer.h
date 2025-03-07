@@ -84,6 +84,8 @@ namespace Rendering
 	protected:
 		
 		virtual void InitialiseGraphs();
+		virtual bool HandleEvents();
+		virtual void HandleCamera(float ft);
 		
 		
 		hVec2D prevMousePos;
