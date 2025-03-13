@@ -155,39 +155,39 @@ void Rendering::I3DRenderer::HandleCamera( float ft )
 {
 	
 	transMatrix3D T = transMatrix3D::Identity();
-	if( sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
+	if( win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(2,3) = -ft;
 		T = T0 * T;
 	}
-	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) )
+	else if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::S) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(2,3) =  ft;
 		T = T0 * T;
 	}
 	
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) )
+	if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::A) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(0,3) =  ft;
 		T = T0 * T;
 	}
-	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) )
+	else if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::D) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(0,3) = -ft;
 		T = T0 * T;
 	}
 	
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::R) )
+	if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::R) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(1,3) =  ft;
 		T = T0 * T;
 	}
-	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::F) )
+	else if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::F) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
 		T0(1,3) = -ft;
@@ -195,12 +195,12 @@ void Rendering::I3DRenderer::HandleCamera( float ft )
 	}
 	
 	
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::Q) )
+	if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::Q) )
 	{
 		transMatrix3D R = RotMatrix( 0.0, 0.0, ft );
 		T = R * T;
 	}
-	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::E) )
+	else if(win.hasFocus() && sf::Keyboard::isKeyPressed(sf::Keyboard::E) )
 	{
 		transMatrix3D R = RotMatrix( 0.0, 0.0,-ft );
 		T = R * T;
@@ -208,7 +208,7 @@ void Rendering::I3DRenderer::HandleCamera( float ft )
 	TransformView( T );
 	
 	
-	if( sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) )
+	if( win.hasFocus() && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) )
 	{
 		auto mPos = sf::Mouse::getPosition(win);
 		hVec2D curMousePos; curMousePos << mPos.x, mPos.y, 1.0;
