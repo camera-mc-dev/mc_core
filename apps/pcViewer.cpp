@@ -35,6 +35,21 @@ protected:
 					
 			if( ev.type == sf::Event::KeyReleased )
 			{
+				if( ev.key.code == sf::Keyboard::Space )
+				{
+					switch( renMode )
+					{
+						case I3DR_ORBIT:
+							renMode = I3DR_PIVOT;
+							cout << "orbit->pivot" << endl;
+							break;
+						case I3DR_PIVOT:
+							renMode = I3DR_ORBIT;
+							cout << "pivot->orbit" << endl;
+							break;
+					}
+					leftMousePressed = false;
+				}
 				if (ev.key.code == sf::Keyboard::C )
 				{
 					cout << "Camera pose (L) at current frame: " << endl;

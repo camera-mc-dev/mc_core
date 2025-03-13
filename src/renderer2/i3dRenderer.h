@@ -85,7 +85,8 @@ namespace Rendering
 		
 		virtual void InitialiseGraphs();
 		virtual bool HandleEvents();
-		virtual void HandleCamera(float ft);
+		virtual void HandlePivotCamera(float ft);
+		virtual void HandleOrbitCamera(float ft);
 		
 		
 		hVec2D prevMousePos;
@@ -93,9 +94,15 @@ namespace Rendering
 		
 		void TransformView( transMatrix3D T );
 		void RotateView( hVec2D mm, float time );
+		void OrbitView( hVec2D mm, float time );
 		
 		Calibration viewCalib;
 		float near, far;
+		
+		enum renderMode_t {I3DR_ORBIT, I3DR_PIVOT};
+		renderMode_t renMode;
+		float  viewDist;
+		
 		
 		std::chrono::time_point<std::chrono::steady_clock> prevRenderTime;
 	};
