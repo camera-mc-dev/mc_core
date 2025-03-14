@@ -328,6 +328,13 @@ int main( int argc, char *argv[] )
 	ren->Get3dOverlayRoot()->AddChild( axesNode );
 	
 	
+	//
+	// What's the centroid of the point cloud?
+	//
+	hVec3D cloudMean = cloudMesh->vertices.rowwise().mean();
+	
+	
+	
 	cout << "setting view calib" << endl;
 	Calibration viewCalib;
 	if( calibs.size() > 0 )
@@ -335,6 +342,18 @@ int main( int argc, char *argv[] )
 		viewCalib = calibs[0];
 		float sc = winW / (float)calibs[0].width;
 		viewCalib.RescaleImage( sc );
+		
+		// we'll initialise the view centre straight ahead of the calibration
+		// get a ray...
+		hVec3D camCent = viewCalib.GetCameraCentre();
+		hVec2D p2d; p2d << viewCalib.K(0,2), viewCalib.K(1,2), 1.0f;
+		hVec3D rayDir  = viewCalib.Unproject( p2d );
+		
+		hVec3D d = cloudMean - camCent;
+		float  t = rayDir.dot( d );
+		hVec3D vc = camCent + t * rayDir;
+		
+		ren->SetViewCentre( vc );
 	}
 	else
 	{
@@ -343,7 +362,19 @@ int main( int argc, char *argv[] )
 		viewCalib.K << winW/4.0,    0, winW/2.0,
 		                  0, winW/4.0, winH/2.0,
 		                  0,        0,        1;
-		viewCalib.L = transMatrix3D::Identity();
+		
+		
+		// how large is the point cloud?
+		float m = cloudMesh->vertices.block(0,0, 3, cloudMesh->vertices.cols()).minCoeff();
+		float M = cloudMesh->vertices.block(0,0, 3, cloudMesh->vertices.cols()).maxCoeff();
+		
+		ren->SetViewCentre( cloudMean );
+		
+		hVec3D d, up;
+		d << 0, (m+M)/2.0, 0, 0;
+		up << 0,0,1,0;
+		
+		viewCalib.L = LookAt( cloudMean + d, up, cloudMean );
 	}
 	ren->Set3DCamera( viewCalib, 0.1, 1000.0 );
 	

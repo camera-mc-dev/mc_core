@@ -60,6 +60,7 @@ namespace Rendering
 			this->far  = far;
 			scenes[1].activeCamera->SetFromCalibration( c, near, far );
 			scenes[2].activeCamera->SetFromCalibration( c, near, far );
+			ResetViewCentre();
 		}
 		
 		void Set2DCamera( float left, float right, float top, float bottom, float near, float far )
@@ -81,6 +82,15 @@ namespace Rendering
 			return viewCalib;
 		}
 		
+		void SetViewCentre( hVec3D p)
+		{
+			viewCentre = p;
+		}
+		hVec3D GetViewCentre()
+		{
+			return viewCentre;
+		}
+		
 	protected:
 		
 		virtual void FinishConstructor();
@@ -96,13 +106,14 @@ namespace Rendering
 		void TransformView( transMatrix3D T );
 		void RotateView( hVec2D mm, float time );
 		void OrbitView( hVec2D mm, float time );
+		void ResetViewCentre();
 		
 		Calibration viewCalib;
 		float near, far;
 		
 		enum renderMode_t {I3DR_ORBIT, I3DR_PIVOT};
 		renderMode_t renMode;
-		float  viewDist;
+		hVec3D viewCentre;
 		
 		std::shared_ptr<Rendering::MeshNode> viewCentNode;
 		

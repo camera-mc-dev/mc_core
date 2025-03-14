@@ -40,7 +40,7 @@ void Rendering::I3DRenderer::FinishConstructor()
 	
 	leftMousePressed  = false;
 	rightMousePressed = false;
-	viewDist          = 10.0f;
+
 	renMode           = I3DR_ORBIT;
 	prevRenderTime = std::chrono::steady_clock::now();
 }
@@ -137,11 +137,14 @@ void Rendering::I3DRenderer::InitialiseGraphs()
 	fg2dcam->SetTransformation(I);
 	
 	hVec3D o; o << 0,0,0,1;
-	viewCentNode = GenerateCubeNode( o, 0.1, "viewCentreNode", smartThis );
+	viewCentNode = GenerateCubeNode( o, 0.01, "viewCentreNode", smartThis );
 	scenes[2].rootNode->AddChild( viewCentNode );
 	
 }
 
+void Rendering::I3DRenderer::ResetViewCentre()
+{
+}
 
 bool Rendering::I3DRenderer::HandleEvents()
 {
@@ -164,6 +167,7 @@ bool Rendering::I3DRenderer::HandleEvents()
 					case I3DR_PIVOT:
 						{
 							renMode = I3DR_ORBIT;
+							ResetViewCentre();
 						}
 						break;
 				}
@@ -258,6 +262,14 @@ void Rendering::I3DRenderer::HandlePivotCamera( float ft )
 
 void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 {
+	hVec3D camCentre = viewCalib.GetCameraCentre();
+	hVec3D viewDir   = viewCentre - camCentre;
+	
+	
+	//
+	// Move the camera / view centre along the axes of the camera.
+	//
+	
 	transMatrix3D T = transMatrix3D::Identity();
 	if( sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
 	{
@@ -298,7 +310,19 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		T = T0 * T;
 	}
 	
+	viewCalib.L = T * viewCalib.L;
+	camCentre = viewCalib.GetCameraCentre();
+	viewCentre = camCentre + viewDir;
 	
+	
+	
+	
+	
+	
+	//
+	// Roll around camera view axis.
+	//
+	T = transMatrix3D::Identity();
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::Q) )
 	{
 		transMatrix3D R = RotMatrix( 0.0, 0.0, ft );
@@ -309,33 +333,47 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		transMatrix3D R = RotMatrix( 0.0, 0.0,-ft );
 		T = R * T;
 	}
-	
 	viewCalib.L = T * viewCalib.L;
 	
-	float oldViewDist = viewDist;
+	
+	
+	
+	//
+	// Move closer to/away from view centre.
+	//
+	T = transMatrix3D::Identity();
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::T) )
 	{
-		viewDist *= 0.995;
-		cout << viewDist << endl;
+		hVec3D ovd       = viewDir;
+		viewDir.head(3) *= 0.999;
+		hVec3D t         = ovd - viewDir;
+		T.block(0,3,3,1) = t.head(3);
+		
+		cout << "---" << endl;
+		cout << viewDir.transpose() << endl;
+		cout << ovd.transpose() << endl;
+		cout << T << endl;
 	}
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::G) )
 	{
-		viewDist *= 1.005;
-		cout << viewDist << endl;
+		hVec3D ovd       = viewDir;
+		viewDir.head(3) *= 1.001;
+		hVec3D t         = ovd - viewDir;
+		T.block(0,3,3,1) = t.head(3);
+		
+		cout << "---" << endl;
+		cout << viewDir.transpose() << endl;
+		cout << ovd.transpose() << endl;
+		cout << T << endl;
 	}
-	transMatrix3D T0 = transMatrix3D::Identity(); T0(2,3) = -oldViewDist;
-	transMatrix3D T1 = transMatrix3D::Identity(); T1(2,3) =     viewDist;
-	viewCalib.L = T1 * T0 * viewCalib.L;
+	viewCalib.L = viewCalib.L * T;
 	
 	
 	
-	
-	
-	
-	
+	//
+	// Rotate around view centre based on mouse motion.
+	//
 	hVec2D mouseMove; mouseMove << 0,0,0;
-	
-	
 	if( sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) )
 	{
 		auto mPos = sf::Mouse::getPosition(win);
@@ -356,10 +394,11 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	
 	OrbitView( mouseMove, 1.0*ft );
 	
-	// view centre node should always be viewDist infront of the camera.
-	transMatrix3D VC = viewCalib.L.inverse() * T1;
 	
-	viewCentNode->SetTransformation( VC );
+	// keep view centre node in the right place.
+	transMatrix3D VCT = transMatrix3D::Identity();
+	VCT.col(3) = viewCentre;
+	viewCentNode->SetTransformation( VCT );
 }
 
 bool Rendering::I3DRenderer::StepEventLoop()
@@ -422,38 +461,26 @@ void Rendering::I3DRenderer::RotateView( hVec2D mm, float time )
 
 void Rendering::I3DRenderer::OrbitView( hVec2D mm, float time )
 {
-	// mm is some vector in screen space. 
-	// If we rotate around a perpendicular vector that should be great... right?
+	//
+	// move the camera in camera space along the mm vector.
+	// I know this is ridiculous but, it works.
+	//
+	hVec3D tc; tc << -0.1*mm(0), -0.1*mm(1), 0.0, 0.0f;
+	hVec3D tw = viewCalib.TransformToWorld( tc );
 	
-	// the difference this time is that we don't want to rotate around the camera origin,
-	// but instead, we want to rotate around a point that is, in camera space, at (0,0,viewDist,1.0);
+	hVec3D up; up << 0,-1,0,0.0f;
+	up = viewCalib.TransformToWorld( up );
 	
-	hVec3D fwd;
-	fwd << 0,0,1,0;
+	hVec3D cc = viewCalib.GetCameraCentre();
+	hVec3D vd = cc - viewCentre;
 	
-	hVec3D mm3;
-	mm3 << mm(0), mm(1), 0.0, 0.0f;
-	float a = mm3.norm();
+	hVec3D tmp;
+	tmp = cc + tw;
 	
-	if( a > 0 )
-	{
-		mm3 /= a;
-		a *= time;
-		hVec3D rax = Cross( fwd, mm3 );
-		
-		transMatrix3D R = RotMatrix( rax, -a );
-		transMatrix3D T0 = transMatrix3D::Identity(); T0(2,3) = -viewDist;
-		transMatrix3D T1 = transMatrix3D::Identity(); T1(2,3) =  viewDist;
-		
-		
-		// so... existing L takes points into current camera space. Then we want 
-		// to transform them to be relative to the view centre - which T0 should do.
-		// then we want to rotate by our rotation matrix. Then we want to translate them 
-		// relative to the camera... so T1.
-		viewCalib.L = T1 * R * T0 * viewCalib.L; // ?
-		
-		
-	}
+	hVec3D vd2 = tmp - viewCentre;
+	hVec3D eye = viewCentre + vd.norm() * vd2/vd2.norm();
+	
+	viewCalib.L = LookAt( eye, up, viewCentre );
 	Set3DCamera( viewCalib, near, far );
 }
 
