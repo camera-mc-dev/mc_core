@@ -1,9 +1,16 @@
 #include "renderer2/i3dRenderer.h"
+#include "renderer2/geomTools.h"
 #include "math/matrixGenerators.h"
+
+
 
 Rendering::I3DRenderer::I3DRenderer(unsigned width, unsigned height, std::string title) : BaseRenderer(width,height,title)
 {
-	InitialiseGraphs();
+}
+
+void Rendering::I3DRenderer::FinishConstructor()
+{
+	AbstractRenderer::FinishConstructor();
 	
 	// load core shaders.
 	std::stringstream ss;
@@ -28,6 +35,8 @@ Rendering::I3DRenderer::I3DRenderer(unsigned width, unsigned height, std::string
 	CreateShaderProgram("texLearnVertex", "colourFrag", "texLearnShader");
 	
 	
+	
+	InitialiseGraphs();
 	
 	leftMousePressed  = false;
 	rightMousePressed = false;
@@ -126,6 +135,11 @@ void Rendering::I3DRenderer::InitialiseGraphs()
 	fg2dcam->SetOrthoProjection(0, GetWidth(), 0, GetHeight(), -100, 100 );
 	fg2dcam->SetActive();
 	fg2dcam->SetTransformation(I);
+	
+	hVec3D o; o << 0,0,0,1;
+	viewCentNode = GenerateCubeNode( o, 0.1, "viewCentreNode", smartThis );
+	scenes[2].rootNode->AddChild( viewCentNode );
+	
 }
 
 
@@ -244,7 +258,6 @@ void Rendering::I3DRenderer::HandlePivotCamera( float ft )
 
 void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 {
-	
 	transMatrix3D T = transMatrix3D::Identity();
 	if( sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
 	{
@@ -342,6 +355,11 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	}
 	
 	OrbitView( mouseMove, 1.0*ft );
+	
+	// view centre node should always be viewDist infront of the camera.
+	transMatrix3D VC = viewCalib.L.inverse() * T1;
+	
+	viewCentNode->SetTransformation( VC );
 }
 
 bool Rendering::I3DRenderer::StepEventLoop()

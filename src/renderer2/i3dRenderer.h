@@ -83,6 +83,7 @@ namespace Rendering
 		
 	protected:
 		
+		virtual void FinishConstructor();
 		virtual void InitialiseGraphs();
 		virtual bool HandleEvents();
 		virtual void HandlePivotCamera(float ft);
@@ -102,6 +103,8 @@ namespace Rendering
 		enum renderMode_t {I3DR_ORBIT, I3DR_PIVOT};
 		renderMode_t renMode;
 		float  viewDist;
+		
+		std::shared_ptr<Rendering::MeshNode> viewCentNode;
 		
 		
 		std::chrono::time_point<std::chrono::steady_clock> prevRenderTime;
