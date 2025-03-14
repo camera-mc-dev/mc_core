@@ -297,20 +297,29 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		T = R * T;
 	}
 	
+	viewCalib.L = T * viewCalib.L;
+	
+	float oldViewDist = viewDist;
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::T) )
-	{
-		viewDist *= 1.005;
-		cout << viewDist << endl;
-	}
-	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::G) )
 	{
 		viewDist *= 0.995;
 		cout << viewDist << endl;
 	}
+	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::G) )
+	{
+		viewDist *= 1.005;
+		cout << viewDist << endl;
+	}
+	transMatrix3D T0 = transMatrix3D::Identity(); T0(2,3) = -oldViewDist;
+	transMatrix3D T1 = transMatrix3D::Identity(); T1(2,3) =     viewDist;
+	viewCalib.L = T1 * T0 * viewCalib.L;
 	
 	
 	
-	viewCalib.L = T * viewCalib.L;
+	
+	
+	
+	
 	hVec2D mouseMove; mouseMove << 0,0,0;
 	
 	
