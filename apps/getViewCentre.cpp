@@ -9,6 +9,7 @@ using std::vector;
 #include "calib/calibration.h"
 #include "math/intersections.h"
 #include "math/matrixGenerators.h"
+#include "calib/calibration.h"
 
 int main(int argc, char *argv[] )
 {

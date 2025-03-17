@@ -81,6 +81,8 @@ enum EulerOrder
 };
 transMatrix3D RotMatrixEuler( float rx, float ry, float rz, EulerOrder order );
 
+void TransformToEuler( transMatrix3D T, hVec3D &t, float &rx, float &ry, float &rz, EulerOrder order );
+
 
 // it has become necessary to have the option of using these as well.
 template <typename T>

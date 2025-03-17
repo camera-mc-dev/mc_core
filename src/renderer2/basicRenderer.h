@@ -72,6 +72,7 @@ namespace Rendering
 	protected:
 
 		virtual void InitialiseGraphs();
+		virtual void FinishConstructor();
 
 		// convenience for putting up a simple background image.
 		std::shared_ptr<Mesh>     bgImgCard;

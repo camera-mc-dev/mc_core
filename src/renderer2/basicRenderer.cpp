@@ -4,8 +4,10 @@
 
 Rendering::BasicRenderer::BasicRenderer(unsigned width, unsigned height, std::string title) : BaseRenderer(width,height,title)
 {
-	InitialiseGraphs();
+}
 
+void Rendering::BasicRenderer::FinishConstructor()
+{
 	// load core shaders.
 	std::stringstream ss;
 	ss << ccfg.shadersRoot << "/";
@@ -25,6 +27,8 @@ Rendering::BasicRenderer::BasicRenderer(unsigned width, unsigned height, std::st
 // 	CreateShaderProgram("basicVertex", "thickLineGeom", "colourFrag", "thickLine");
 	
 	CreateShaderProgram("texLearnVertex", "colourFrag", "texLearnShader");
+	
+	InitialiseGraphs();
 
 	bgImgTex  = nullptr;
 	bgImgCard = nullptr;

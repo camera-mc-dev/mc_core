@@ -49,6 +49,7 @@ namespace Rendering
 		unsigned numElements;	// triangles, line segments, rects, whatever...
 		unsigned numVertsPerElement;
 		Eigen::Vector4f baseColour;
+		bool hasFaces;
 
 	};
 
