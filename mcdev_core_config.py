@@ -5,13 +5,17 @@ def SetCompiler(env):
 	conf = Configure(env)
 	if env['PLATFORM'] == 'darwin':
 		# Prefer an install of the non-apple clang.
-		if conf.CheckProg('/usr/local/opt/llvm/bin/clang++') != None:
-			env.Replace(CXX = '/usr/local/opt/llvm/bin/clang++')
+		if conf.CheckProg('/opt/homebrew/opt/llvm@18/bin/clang++') != None:
+			env.Replace(CXX = '/opt/homebrew/opt/llvm@18/bin/clang++')
+			env.Append(CPPPATH=["/opt/homebrew/opt/llvm@18/include","/opt/homebrew/opt/libomp/include"])
+			env.Append(LIBPATH=["/opt/homebrew/opt/llvm@18/lib","/opt/homebrew/opt/libomp/lib"])
 			env.Append(LIBS=['omp'])
 		else:
 			print( " 'Real' clang not installed. Last we checked, Apple Clang didn't support OpenMP" )
 			print( " Recommend installing 'real' clang from Homebrew or checking Apple clang OpenMP support " )
 			exit(0)
+		env.Append(CPPPATH=["/opt/homebrew/include", "/opt/homebrew/opt/sfml@2/include"])
+		env.Append(LIBPATH=["/opt/homebrew/lib", "/opt/homebrew/opt/sfml@2/lib"])
 	elif env['PLATFORM'] == 'posix':
 		pass
 	
@@ -70,8 +74,9 @@ def FindOpenGL(env):
 	# we can also use EGL for headless OpenGL rendering contexts,
 	# which is great for remote applications where we need to render,
 	# but don't care about seeing it.
-	env.Append(CPPDEFINES=["USE_EGL"])
-	env.ParseConfig("pkg-config egl --cflags --libs")
+	if env['PLATFORM'] == 'posix':
+		env.Append(CPPDEFINES=["USE_EGL"])
+		env.ParseConfig("pkg-config egl --cflags --libs")
 
 
 def FindOpenCV(env):

@@ -1,4 +1,4 @@
-#version 130
+#version 410
 
 in vec4 vertexCoord;
 in vec4 normal;
