@@ -4,15 +4,25 @@
 #include "math/mathTypes.h"
 
 //
-//  Load a point cloud with xyz and rgb.
-//    returns matrix ( x,y,z, r,g,b )
-//    r,g,b is in range 0->1 but file is assumed to be rgb as unsigned char.
+//  Load a point cloud.
+//  This is not the fastest of loaders, but lets us hack the different use cases we have into it.
+//  NOTE: Assumes there is only a single "element" named vertex. Will ignore other elements.
+//        Will group recognised properties together: 
+//         > basic properties:
+//           - ( x, y, z) : "xyz"
+//           - ( r, g, b) : "rgb"         if uchar will be scaled to float 0->1
+//           - (nx,ny,nz) : "normal"
 //
-genRowMajMatrix LoadPlyPointRGB( std::string infn );
-genRowMajMatrix LoadPlyTxtPointRGB( std::string infn );
+//         > gaussian splat properties:
+//           - (     sx,      sy,       sz) : "gs-scale"
+//           - (scale_0, scale_1,  scale_2) : "gs-scale"
+//           - (rot_0, rot_1, rot_2, rot_3) : "gs-qwxyz"
+//           - (f_dc_0,   f_dc_1,   f_dc_2) : "gs-fdc"
+//           - (f_rest_0, ..., f_rest_xx  ) : "gs-frest"
+//           - (opacity)                    : "gs-opacity:
+//
+std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn );
 
-
-genRowMajMatrix LoadPlyPointNormalRGB( std::string infn );
 
 
 #endif

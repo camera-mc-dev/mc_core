@@ -182,14 +182,12 @@ int main( int argc, char *argv[] )
 	
 	
 	//
-	// Load point cloud. Try binary format, if that fails, try text.
+	// Load point cloud.
 	//
-	genRowMajMatrix cloud = LoadPlyPointNormalRGB( argv[1] );
-	if( cloud.rows() == 0 )
+	std::map<std::string, genRowMajMatrix> cloud = LoadPlyPointCloud( argv[1] );
+	for( auto i = cloud.begin(); i != cloud.end(); ++i )
 	{
-		cloud = LoadPlyTxtPointRGB( argv[1] );
-		if( cloud.rows() == 0 )
-			throw std::runtime_error( "no points loaded" );
+		cout << i->first << " " << i->second.rows() << " " << i->second.cols() << endl;
 	}
 	
 	
@@ -277,31 +275,28 @@ int main( int argc, char *argv[] )
 	//
 	// Create mesh with vertices and vertexColours
 	//
-	std::shared_ptr<Rendering::Mesh> cloudMesh( new Rendering::Mesh( cloud.rows(),0 ) ); // lots of verts, no faces.
-	if( cloud.cols() == 6 ) // x,y,z,  r,g,b
+	assert( cloud.find("xyz") != cloud.end() );
+	int numVert = cloud["xyz"].rows();
+	std::shared_ptr<Rendering::Mesh> cloudMesh( new Rendering::Mesh( numVert,0 ) ); // lots of verts, no faces.
+	cloudMesh->vertices.block(   0,0, 3, numVert) = cloud["xyz"].block(0,0, numVert, 3 ).transpose();
+	
+	if( cloud.find("rgb") != cloud.end() )
 	{
-		cout << "got xyz, rgb data" << endl;
-		cloudMesh->vertices.block(   0,0, 3, cloud.rows()) = cloud.block(0,0, cloud.rows(), 3 ).transpose();
-		cloudMesh->vertColours.block(0,0, 3, cloud.rows()) = cloud.block(0,3, cloud.rows(), 3 ).transpose();
-		//cloudMesh->vertColours.block(3,0, 1, cloud.rows()) = genMatrix::Ones( 1, cloud.rows() );
-		for( unsigned c = 0; c < cloud.rows(); ++c )
+		cloudMesh->vertColours.block(0,0, 3, numVert) = cloud["rgb"].block(0,0, numVert, 3 ).transpose();
+		for( unsigned c = 0; c < numVert; ++c )
 			cloudMesh->vertColours(3,c) = 1.0f;
 	}
-	else if( cloud.cols() == 10 ) // x,y,z,   nx,ny,nz,   r,g,b,a
+	
+	if( cloud.find("norm") != cloud.end() )
 	{
-		cout << "got xyz, nxnynx, rgba data " << endl;
-		cloudMesh->vertices.block(   0,0, 3, cloud.rows()) = cloud.block(0,0, cloud.rows(), 3 ).transpose();
-		cloudMesh->vertColours.block(0,0, 4, cloud.rows()) = cloud.block(0,6, cloud.rows(), 4 ).transpose();
+		// ignoring normals.
 	}
-	else
-	{
-		cout << "unexpected column count: " << cloud.rows() << " " << cloud.cols() << endl;
-	}
+	
 	cout << "first ten points:" << endl;
 	cout << cloudMesh->vertices.block( 0,0, 4, 10 ) << endl;
 	cout << "first ten colours: " << endl;
 	cout << cloudMesh->vertColours.block(0,0, 4, 10) << endl;
-// 	exit(0);
+	
 	
 	//
 	// Create mesh node.

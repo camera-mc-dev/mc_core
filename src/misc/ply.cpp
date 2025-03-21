@@ -24,40 +24,43 @@ struct SElement
 	}
 };
 
-genRowMajMatrix LoadPlyPointRGB( std::string infn )
+void ReadPlyHeader( std::ifstream &infi,   bool &out_isBinary, std::vector< SElement > &out_elements )
 {
-	std::ifstream infi( infn, std::ios::binary );
-	
-	bool gotData   = false;
 	bool inHeader  = true;
 	bool gotply    = false;
 	bool gotformat = false;
-	std::string line;
 	
 	bool inElement = false;
 	SElement curElement;
-	std::vector< SElement > elements;
+	out_elements.clear();
 	
-	// first line should be just "ply"
-	// next line should show we are a binary mode ply.
+	std::string line;
+	
 	while( inHeader && std::getline(infi, line) )
 	{
 		auto ss = SplitLine( line, " " );
 		if( ss.size() == 1 && ss[0].compare("ply") == 0 )
 			gotply = true;
 		else if( ss.size() == 3 && ss[0].compare("format") == 0 && ss[1].compare("binary_little_endian") == 0 && ss[2].compare("1.0") == 0 )
+		{
 			gotformat = true;
+			out_isBinary = true;
+		}
+		else if( ss.size() == 3 && ss[0].compare("format") == 0 && ss[1].compare("ascii") == 0 && ss[2].compare("1.0") == 0 )
+		{
+			gotformat = true;
+			out_isBinary = false;
+		}
 		else if( ss.size() == 3 && ss[0].compare("format") == 0 )
 		{
-			cout << "format line not binary" << endl;
+			cout << "format line not understood" << endl;
 			cout << line << endl;
-			infi.close();
-			return genRowMajMatrix::Zero( 0, 0 );
+			return;
 		}
 		else if( ss.size() == 3 && ss[0].compare("element") == 0 )
 		{
 			if( inElement )
-				elements.push_back( curElement );
+				out_elements.push_back( curElement );
 			curElement.Clear();
 			curElement.name = ss[1];
 			curElement.number  = std::atoi( ss[2].c_str() );
@@ -72,41 +75,207 @@ genRowMajMatrix LoadPlyPointRGB( std::string infn )
 		{
 			inHeader = false;
 			if( inElement )
-				elements.push_back( curElement );
+				out_elements.push_back( curElement );
 		}
 	}
 	
-	cout << "Read .ply header:" << endl;
-	cout << "elements: " << elements.size() << endl;
-	for( unsigned ec = 0; ec < elements.size(); ++ec )
+	if( !gotply || !gotformat )
 	{
-		cout << "\t" << elements[ec].name << " " << elements[ec].number << " : np : " << elements[ec].properties.size() << endl;
+		throw std::runtime_error( "did not get 'ply', nor 'format' lines" );
 	}
 	
-	if( elements.size() > 1 )
-	{
-		cout << "expected only 1 element. Failing." << endl;
-		exit(0);
-	}
+	return;
 	
-	// assume this struct is always right
-	struct SVert
+}
+
+
+std::map<std::string, genRowMajMatrix> ReadPlyCloudBinary( std::ifstream &infi, std::vector< SElement > &elements )
+{
+	std::map<std::string, genRowMajMatrix> out;
+	SElement &e = elements[0];   // we've already checked that there's only 1 element and that it is "vertex"
+	
+	bool gotxyz  = false;
+	bool gotnorm = false;
+	bool gotrgb  = false;
+	bool gotfdc  = false;
+	int  numfr   = 0;
+	bool gotop   = false;
+	bool gotsc   = false;
+	bool gotrot  = false;
+	for( size_t pc = 0; pc < e.properties.size(); ++pc )
 	{
-		float x, y, z;
-		unsigned char r, g, b;
-	};
-	std::vector< SVert > data( elements[0].number );
-	//infi.read( (char*) &data[0], data.size() * sizeof(SVert) );
-	for( unsigned vc = 0; vc < data.size(); ++vc )
-	{
-		infi.read( (char*)&data[vc].x, sizeof(float ) );
-		infi.read( (char*)&data[vc].y, sizeof(float ) );
-		infi.read( (char*)&data[vc].z, sizeof(float ) );
+		if(( e.properties[pc].compare("x") == 0  ||
+		     e.properties[pc].compare("y") == 0  ||
+		     e.properties[pc].compare("z") == 0 ) && !gotxyz   )
+		{
+			out["xyz"] = genRowMajMatrix::Zero( e.number, 3 );
+			gotxyz = true;
+		}
 		
-		infi.read( (char*)&data[vc].r, sizeof(unsigned char) );
-		infi.read( (char*)&data[vc].g, sizeof(unsigned char) );
-		infi.read( (char*)&data[vc].b, sizeof(unsigned char) );
+		else if(( e.properties[pc].compare("nx") == 0  ||
+			      e.properties[pc].compare("ny") == 0  ||
+			      e.properties[pc].compare("nz") == 0 ) && !gotnorm   )
+		{
+			out["norm"] = genRowMajMatrix::Zero( e.number, 3 );
+			gotnorm = true;
+		}
+		
+		else if(( e.properties[pc].compare("red")   == 0  ||
+			      e.properties[pc].compare("green") == 0  ||
+			      e.properties[pc].compare("blue")  == 0 ) && !gotrgb   )
+		{
+			out["rgb"] = genRowMajMatrix::Zero( e.number, 3 );
+			gotnorm = true;
+		}
+		
+		
+		
+		
+		else if(( e.properties[pc].compare("sx") == 0  ||
+			      e.properties[pc].compare("sy") == 0  ||
+			      e.properties[pc].compare("sz") == 0 ) && !gotsc   )
+		{
+			out["gs-scale"] = genRowMajMatrix::Zero( e.number, 3 );
+			gotsc = true;
+		}
+		
+		else if(( e.properties[pc].compare("scale_0") == 0  ||
+			      e.properties[pc].compare("scale_1") == 0  ||
+			      e.properties[pc].compare("scale_2") == 0 ) && !gotsc   )
+		{
+			out["gs-scale"] = genRowMajMatrix::Zero( e.number, 3 );
+			gotsc = true;
+		}
+		
+		else if( e.properties[pc].find("f_dc") == 0  && !gotfdc )
+		{
+			gotfdc = true;
+			out["gs-fdc"] = genRowMajMatrix::Zero( e.number, 3 );
+		}
+		else if( e.properties[pc].find("f_rest") == 0 )
+		{
+			int a = e.properties[pc].rfind("_");
+			std::string ns( e.properties[pc].begin()+a+1, e.properties[pc].end() );
+			numfr = std::max( numfr, atoi( ns.c_str() ) + 1 );
+		}
+		
+		else if( e.properties[pc].find("rot") == 0  && !gotrot )
+		{
+			gotrot = true;
+			out["gs-qwxyz"] = genRowMajMatrix::Zero( e.number, 4 );
+		}
+		else if( e.properties[pc].find("opacity") == 0  && !gotop )
+		{
+			gotrot = true;
+			out["gs-opacity"] = genRowMajMatrix::Zero( e.number, 1 );
+		}
 	}
+	
+	if( numfr > 0 )
+		out["gs-frest"] = genRowMajMatrix::Zero( e.number, numfr );
+	
+	cout << endl << "-out check-" << endl;
+	for( auto i = out.begin(); i != out.end(); ++i )
+		cout << i->first << " " << i->second.rows() << " " << i->second.cols() <<  endl;
+	cout << "--" << endl;
+	
+	for( unsigned c = 0; c < e.number; ++c )
+	{
+		for( size_t pc = 0; pc < e.properties.size(); ++pc )
+		{
+			float v;
+			if( e.propTypes[pc].compare("float") == 0 )
+				infi.read( (char*)&v, sizeof( float ) );
+			else if( e.propTypes[pc].compare("uchar") == 0 )
+			{
+				unsigned char ucv;
+				infi.read( (char*)&ucv, sizeof(unsigned char) );
+				v = (float)ucv / 255.0f;
+			}
+			else
+			{
+				cout << e.properties[pc] << " " << e.propTypes[pc] << endl;
+				throw std::runtime_error( "not ready for other property types" );
+			}
+			
+			
+			// now put that value in the right place...
+			// more ugly :(
+			if( e.properties[ pc ].compare("x") == 0 )
+				out["xyz"](c,0) = v;
+			else if( e.properties[ pc ].compare("y") == 0 )
+				out["xyz"](c,1) = v;
+			else if( e.properties[ pc ].compare("z") == 0 )
+				out["xyz"](c,2) = v;
+			
+			
+			else if( e.properties[ pc ].compare("nx") == 0 )
+				out["norm"](c,0) = v;
+			else if( e.properties[ pc ].compare("ny") == 0 )
+				out["norm"](c,1) = v;
+			else if( e.properties[ pc ].compare("nz") == 0 )
+				out["norm"](c,2) = v;
+			
+			
+			else if( e.properties[ pc ].compare("red") == 0 )
+				out["rgb"](c,0) = v;
+			else if( e.properties[ pc ].compare("green") == 0 )
+				out["rgb"](c,1) = v;
+			else if( e.properties[ pc ].compare("blue") == 0 )
+				out["rgb"](c,2) = v;
+			
+			
+			
+			else if( e.properties[ pc ].compare("sx") == 0 )
+				out["gs-scale"](c,0) = v;
+			else if( e.properties[ pc ].compare("sy") == 0 )
+				out["gs-scale"](c,1) = v;
+			else if( e.properties[ pc ].compare("sz") == 0 )
+				out["gs-scale"](c,2) = v;
+			
+			else if( e.properties[ pc ].compare("scale_0") == 0 )
+				out["gs-scale"](c,0) = v;
+			else if( e.properties[ pc ].compare("scale_1") == 0 )
+				out["gs-scale"](c,1) = v;
+			else if( e.properties[ pc ].compare("scale_2") == 0 )
+				out["gs-scale"](c,2) = v;
+			
+			
+			
+			else if( e.properties[ pc ].compare("f_dc_0") == 0 )
+				out["gs-fdc"](c,0) = v;
+			else if( e.properties[ pc ].compare("f_dc_1") == 0 )
+				out["gs-fdc"](c,1) = v;
+			else if( e.properties[ pc ].compare("f_dc_2") == 0 )
+				out["gs-fdc"](c,2) = v;
+			
+			
+			
+			
+			else if( e.properties[ pc ].compare("rot_0") == 0 )
+				out["gs-qwxyz"](c,0) = v;
+			else if( e.properties[ pc ].compare("rot_1") == 0 )
+				out["gs-qwxyz"](c,1) = v;
+			else if( e.properties[ pc ].compare("rot_2") == 0 )
+				out["gs-qwxyz"](c,2) = v;
+			else if( e.properties[ pc ].compare("rot_3") == 0 )
+				out["gs-qwxyz"](c,3) = v;
+			
+			
+			else if( e.properties[ pc ].compare("opacity") == 0 )
+				out["gs-opacity"](c,0) = v;
+			
+			
+			else if( e.properties[ pc ].find("f_rest") == 0 )
+			{
+				int a = e.properties[pc].rfind("_");
+				std::string ns( e.properties[pc].begin()+a+1, e.properties[pc].end() );
+				int k = atoi( ns.c_str() );
+				out["gs-frest"](c,k) = 0;
+			}
+		}
+	}
+	
 	
 	
 	if( infi.fail() )
@@ -115,16 +284,63 @@ genRowMajMatrix LoadPlyPointRGB( std::string infn )
 		exit(0);
 	}
 	
-	genRowMajMatrix ret = genRowMajMatrix::Zero( data.size(), 6 );
-	for( unsigned dc = 0; dc < data.size(); ++dc )
+	
+	return out;
+}
+
+
+
+std::map<std::string, genRowMajMatrix> ReadPlyCloudAscii( std::ifstream &infi, std::vector< SElement > &elements )
+{
+	std::map<std::string, genRowMajMatrix> out;
+	throw( std::runtime_error("not done ply ascii yet" ) );
+	
+}
+
+std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
+{
+	std::ifstream infi( infn, std::ios::binary );
+	
+	bool gotData   = false;
+	bool isBinary  = false;
+	std::vector<SElement> elements;
+	ReadPlyHeader( infi, isBinary, elements );
+	
+	
+	if( elements.size() > 1 )
 	{
-		ret.row(dc) <<        data[dc].x,        data[dc].y,       data[dc].z,
-		               data[dc].r/255.0f, data[dc].g/255.0f, data[dc].b/255.0f;
+		cout << "expected only 1 element: 'vertex' " << endl;
+		cout << "got all these instead: " << endl;
+		for( unsigned ec = 0; ec < elements.size(); ++ec )
+		{
+			cout << "\t" << elements[ec].name << " " << elements[ec].number << " : np : " << elements[ec].properties.size() << endl;
+		}
+		std::map<std::string, genRowMajMatrix> out;
+		return out;
+	}
+	
+	if( elements[0].name.compare( "vertex" ) != 0 )
+	{
+		cout << "expected only 1 element: 'vertex' " << endl;
+		cout << "got all these instead: " << endl;
+		for( unsigned ec = 0; ec < elements.size(); ++ec )
+		{
+			cout << "\t" << elements[ec].name << " " << elements[ec].number << " : np : " << elements[ec].properties.size() << endl;
+		}
+		std::map<std::string, genRowMajMatrix> out;
+		return out;
 	}
 	
 	
-	return ret;
-};
+	if( isBinary )
+	{
+		return ReadPlyCloudBinary( infi, elements );
+	}
+	else
+	{
+		return ReadPlyCloudAscii( infi, elements );
+	}
+}
 
 
 genRowMajMatrix LoadPlyTxtPointRGB( std::string infn )
