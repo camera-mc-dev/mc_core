@@ -89,7 +89,7 @@ void ReadPlyHeader( std::ifstream &infi,   bool &out_isBinary, std::vector< SEle
 }
 
 
-std::map<std::string, genRowMajMatrix> ReadPlyCloudBinary( std::ifstream &infi, std::vector< SElement > &elements )
+std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::vector< SElement > &elements, bool isBinary )
 {
 	std::map<std::string, genRowMajMatrix> out;
 	SElement &e = elements[0];   // we've already checked that there's only 1 element and that it is "vertex"
@@ -179,18 +179,37 @@ std::map<std::string, genRowMajMatrix> ReadPlyCloudBinary( std::ifstream &infi, 
 		cout << i->first << " " << i->second.rows() << " " << i->second.cols() <<  endl;
 	cout << "--" << endl;
 	
+	std::string line;
+	std::vector<std::string> tokens;
 	for( unsigned c = 0; c < e.number; ++c )
 	{
+		if( !isBinary )
+		{
+			std::getline(infi, line);
+			tokens = SplitLine(line," \t");
+			assert( tokens.size() == e.properties.size() );
+		}
+		
 		for( size_t pc = 0; pc < e.properties.size(); ++pc )
 		{
 			float v;
 			if( e.propTypes[pc].compare("float") == 0 )
-				infi.read( (char*)&v, sizeof( float ) );
+				if( isBinary )
+						infi.read( (char*)&v, sizeof( float ) );
+				else
+					v = atof( tokens[pc].c_str() );
 			else if( e.propTypes[pc].compare("uchar") == 0 )
 			{
-				unsigned char ucv;
-				infi.read( (char*)&ucv, sizeof(unsigned char) );
-				v = (float)ucv / 255.0f;
+				if( isBinary )
+				{
+					unsigned char ucv;
+					infi.read( (char*)&ucv, sizeof(unsigned char) );
+					v = (float)ucv / 255.0f;
+				}
+				else
+				{
+					v = atof( tokens[pc].c_str() ) / 255.0f;
+				}
 			}
 			else
 			{
@@ -290,12 +309,7 @@ std::map<std::string, genRowMajMatrix> ReadPlyCloudBinary( std::ifstream &infi, 
 
 
 
-std::map<std::string, genRowMajMatrix> ReadPlyCloudAscii( std::ifstream &infi, std::vector< SElement > &elements )
-{
-	std::map<std::string, genRowMajMatrix> out;
-	throw( std::runtime_error("not done ply ascii yet" ) );
-	
-}
+
 
 std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
 {
@@ -334,11 +348,7 @@ std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
 	
 	if( isBinary )
 	{
-		return ReadPlyCloudBinary( infi, elements );
-	}
-	else
-	{
-		return ReadPlyCloudAscii( infi, elements );
+		return ReadPlyData( infi, elements, isBinary );
 	}
 }
 
