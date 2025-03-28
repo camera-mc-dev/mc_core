@@ -186,6 +186,7 @@ std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::ve
 		if( !isBinary )
 		{
 			std::getline(infi, line);
+			cout << line << " : " << std::flush;
 			tokens = SplitLine(line," \t");
 			assert( tokens.size() == e.properties.size() );
 		}
@@ -198,7 +199,7 @@ std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::ve
 						infi.read( (char*)&v, sizeof( float ) );
 				else
 					v = atof( tokens[pc].c_str() );
-			else if( e.propTypes[pc].compare("uchar") == 0 )
+			else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 			{
 				if( isBinary )
 				{
@@ -346,10 +347,7 @@ std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
 	}
 	
 	
-	if( isBinary )
-	{
-		return ReadPlyData( infi, elements, isBinary );
-	}
+	return ReadPlyData( infi, elements, isBinary );
 }
 
 
