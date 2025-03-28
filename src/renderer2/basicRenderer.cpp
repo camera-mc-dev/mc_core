@@ -8,6 +8,8 @@ Rendering::BasicRenderer::BasicRenderer(unsigned width, unsigned height, std::st
 
 void Rendering::BasicRenderer::FinishConstructor()
 {
+	AbstractRenderer::FinishConstructor();
+	
 	// load core shaders.
 	std::stringstream ss;
 	ss << ccfg.shadersRoot << "/";
