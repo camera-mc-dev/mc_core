@@ -38,22 +38,22 @@ void HDF5ImageWriter::AddImage( cv::Mat &img, size_t imgNumber )
 	switch( img.type() )
 	{
 		case CV_8UC1:
-			dims = {img.rows * img.cols * 1 };
+			dims = {(size_t)img.rows * (size_t)img.cols * 1 };
 			ss << "1_b";
 			dsi.reset(new HighFive::DataSet(outfi->createDataSet<unsigned char>( ss.str(), HighFive::DataSpace( dims ) ) ) );
 			break;
 		case CV_8UC3:
-			dims = {img.rows * img.cols * 3 };
+			dims = {(size_t)img.rows * (size_t)img.cols * 3 };
 			ss << "3_b";
 			dsi.reset(new HighFive::DataSet(outfi->createDataSet<unsigned char>( ss.str(), HighFive::DataSpace( dims ) ) ) );
 			break;
 		case CV_32FC1:
-			dims = {img.rows * img.cols * 1 };
+			dims = {(size_t)img.rows * (size_t)img.cols * 1 };
 			ss << "1_f";
 			dsi.reset(new HighFive::DataSet(outfi->createDataSet<float>( ss.str(), HighFive::DataSpace( dims ) ) ) );
 			break;
 		case CV_32FC3:
-			dims = {img.rows * img.cols * 3 };
+			dims = { (size_t)img.rows * (size_t)img.cols * 3 };
 			ss << "3_f";
 			dsi.reset(new HighFive::DataSet(outfi->createDataSet<float>( ss.str(), HighFive::DataSpace( dims ) ) ) );
 			break;

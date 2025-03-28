@@ -85,8 +85,8 @@ private:
 	struct PointMatch
 	{
 		unsigned id;
-		std::map< unsigned, hVec2D > p2D;		// the point as originally seen in 2D
-		std::map< unsigned, hVec2D > proj2D;	// the point as currently projected.
+		std::map< unsigned, hVec2D > p2D;       // the point as originally seen in 2D
+		std::map< unsigned, hVec2D > proj2D;    // the point as currently projected.
 		hVec3D p3D;
 		bool has3D;
 	};

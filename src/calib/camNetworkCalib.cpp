@@ -13,7 +13,7 @@
 
 #include <iomanip>
 
-// #include <sfm/sfm.hpp>
+#include <opencv2/sfm/fundamental.hpp>
 
 void CamNetCalibrator::ReadConfig()
 {
@@ -46,6 +46,16 @@ void CamNetCalibrator::ReadConfig()
 			for( unsigned c = 0; c < downHints.size(); ++c )
 			{
 				downHints[c] << dhints[c][0], dhints[c][1], 0.0f;
+			}
+		}
+		else
+		{
+			cout << "no downHints in config file, assuming down is (0,1)" << endl;
+			sleep(2);
+			downHints.resize( imgDirs.size() );
+			for( unsigned c = 0; c < downHints.size(); ++c )
+			{
+				downHints[c] << 0, 1, 0;
 			}
 		}
 
@@ -2050,10 +2060,12 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 	// the grids and instead use auxilliary points instead.
 	//
 	if( gridsToUse.size() < minGridsToInitialiseCam )
+	{
 		if( auxMatches.size() > 4 )
 			gridsToUse.clear();
 		else
 			return false;
+	}
 
 	// construct vectors of the 2D and 3D points that we're going to use.
 	// this first set come from the grids....
@@ -2110,7 +2122,10 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 			}
 		}
 	}
-
+	
+	if( p3D.size() < 4 )
+		return false;
+	
 	cv::Mat rvec,t;
 	cv::solvePnPRansac(p3D, p2D, Ks[camID], ks[camID], rvec, t);
 
@@ -2192,6 +2207,79 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 
 }
 
+#include "math/distances.h"
+int PickM( std::vector< transMatrix3D > Ms, cv::Mat othK, cv::Mat camK, std::vector< cv::Point2d > othPoints, std::vector< cv::Point2d > camPoints )
+{
+	std::vector< bool > allInfront(4, true);
+	std::vector< int  > numInfront(4, 0 );
+	unsigned solutionToUse = 0;
+	for( unsigned sc = 0; sc < Ms.size(); ++sc )
+	{
+		cout << "------------------------" << endl;
+		Calibration c,o;
+		c.width  = 1000; // doesn't matter
+		c.height = 1000; // doesn't matter
+		c.L = Ms[sc].inverse();                 // deffo!
+		for( unsigned x = 0; x < 3; ++x )
+			for( unsigned y = 0; y < 3; ++y )
+				c.K(y,x) = camK.at<double>(y,x);
+		
+		
+		o.width  = 1000;
+		o.height = 1000;
+		o.L = transMatrix3D::Identity();
+		for( unsigned x = 0; x < 3; ++x )
+			for( unsigned y = 0; y < 3; ++y )
+				o.K(y,x) = othK.at<double>(y,x);
+		
+		std::vector< hVec3D > centres(2);
+		centres[0] = c.GetCameraCentre();    // should be t of the solution.
+		centres[1] = o.GetCameraCentre();    // should be origin.
+		for( unsigned pc = 0; pc < camPoints.size(); ++pc )
+		{
+			cout << "  *--* " << endl;
+			std::vector< hVec3D > rays(2);
+			hVec2D cp, op;
+			cp << camPoints[pc].x, camPoints[pc].y, 1.0;
+			op << othPoints[pc].x, othPoints[pc].y, 1.0;
+			rays[0] = c.Unproject( cp );
+			rays[1] = o.Unproject( op );
+			
+			
+			
+			hVec3D p3d = IntersectRays( centres, rays );
+			hVec2D cpc, opc;
+			cpc = c.Project( p3d );
+			opc = o.Project( p3d );
+			
+			float dstr = DistanceBetweenRays( centres[0], rays[0], centres[1], rays[1] );
+			float dst0 = PointRayDistance3D( p3d, centres[0], rays[0] );
+			float dst1 = PointRayDistance3D( p3d, centres[1], rays[1] );
+			cout << p3d.transpose() << " : " << dst0 << " | " << dst1 << " || " << (cpc - cp).norm() << " <> " << (opc - op).norm() << endl;
+			if( p3d(2) > 0 )
+			{
+				// so we're infront of the other camera, but what about this camera?
+				p3d = c.TransformToCamera( p3d );
+				if( p3d(2) > 0 )
+				{
+					++numInfront[sc];
+				}
+				else
+					allInfront[sc] = false;
+			}
+			else
+				allInfront[sc] = false;
+		}
+		cout << sc << " : " << numInfront[sc] << endl;
+		if( (allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse ]) ||
+			(!allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse] && !allInfront[ solutionToUse ] ) )
+		{
+			solutionToUse = sc;
+		}
+	}
+	exit(0);
+	return solutionToUse;
+}
 
 
 bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
@@ -2223,7 +2311,7 @@ bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
 	
 	// right then, now we need 2D points for each camera in a way
 	// that lets us calculate F using OpenCV
-	std::vector< cv::Point > camPoints, othPoints;
+	std::vector< cv::Point2d > camPoints, othPoints;
 	std::vector< unsigned > usedAux;
 	for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
 	{
@@ -2250,140 +2338,36 @@ bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
 	
 	if( camPoints.size() > 8 && othPoints.size() == camPoints.size() )
 	{
-// 		// TODO: Robustify this! (distortion?)
-// 		cv::Mat F;
-// 		cv::sfm::normalizedEightPointSolver(othPoints, camPoints, F);
-// 		
-// 		// now, given that we "know" the intrinsics for the camera, we 
-// 		// should be able to upgrade this F to an E
-// 		cv::Mat E;
-// 		cv::sfm::essentialFromFundamental(F, Ks[othCam], Ks[camID], E)
-// 		
-// 		// and that can then give us an R and an unscaled t;
-// 		// except there are multiple solutions...
-// 		std::vector<cv::Mat> Rs,ts;
-// 		cv::sfm::motionFromEssential(E, Rs, ts);
-// 		
-// 		// so now we need to resolve the solutions by use of a single point.
-// 		int solutionToUse = cv::sfm::motionFromEssentialChooseSolution(Rs, ts, Ks[othCam],  othPoints[0], Ks[camID], camPoints[0] );
-		
-		
-		// not really sure why the cv::sfm stuff exists, given that the same functionality is elsewhere as well....
-		// and for that matter, I can't use the cv::sfm stuff because it doesn't seem to be compiled with opencv.
-		// Note that OpenC does have a findEssentialMatrix function, but the idiot that created it assumed you have
-		// the same K matrix for each camera. Idiot.
-		cv::Mat F;
-		F = cv::findFundamentalMat(othPoints, camPoints, cv::FM_LMEDS);
-		
-		// we don't get the nice sfm::essentialFromFundamental here, but we can do it manually
-		// because E = K_2' * F * K_1
-		cv::Mat E = GetEssentialFromF( F, Ks[othCam], Ks[camID] );
-		
-		// recovering R and t is again stupid in OpenCV because it again stupidly assumes that the cameras
-		// have the same K matrix. Which is an unutterably stupid thing to do. So because the cv::sfm stuff
-		// doesn't work, we end up having to do this shitty thing ourselves as well. And we know how well that
-		// fucking worked in the cvg code we had many moons ago. Feck. Time to dig out the cvg code I think...
-		std::vector<cv::Mat> Rs, ts;
-		DecomposeE( E, Rs, ts );
-		
-		// now we have four possible solutions.
-		std::vector< transMatrix3D > Ms;
-		for( unsigned rc = 0; rc < Rs.size(); ++rc )
+		cv::Mat E, R, t;
+		cout << camPoints.size() << " " << othPoints.size() << endl;
+		cout << Ks[othCam].type() << " " << Ks[camID].type() << endl;
+		cv::Mat ko( ks[othCam].size(), 1, CV_64F );
+		cv::Mat kc( ks[othCam].size(), 1, CV_64F );
+		for( unsigned c = 0; c < ks[othCam].size(); ++c )
 		{
-			for( unsigned tc = 0; tc < ts.size(); ++tc )
-			{
-				cv::Mat R = Rs[ rc ];
-				cv::Mat t = ts[ tc ];
-				transMatrix3D M;
-				M << R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0,0),
-				     R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1,0),
-				     R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2,0),
-				     0,0,0,1;
-				Ms.push_back(M);
-			}
+			ko.at<double>(c,0) = ks[othCam][c];
+			kc.at<double>(c,0) = ks[camID][c];
 		}
+		cv::recoverPose( othPoints, camPoints, Ks[othCam], ko, Ks[camID], kc, E, R, t, cv::RANSAC, 0.99999999, 1.0 );
 		
-		// which one do we want to use?
-		std::vector< bool > allInfront(4, true);
-		std::vector< int  > numInfront(4, 0 );
-		unsigned solutionToUse = 0;
-		for( unsigned sc = 0; sc < Ms.size(); ++sc )
-		{
-			Calibration c,o;
-			c.width  = sources[camID]->GetCurrent().cols;
-			c.height = sources[camID]->GetCurrent().rows;
-			c.L = Ms[sc];
-			for( unsigned x = 0; x < 3; ++x )
-				for( unsigned y = 0; y < 3; ++y )
-					c.K(y,x) = Ks[camID].at<double>(y,x);
-			//c.distParams = ks[camID];
-			
-			o.width  = sources[othCam]->GetCurrent().cols;
-			o.height = sources[othCam]->GetCurrent().rows;
-			o.L = transMatrix3D::Identity();
-			for( unsigned x = 0; x < 3; ++x )
-				for( unsigned y = 0; y < 3; ++y )
-					o.K(y,x) = Ks[othCam].at<double>(y,x);
-			//o.distParams = ks[othCam];
-			std::vector< hVec3D > centres(2);
-			centres[0] = c.GetCameraCentre();
-			centres[1] = o.GetCameraCentre();	// should be origin.
-			for( unsigned pc = 0; pc < camPoints.size(); ++pc )
-			{
-				std::vector< hVec3D > rays(2);
-				hVec2D cp, op;
-				cp << camPoints[pc].x, camPoints[pc].y, 1.0;
-				op << othPoints[pc].x, othPoints[pc].y, 1.0;
-				rays[0] = c.Unproject( cp );
-				rays[1] = o.Unproject( op );
-				
-				hVec3D p3d = IntersectRays( centres, rays );
-				if( p3d(2) > 0 )
-				{
-					// so we're infront of the other camera, but what about this camera?
-					p3d = Ms[sc].inverse() * p3d;
-					if( p3d(2) > 0 )
-					{
-						++numInfront[sc];
-					}
-					else
-						allInfront[sc] = false;
-				}
-				else
-					allInfront[sc] = false;
-			}
-			
-			if( (allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse ]) ||
-			    (!allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse] && !allInfront[ solutionToUse ] ) )
-			{
-				solutionToUse = sc;
-			}
-			
-		}
-		for( unsigned sc = 0; sc < Ms.size(); ++sc )
-		{
-			cout << sc << " infront? " << allInfront[sc] << " " << numInfront[sc] << " of " << camPoints.size() << endl;
-		}
-		cout << "s2u: " << solutionToUse << endl;
+		transMatrix3D M;
+		M << R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0,0),
+		     R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1,0),
+		     R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2,0),
+		     0,0,0,1;
 		
-		cout << Ms[ solutionToUse ] << endl;
+		
 		
 		// so in theory we can now position camID relative to othCam using the chosen R and t.
-		// Ms[sol] takes a point from camID to othCam.
-		// Ls[othCam] takes a point from world to othCam. 
-		// Thus, inv(Ls[othCam]) would take a point from othCam to world.
-		// We want Ls[camID] to be world to camID
-		// Ls[othCam] * p => p goes to othCam
-		// inv(Ms[sol]) * Ls[othCam] => p goes to othCam, then to camID.
+		Ls[camID] = M * Ls[ othCam ];
 		
-		Ls[camID] = Ms[ solutionToUse ].inverse() * Ls[ othCam ];
 		
 		// then we have an option. If any of the auxMatches we've been using have 3D points
-		// associated to them, we can reconstruct that point from the new camera, and adjust until
+		// associated to them, we can reconstruct that point from the new camera
 		
 		// useful to have calibration classes for each camera.
 		Calibration c,o;
-
+		
 		c.width  = sources[camID]->GetCurrent().cols;
 		c.height = sources[camID]->GetCurrent().rows;
 		c.L = Ls[camID];
@@ -2627,6 +2611,17 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 			}
 		}
 		
+		//
+		// Have we _still_ not found a root cam? Probably that akward situation where we have _no_ grids at all.
+		//
+		if( rootCam >= Ls.size() )
+		{
+			if( auxMatches.size() > 8 )
+				rootCam = 0;
+			else
+				throw( std::runtime_error( "Couldn't pick root cam - no grids, no aux matches." ) );
+		}
+		
 		
 		variCams.push_back(rootCam);
 		
@@ -2664,7 +2659,7 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 				shareCnt += sharing(cc, fixedCams[fcc] );
 			}
 
-			if( !rootChecked )
+			if( !rootChecked && rootCam < sharing.cols() )
 			{
 				shareCnt += sharing(cc, rootCam );
 			}
