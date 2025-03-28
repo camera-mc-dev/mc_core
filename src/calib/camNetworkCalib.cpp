@@ -48,6 +48,16 @@ void CamNetCalibrator::ReadConfig()
 				downHints[c] << dhints[c][0], dhints[c][1], 0.0f;
 			}
 		}
+		else
+		{
+			cout << "no downHints in config file, assuming down is (0,1)" << endl;
+			sleep(2);
+			downHints.resize( imgDirs.size() );
+			for( unsigned c = 0; c < downHints.size(); ++c )
+			{
+				downHints[c] << 0, 1, 0;
+			}
+		}
 
 		// Basic information about the grid
 		gridRows = cfg.lookup("grid.rows");
