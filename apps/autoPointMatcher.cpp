@@ -34,7 +34,7 @@ SFeatures GetFeatures( cv::Mat img );
 SMatches  GetMatches( SFeatures f0, SFeatures f1 );
 SMatches FilterMatches( SMatches matches,  SFeatures f0, SFeatures f1, Calibration c0, Calibration c1 );
 SClusters ConsolidateMatches( std::vector<SFeatures> &features, std::map< std::pair<unsigned, unsigned>, SMatches > &matches );
-void SaveMatches( SClusters clusters, std::vector<SFeatures> &features, std::string outfn );
+
 
 int main(int argc, char* argv[])
 {
@@ -248,9 +248,9 @@ SFeatures GetFeatures( cv::Mat img )
 	// ahhh... which detector to use?
 	SFeatures f;
 	
-	// // SURF is fast and known
-	// cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
-	// surf->detect( img, f.kps );
+	// SURF is fast and known
+	cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
+	surf->detect( img, f.kps );
 	
 	
 	// // MSD is slow but interesting.
@@ -259,25 +259,25 @@ SFeatures GetFeatures( cv::Mat img )
 	
 	
 	
-	cv::Mat grey0, grey1;
-	cv::cvtColor( img, grey0, cv::COLOR_BGR2GRAY );
-	grey1 = 255-grey0;
-	
-	MSER mser8( 2.0, 10.0 / (float)(grey0.rows*grey0.cols), 5000.0 / (float)(grey0.rows*grey0.cols), 0.5, 0.33, true);
-	std::vector<MSER::Region> regions0, regions1, regions;
-	mser8(grey0.data, grey0.cols, grey0.rows, regions0);
-	mser8(grey1.data, grey1.cols, grey1.rows, regions1);
-	
-	regions.insert( regions.end(), regions0.begin(), regions0.end() );
-	regions.insert( regions.end(), regions1.begin(), regions1.end() );
-	f.kps.resize( regions.size() );
-	for( unsigned rc = 0; rc < regions.size(); ++rc )
-	{
-		f.kps[rc].size = sqrt( regions[rc].area_ );
-		
-		f.kps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
-		f.kps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
-	}
+// 	cv::Mat grey0, grey1;
+// 	cv::cvtColor( img, grey0, cv::COLOR_BGR2GRAY );
+// 	grey1 = 255-grey0;
+// 	
+// 	MSER mser8( 2.0, 10.0 / (float)(grey0.rows*grey0.cols), 5000.0 / (float)(grey0.rows*grey0.cols), 0.5, 0.33, true);
+// 	std::vector<MSER::Region> regions0, regions1, regions;
+// 	mser8(grey0.data, grey0.cols, grey0.rows, regions0);
+// 	mser8(grey1.data, grey1.cols, grey1.rows, regions1);
+// 	
+// 	regions.insert( regions.end(), regions0.begin(), regions0.end() );
+// 	regions.insert( regions.end(), regions1.begin(), regions1.end() );
+// 	f.kps.resize( regions.size() );
+// 	for( unsigned rc = 0; rc < regions.size(); ++rc )
+// 	{
+// 		f.kps[rc].size = sqrt( regions[rc].area_ );
+// 		
+// 		f.kps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
+// 		f.kps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
+// 	}
 	
 	
 	
@@ -372,10 +372,10 @@ SMatches FilterMatchesWithCalib( SMatches matches, SFeatures f0, SFeatures f1, C
 				
 				hVec3D r1 = c1.Unproject( kp1 );
 				
-				dists[fi1] = DistanceBetweenRays( cc0, r0,   cc1, r1 );
-				if( dists[fi1] < bestErr )
+				dists[f1c] = DistanceBetweenRays( cc0, r0,   cc1, r1 );
+				if( dists[f1c] < bestErr )
 				{
-					bestErr = dists[fi1];
+					bestErr = dists[f1c];
 					bestfi1 = fi1;
 				}
 			}
@@ -496,10 +496,6 @@ SClusters ConsolidateMatches( std::vector<SFeatures> &features,  std::map< std::
 	
 }
 
-
-void SaveMatches( SClusters clusters, std::vector<SFeatures> &features, std::string outfn )
-{
-}
 
 
 
