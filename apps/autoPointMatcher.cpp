@@ -193,6 +193,41 @@ int main(int argc, char* argv[])
 			totalMatches += fMatches[ mp ].f.size();
 			
 			
+			cv::Mat i0 = imgs[ sc0 ].clone();
+			for( auto mi = matches[ mp ].f.begin(); mi != matches[mp].f.end(); ++mi )
+			{
+				int fi0 = mi->first;
+				for( unsigned fc1 = 0; fc1 < mi->second.size(); ++fc1 )
+				{
+					int fi1 = mi->second[ fc1 ];
+					
+					cv::Point p0 = features[ sc0 ].kps[ fi0 ].pt;
+					cv::Point p1 = features[ sc1 ].kps[ fi1 ].pt;
+					cv::Point d  = (p1-p0) / 10.0f;
+					
+					cv::circle( i0, p0, 7, cv::Scalar( 255, 0, 0 ) );
+					cv::line( i0, p0, p0 + d, cv::Scalar( 190,0,0 ), 3 );
+					
+				}
+			}
+			for( auto mi = fMatches[ mp ].f.begin(); mi != fMatches[mp].f.end(); ++mi )
+			{
+				int fi0 = mi->first;
+				for( unsigned fc1 = 0; fc1 < mi->second.size(); ++fc1 )
+				{
+					int fi1 = mi->second[ fc1 ];
+					
+					cv::Point p0 = features[ sc0 ].kps[ fi0 ].pt;
+					cv::Point p1 = features[ sc1 ].kps[ fi1 ].pt;
+					cv::Point d  = (p1-p0) / 10.0f;
+					
+					cv::circle( i0, p0, 7, cv::Scalar( 255, 0, 0 ) );
+					cv::line( i0, p0, p0 + d, cv::Scalar( 255,255,0 ), 1 );
+					
+				}
+			}
+			Rendering::ShowImage( i0 );
+			
 		}
 		
 	}
@@ -278,9 +313,9 @@ SFeatures GetFeatures( cv::Mat img )
 	// ahhh... which detector to use?
 	SFeatures f;
 	
-	// SURF is fast and known
-	cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
-	surf->detect( img, f.kps );
+// 	// SURF is fast and known
+// 	cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
+// 	surf->detect( img, f.kps );
 	
 	
 	// // MSD is slow but interesting.
@@ -289,25 +324,25 @@ SFeatures GetFeatures( cv::Mat img )
 	
 	
 	
-// 	cv::Mat grey0, grey1;
-// 	cv::cvtColor( img, grey0, cv::COLOR_BGR2GRAY );
-// 	grey1 = 255-grey0;
-// 	
-// 	MSER mser8( 2.0, 10.0 / (float)(grey0.rows*grey0.cols), 5000.0 / (float)(grey0.rows*grey0.cols), 0.5, 0.33, true);
-// 	std::vector<MSER::Region> regions0, regions1, regions;
-// 	mser8(grey0.data, grey0.cols, grey0.rows, regions0);
-// 	mser8(grey1.data, grey1.cols, grey1.rows, regions1);
-// 	
-// 	regions.insert( regions.end(), regions0.begin(), regions0.end() );
-// 	regions.insert( regions.end(), regions1.begin(), regions1.end() );
-// 	f.kps.resize( regions.size() );
-// 	for( unsigned rc = 0; rc < regions.size(); ++rc )
-// 	{
-// 		f.kps[rc].size = sqrt( regions[rc].area_ );
-// 		
-// 		f.kps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
-// 		f.kps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
-// 	}
+	cv::Mat grey0, grey1;
+	cv::cvtColor( img, grey0, cv::COLOR_BGR2GRAY );
+	grey1 = 255-grey0;
+	
+	MSER mser8( 2.0, 10.0 / (float)(grey0.rows*grey0.cols), 5000.0 / (float)(grey0.rows*grey0.cols), 0.5, 0.33, true);
+	std::vector<MSER::Region> regions0, regions1, regions;
+	mser8(grey0.data, grey0.cols, grey0.rows, regions0);
+	mser8(grey1.data, grey1.cols, grey1.rows, regions1);
+	
+	regions.insert( regions.end(), regions0.begin(), regions0.end() );
+	regions.insert( regions.end(), regions1.begin(), regions1.end() );
+	f.kps.resize( regions.size() );
+	for( unsigned rc = 0; rc < regions.size(); ++rc )
+	{
+		f.kps[rc].size = sqrt( regions[rc].area_ );
+		
+		f.kps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
+		f.kps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
+	}
 	
 	
 	
@@ -372,7 +407,7 @@ SMatches  GetMatches( SFeatures f0, SFeatures f1 )
 
 
 // TODO config option.
-const float DIST_THRESH = 20.0f / 1000.0f; 
+const float DIST_THRESH =  5.0f / 1000.0f; 
 SMatches FilterMatchesWithCalib( SMatches matches, SFeatures f0, SFeatures f1, Calibration c0, Calibration c1  )
 {
 	SMatches fMatches;
