@@ -15,8 +15,8 @@ public:
 	Calibration()
 	{
 		distParams.assign(5,0);
-		K = transMatrix2D::Identity();
-		L = transMatrix3D::Identity();
+		K = transMatrix2D::Zero();
+		L = transMatrix3D::Zero();
 	}
 
 	transMatrix2D K;
