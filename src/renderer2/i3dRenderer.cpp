@@ -345,7 +345,7 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::T) )
 	{
 		hVec3D ovd       = viewDir;
-		viewDir.head(3) *= 0.999;
+		viewDir.head(3)  = (viewDir.head(3) - ft*1.0f*viewDir.head(3) );
 		hVec3D t         = ovd - viewDir;
 		T.block(0,3,3,1) = t.head(3);
 		
@@ -357,7 +357,7 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::G) )
 	{
 		hVec3D ovd       = viewDir;
-		viewDir.head(3) *= 1.001;
+		viewDir.head(3)  = viewDir.head(3) + ft*1.0*viewDir.head(3);
 		hVec3D t         = ovd - viewDir;
 		T.block(0,3,3,1) = t.head(3);
 		
