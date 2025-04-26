@@ -166,7 +166,7 @@ std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::ve
 		}
 		else if( e.properties[pc].find("opacity") == 0  && !gotop )
 		{
-			gotrot = true;
+			gotop = true;
 			out["gs-opacity"] = genRowMajMatrix::Zero( e.number, 1 );
 		}
 	}
