@@ -6,6 +6,7 @@ using std::cout;
 using std::endl;
 using std::vector;
 
+#include "calib/calibration.h"
 #include "math/intersections.h"
 #include "math/matrixGenerators.h"
 #include "calib/calibration.h"

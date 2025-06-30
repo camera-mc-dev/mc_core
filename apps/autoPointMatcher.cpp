@@ -34,7 +34,7 @@ SFeatures GetFeatures( cv::Mat img );
 SMatches  GetMatches( SFeatures f0, SFeatures f1 );
 SMatches FilterMatches( SMatches matches,  SFeatures f0, SFeatures f1, Calibration c0, Calibration c1 );
 SClusters ConsolidateMatches( std::vector<SFeatures> &features, std::map< std::pair<unsigned, unsigned>, SMatches > &matches );
-void SaveMatches( SClusters clusters, std::vector<SFeatures> &features, std::string outfn );
+
 
 int main(int argc, char* argv[])
 {
@@ -192,32 +192,41 @@ int main(int argc, char* argv[])
 			
 			totalMatches += fMatches[ mp ].f.size();
 			
-// 			cv::Mat i0 = imgs[ sc0 ].clone();
-// 			for( auto mi = matches[mp].f.begin(); mi != matches[mp].f.end(); ++mi )
-// 			{
-// 				cout << mi->first << " " << mi->second.size() << endl;
-// 				cv::Point p0 = features[ sc0 ].kps[ mi->first ].pt;
-// 				cv::circle( i0, p0, 7, cv::Scalar( 128, 0, 128 ) );
-// 				for( unsigned mc = 0; mc < mi->second.size(); ++mc )
-// 				{
-// 					cv::Point p1 = features[ sc1 ].kps[ mi->second[mc] ].pt;
-// 					cv::Point d  = p1 - p0;
-// 					
-// 					cv::line( i0, p0, p0 + d/10, cv::Scalar( 255,0,0 ), 3 );
-// 				}
-// 			}
-// 			for( auto mi = fMatches[mp].f.begin(); mi != fMatches[mp].f.end(); ++mi )
-// 			{
-// 				cv::Point p0 = features[ sc0 ].kps[ mi->first ].pt;
-// 				cv::circle( i0, p0, 7, cv::Scalar( 128, 0, 128 ) );
-// 				for( unsigned mc = 0; mc < mi->second.size(); ++mc )
-// 				{
-// 					cv::Point p1 = features[ sc1 ].kps[ mi->second[mc] ].pt;
-// 					cv::Point d  = p1 - p0;
-// 					
-// 					cv::line( i0, p0, p0 + d/10, cv::Scalar( 255,255,0 ), 1 );
-// 				}
-// 			}
+			
+			cv::Mat i0 = imgs[ sc0 ].clone();
+			for( auto mi = matches[ mp ].f.begin(); mi != matches[mp].f.end(); ++mi )
+			{
+				int fi0 = mi->first;
+				for( unsigned fc1 = 0; fc1 < mi->second.size(); ++fc1 )
+				{
+					int fi1 = mi->second[ fc1 ];
+					
+					cv::Point p0 = features[ sc0 ].kps[ fi0 ].pt;
+					cv::Point p1 = features[ sc1 ].kps[ fi1 ].pt;
+					cv::Point d  = (p1-p0) / 10.0f;
+					
+					cv::circle( i0, p0, 7, cv::Scalar( 255, 0, 0 ) );
+					cv::line( i0, p0, p0 + d, cv::Scalar( 190,0,0 ), 3 );
+					
+				}
+			}
+			for( auto mi = fMatches[ mp ].f.begin(); mi != fMatches[mp].f.end(); ++mi )
+			{
+				int fi0 = mi->first;
+				for( unsigned fc1 = 0; fc1 < mi->second.size(); ++fc1 )
+				{
+					int fi1 = mi->second[ fc1 ];
+					
+					cv::Point p0 = features[ sc0 ].kps[ fi0 ].pt;
+					cv::Point p1 = features[ sc1 ].kps[ fi1 ].pt;
+					cv::Point d  = (p1-p0) / 10.0f;
+					
+					cv::circle( i0, p0, 7, cv::Scalar( 255, 0, 0 ) );
+					cv::line( i0, p0, p0 + d, cv::Scalar( 255,255,0 ), 1 );
+					
+				}
+			}
+			Rendering::ShowImage( i0 );
 			
 		}
 		
@@ -225,16 +234,72 @@ int main(int argc, char* argv[])
 	cout << "leaving: " << totalMatches << " matches" << endl;
 	
 	
-	//
-	// And consolidate that into clusters of matches corresponding to the same 3D point. Hopefully....
-	//
-	SClusters finalMatches = ConsolidateMatches( features, fMatches );
-	cout << "clustered points: " << finalMatches.pts.size() << endl;
+// 	//
+// 	// And consolidate that into clusters of matches corresponding to the same 3D point. Hopefully....
+// 	//
+// 	SClusters finalMatches = ConsolidateMatches( features, fMatches );
+// 	cout << "clustered points: " << finalMatches.pts.size() << endl;
+	
+	
+	
+	
+	
+	
+	
 	
 	//
-	// Then just save a nice matches file. Ho ho ho.
+	// Now we just write the output out.
+	// We want to use a format that my trangulate tool can read.
+	// Wish I could remember what that was a bit better!
 	//
-	SaveMatches( finalMatches, features, matchesFile );
+	std::ofstream outfi( matchesFile );
+	
+	// start with a list of source paths
+	for( unsigned sc = 0; sc < srcNames.size(); ++sc )
+	{
+		outfi << srcNames[sc] << " ";
+	}
+	outfi << endl;
+	
+	
+	// now _all_ the keypoints for each source.
+	for( unsigned sc = 0; sc < srcNames.size(); ++sc )
+	{
+		outfi << srcNames[sc] << " " << features[sc].kps.size() << endl;
+		for( unsigned kpc = 0; kpc < features[sc].kps.size(); ++kpc )
+		{
+			outfi << features[sc].kps[kpc].pt.x << " " << features[sc].kps[kpc].pt.y << endl;
+		}
+	}
+	
+	// now the matches between all pairs of views.
+	// NOTE: not making use of match consolidation here because... the triangulate tool wont use it!
+	for( unsigned sc0 = 0; sc0 < imgs.size(); ++sc0 )
+	{
+		for( unsigned sc1 = sc0+1; sc1 < imgs.size(); ++sc1 )
+		{
+			auto mp = std::make_pair( sc0, sc1 );
+			std::vector< std::pair< unsigned, unsigned > > matchPairs;
+			for( auto mi = fMatches[mp].f.begin(); mi != fMatches[mp].f.end(); ++mi )
+			{
+				int fi0 = mi->first;
+				if( mi->second.size() > 0 )
+				{
+					int fi1 = mi->second[0];
+					matchPairs.push_back( std::make_pair(fi0, fi1) );
+				}
+			}
+			
+			outfi << srcNames[ sc0 ] << " " << srcNames[ sc1 ] << " ";
+			outfi << matchPairs.size() << "      ";
+			for( unsigned mc = 0; mc < matchPairs.size(); ++mc )
+			{
+				outfi << matchPairs[mc].first << " " << matchPairs[mc].second << "     ";
+			}
+			outfi << endl;
+		}
+		
+	}
 	
 }
 
@@ -248,9 +313,9 @@ SFeatures GetFeatures( cv::Mat img )
 	// ahhh... which detector to use?
 	SFeatures f;
 	
-	// // SURF is fast and known
-	// cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
-	// surf->detect( img, f.kps );
+// 	// SURF is fast and known
+// 	cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create( 500.0f );
+// 	surf->detect( img, f.kps );
 	
 	
 	// // MSD is slow but interesting.
@@ -342,7 +407,7 @@ SMatches  GetMatches( SFeatures f0, SFeatures f1 )
 
 
 // TODO config option.
-const float DIST_THRESH = 20.0f / 1000.0f; 
+const float DIST_THRESH =  5.0f / 1000.0f; 
 SMatches FilterMatchesWithCalib( SMatches matches, SFeatures f0, SFeatures f1, Calibration c0, Calibration c1  )
 {
 	SMatches fMatches;
@@ -372,10 +437,10 @@ SMatches FilterMatchesWithCalib( SMatches matches, SFeatures f0, SFeatures f1, C
 				
 				hVec3D r1 = c1.Unproject( kp1 );
 				
-				dists[fi1] = DistanceBetweenRays( cc0, r0,   cc1, r1 );
-				if( dists[fi1] < bestErr )
+				dists[f1c] = DistanceBetweenRays( cc0, r0,   cc1, r1 );
+				if( dists[f1c] < bestErr )
 				{
-					bestErr = dists[fi1];
+					bestErr = dists[f1c];
 					bestfi1 = fi1;
 				}
 			}
@@ -496,10 +561,6 @@ SClusters ConsolidateMatches( std::vector<SFeatures> &features,  std::map< std::
 	
 }
 
-
-void SaveMatches( SClusters clusters, std::vector<SFeatures> &features, std::string outfn )
-{
-}
 
 
 
