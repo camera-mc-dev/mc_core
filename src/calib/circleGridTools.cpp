@@ -27,19 +27,20 @@ public:
 
 	CircleDetector(unsigned minSize)
 	{
-		fdet = cv::MSER::create(3,  // delta. def=5
-								minSize, // minArea. def=60
-								14400,
-								0.1, // max variation
-								0.2, // color only from here... \/
-								200,
-								1.01,
-								0.03,
-								5);
+		fdet = cv::MSER::create(
+		                          3,       // delta. def=5
+		                          minSize, // minArea. def=60
+		                          14400,
+		                          0.1,     // max variation
+		                          0.2,     // color only from here... \/
+		                          200,
+		                          1.01,
+		                          0.03,
+		                          5
+		                       );
 	}
 
-	CV_WRAP static cv::
-	Ptr<CircleDetector> create(unsigned minSize)
+	CV_WRAP static cv::Ptr<CircleDetector> create(unsigned minSize)
 	{
 		return cv::makePtr<CircleDetector>(minSize);
 	}

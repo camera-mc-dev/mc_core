@@ -5,7 +5,7 @@
 
 #include "calib/camNetworkCalib.h"
 #include "math/intersections.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/calibrationC.h"
 #include "commonConfig/commonConfig.h"
 
@@ -173,6 +173,7 @@ void CamNetCalibrator::ReadConfig()
 	for( unsigned ic = 0; ic < imgDirs.size(); ++ic )
 	{
 		cout << "creating source: " << imgDirs[ic] << endl;
+		/*
 		ImageSource *isrc;
 		if( boost::filesystem::is_directory( imgDirs[ic] ))
 		{
@@ -189,6 +190,11 @@ void CamNetCalibrator::ReadConfig()
 			isDirectorySource.push_back(false);
 		}
 		sources.push_back( isrc );
+		/*/
+		auto sh = CreateSource( imgDirs[ic] );
+		sources.push_back( sh.source );
+		isDirectorySource.push_back( sh.isDirectorySource );
+		//*/
 	}
 
 	if( auxMatchesFile.size() > 0 )
@@ -332,7 +338,7 @@ void CamNetCalibrator::Calibrate()
 
 }
 
-void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t &coutLock, hVec2D downHint)
+void CamNetCalibrator::FindGridThread(std::shared_ptr<ImageSource> dir, unsigned isc, omp_lock_t &coutLock, hVec2D downHint)
 {
 	// Print startup message.
 	//coutLock.lock();

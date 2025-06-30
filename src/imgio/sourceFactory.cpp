@@ -15,7 +15,7 @@ std::string GetBotLevelFile( std::string in )
 	return p.stem().string();
 }
 
-SourcePair CreateSource( std::string input, std::string calibFile )
+SourceHandle CreateSource( std::string input, std::string calibFile )
 {
 	//
 	// input is a string, and the acceptable format of that string is:
@@ -26,7 +26,8 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 	// where <tag>:<info> can be one of:
 	//   - fndir:<info> : create an image directory source where image filenames indicate the actual frame number
 	//
-	SourcePair retval;
+	SourceHandle retval;
+	retval.isDirectorySource = false;
 	
 	boost::filesystem::path inpth( input );
 	
@@ -43,6 +44,7 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
+			retval.isDirectorySource = true;
 		}
 		else if( boost::filesystem::exists( inpth ) )
 		{
@@ -96,6 +98,7 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
+			retval.isDirectorySource = true;
 		}
 		else
 		{

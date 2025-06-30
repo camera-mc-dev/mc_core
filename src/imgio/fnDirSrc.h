@@ -66,7 +66,7 @@ public:
 		// 
 		// The source always starts at frame 0, so when you use the source, you might 
 		// find that you have to go through 10k frames before you get to the first real image.
-		// (if that's how you're images are numbered). So, you can instead specify where the 
+		// (if that's how your images are numbered). So, you can instead specify where the 
 		// first frame is.
 		// 
 		// This means that when you use the source and ask from frame 0, you get frame n instead.

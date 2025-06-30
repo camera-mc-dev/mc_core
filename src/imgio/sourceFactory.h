@@ -9,13 +9,19 @@
 
 
 
-struct SourcePair
+struct SourceHandle
 {
+	// the source...
 	std::shared_ptr< ImageSource > source;
+	
+	// a name based on the source type/location/etc.
 	std::string name;
+	
+	// a flag to help calib class decide where to put "grids" file 
+	bool isDirectorySource;
 };
 
-SourcePair CreateSource( std::string input, std::string calibFile = "none" );
+SourceHandle CreateSource( std::string input, std::string calibFile = "none" );
 
 #endif
 
