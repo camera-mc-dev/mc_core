@@ -81,7 +81,7 @@ HDF5Source::HDF5Source( std::string in_filepath, std::string in_calibPath )
 	//
 	// Input filepath can be of the format:
 	// /path/to/file.hdf5
-	// <firstframe>:path/to/file.hdf5
+	// path/to/file.hdf5:<firstframe>
 	//
 	int a = in_filepath.find(":");
 	

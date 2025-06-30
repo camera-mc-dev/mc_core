@@ -21,17 +21,17 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 	// input is a string, and the acceptable format of that string is:
 	//   - /path/to/directory/
 	//   - /path/to/video.file
-	//   - <tag>:<info>
+	//   - <info>:<tag>
 	//
-	// where <tag>:<info> can be one of:
-	//   - fndir:<info> : create an image directory source where image filenames indicate the actual frame number
+	// where <tag> can be one of:
+	//   - fndir : create an image directory source where image filenames indicate the actual frame number
 	//
 	SourceHandle retval;
 	retval.isDirectorySource = false;
 	
 	boost::filesystem::path inpth( input );
 	
-	int a = input.find(":");
+	int a = input.rfind(":");
 	if( a == std::string::npos )
 	{
 		if( boost::filesystem::is_directory( inpth ))
@@ -76,19 +76,10 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 	}
 	else
 	{
-		std::string tag( input.begin(), input.begin()+a);
-		std::string info( input.begin()+a+1, input.end());
+		std::string tag( input.begin()+a+1, input.end() );
+		std::string info( input.begin(), input.begin()+a);
 		
-		if( tag.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file.
-		{
-#ifdef HAVE_HIGH_FIVE
-			cout << input << " " << tag << " " << info << endl;
-			retval.source.reset( new HDF5Source( input, calibFile ) );
-#else
-			throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");
-#endif
-		}
-		else if( tag.compare("fndir") == 0 )
+		if( tag.compare("fndir") == 0 )
 		{
 			// create a directory source.
 			if( calibFile.compare("none") == 0 )
@@ -99,6 +90,15 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
 			retval.isDirectorySource = true;
+		}
+		else if( info.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file with 
+		{
+			#ifdef HAVE_HIGH_FIVE
+			cout << input << " " << tag << " " << info << endl;
+			retval.source.reset( new HDF5Source( input, calibFile ) );
+			#else
+			throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");
+			#endif
 		}
 		else
 		{
