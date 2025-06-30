@@ -13,7 +13,7 @@ class FNImageDirectory : public ImageSource
 protected:
 	
 	std::string info;
-	std::string format;
+	std::string prefix;
 	std::string path;
 	
 	std::map< int, std::string > imgMap;
@@ -88,13 +88,13 @@ public:
 			a = tag.rfind(":");
 			if( a == std::string::npos )
 			{
+				prefix     = "";
 				firstFrame = atoi( tag.c_str() );
 			}
 			else
 			{
-				cout << "The FNImageDirectory source does not currently support specifying the format of the image filename." << endl;
-				cout << "You must for now use <frameNumber>.ext as the format. Sorry!" << endl;
-				throw std::runtime_error("Pending feature not done yet!");
+				prefix     = std::string( tag.begin(), tag.begin() + a );
+				firstFrame = atoi( std::string( tag.begin()+a+1, tag.end() ).c_str() );
 			}
 		}
 	}
@@ -110,7 +110,7 @@ public:
 			for( ; di != endi; ++di )
 			{
 				std::string s = di->path().string();
-
+				
 				if( IsImage(s) )
 				{
 					imageList.push_back(s);
@@ -142,13 +142,14 @@ public:
 	int ParseFilename( std::string fn )
 	{
 		//
-		// For now, we assume that the filename is <number>.ext
+		// For now, we assume that the filename is <prefix><number>.ext
 		//
 		// In the future, we should allow for other formats, e.g. : <timecode>-<frame>.ext
 		// or i-felt-i-needed-a-prefix-<number>-and-a-postfix.ext
 		//
 		boost::filesystem::path p(fn);
-		std::string numStr = p.stem().string();
+		std::string stemStr = p.stem().string();
+		std::string numStr  = std::string( stemStr.begin() + prefix.length(), stemStr.end() );
 		return atoi(numStr.c_str());
 	}
 	
