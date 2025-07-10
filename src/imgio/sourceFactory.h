@@ -19,6 +19,9 @@ struct SourceHandle
 	
 	// a flag to help calib class decide where to put "grids" file 
 	bool isDirectorySource;
+	
+	// path to source without any tags
+	std::string path;
 };
 
 SourceHandle CreateSource( std::string input, std::string calibFile = "none" );

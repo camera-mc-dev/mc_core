@@ -45,6 +45,7 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
 			retval.isDirectorySource = true;
+			retval.path = inpth.string();
 		}
 		else if( boost::filesystem::exists( inpth ) )
 		{
@@ -72,6 +73,7 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 			
 			// return the filename without extension as a source name.
 			retval.name = GetBotLevelFile( input );
+			retval.path = inpth.string();
 		}
 	}
 	else
@@ -90,6 +92,9 @@ SourceHandle CreateSource( std::string input, std::string calibFile )
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
 			retval.isDirectorySource = true;
+			
+			int b = info.find(":");
+			retval.path = std::string( info.begin(), info.begin()+b );
 		}
 		else if( info.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file with 
 		{
