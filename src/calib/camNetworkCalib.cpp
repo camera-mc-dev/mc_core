@@ -194,6 +194,7 @@ void CamNetCalibrator::ReadConfig()
 		auto sh = CreateSource( imgDirs[ic] );
 		sources.push_back( sh.source );
 		isDirectorySource.push_back( sh.isDirectorySource );
+		tagFreePaths.push_back( sh.path );
 		//*/
 	}
 
@@ -417,7 +418,7 @@ void CamNetCalibrator::FindGridThread(std::shared_ptr<ImageSource> dir, unsigned
 		
 		for( unsigned c = 0; c < gridFound.size(); ++c )
 		{
-			cout << "Dir No. " << c << " : " << gridFound[c] << " grids out of " << gridProg[c] << " images " << endl;
+			cout << "Dir No. " << std::setw(4) << c << " : " << std::setw(6) << gridFound[c] << " grids out of " << std::setw(6) << gridProg[c] << " images " << endl;
 		}
 		cout << "-------------------------------------" << endl;
 		
@@ -436,9 +437,9 @@ void CamNetCalibrator::FindGridThread(std::shared_ptr<ImageSource> dir, unsigned
 	// Save grids to a file.
 	std::string filePath;
 	if( isDirectorySource[isc] )
-		filePath = imgDirs[isc] + "grids";
+		filePath = tagFreePaths[isc] + "grids";
 	else
-		filePath = imgDirs[isc] + ".grids";
+		filePath = tagFreePaths[isc] + ".grids";
 // 	coutLock.lock();
 	omp_set_lock( &coutLock );
 	cout << "Writing grids file: " << filePath << endl;
@@ -470,9 +471,9 @@ void CamNetCalibrator::GetGrids()
 		{
 			std::string s;
 			if( isDirectorySource[isc] )
-				s = imgDirs[isc] + "grids";
+				s = tagFreePaths[isc] + "grids";
 			else
-				s = imgDirs[isc] + ".grids";
+				s = tagFreePaths[isc] + ".grids";
 			std::ifstream infi(s);
 
 			if( !infi.is_open() )

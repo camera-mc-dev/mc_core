@@ -58,6 +58,7 @@ private:
 	std::string dataRoot;
 	std::string testRoot;
 	vector< std::string > imgDirs;
+	vector< std::string > tagFreePaths;
 	std::map< std::string, unsigned > srcId2Indx;
 
 	// grids.
