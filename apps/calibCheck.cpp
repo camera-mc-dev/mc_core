@@ -10,8 +10,7 @@ using std::vector;
 
 #include <Eigen/Geometry>
 
-#include "imgio/imagesource.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/circleGridTools.h"
 #include "math/intersections.h"
 #include "math/products.h"
@@ -135,7 +134,7 @@ void LoadPointMatches( std::string matchesFile, std::map< unsigned, PointMatch >
 }
 
 std::vector< ImageSource* > sources;
-void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube );
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube );
 
 int main(int argc, char *argv[] )
 {
@@ -243,7 +242,7 @@ int main(int argc, char *argv[] )
 	}
 
 	// create image sources
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	
 	bool gotSources = false;
 	if( imgDirs.size() > 0 )
@@ -254,18 +253,19 @@ int main(int argc, char *argv[] )
 // 			sources.push_back( new ImageDirectory(imgDirs[ic]));
 			
 			
-			cout << "creating source: " << imgDirs[ic] << endl;
-			ImageSource *isrc;
-			if( boost::filesystem::is_directory( imgDirs[ic] ))
-			{
-				isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
-			}
-			else
-			{
-				calibFiles[ic] = imgDirs[ic] + ".calib";
-				isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
-			}
-			sources.push_back( isrc );
+			// cout << "creating source: " << imgDirs[ic] << endl;
+			// ImageSource *isrc;
+			// if( boost::filesystem::is_directory( imgDirs[ic] ))
+			// {
+			// 	isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
+			// }
+			// else
+			// {
+			// 	calibFiles[ic] = imgDirs[ic] + ".calib";
+			// 	isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
+			// }
+			auto sh = CreateSource( imgDirs[ic] );
+			sources.push_back( sh.source );
 			
 		}
 		
@@ -278,7 +278,7 @@ int main(int argc, char *argv[] )
 		for( unsigned ic = 0; ic < vidFiles.size(); ++ic )
 		{
 			cout << "creating source: " << vidFiles[ic] << " with " << calibFiles[ic] << endl;
-			sources.push_back( new VideoSource( vidFiles[ic], calibFiles[ic] ) );;
+			sources.push_back( std::shared_ptr<ImageSource>( new VideoSource( vidFiles[ic], calibFiles[ic] ) ) );;
 		}
 		gotSources = true;
 	}
@@ -680,7 +680,7 @@ int main(int argc, char *argv[] )
 }
 
 
-void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube )
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube )
 {
 	genMatrix pts = genMatrix::Zero( 4, 9 );
 	pts << 0.0, cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],

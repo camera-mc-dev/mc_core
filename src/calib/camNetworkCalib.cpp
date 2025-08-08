@@ -1302,7 +1302,7 @@ float CamNetCalibrator::CalcReconError()
 		// which grid did it come from?
 		unsigned gc = pc2gc[wpc].gc;
 		unsigned ipc = pc2gc[wpc].pc;
-
+		
 		if( isSetG[gc] )
 		{
 			for( unsigned cc = 0; cc < numCams; ++cc )
@@ -1390,70 +1390,96 @@ float CamNetCalibrator::CalcReconError()
 	
 	cout << " == grid points == " << endl;
 	errfi << " == grid points == " << endl;
-	float grandMean = 0.0f;
-	int grandCount = 0;
+	float grandMeanGrids = 0.0f;
+	float grandMeanAux   = 0.0f;
+	int grandCountGrids = 0;
+	int grandCountAux   = 0;
+	
+	cout  << std::setw(6) << "  cam  " << "|" << std::setw(20) << "means" << " | " << std::setw(20) << "mins" << "|" << std::setw(20) << "maxs" << "|" << std::setw(20) << "meds" << endl;
+	errfi << std::setw(6) << "  cam  " << "|" << std::setw(20) << "means" << " | " << std::setw(20) << "mins" << "|" << std::setw(20) << "maxs" << "|" << std::setw(20) << "meds" << endl;
 	for( unsigned cc = 0; cc < numCams; cc++ )
 	{
 		if( isSetC[cc] )
 		{
 			std::sort( gridPointsErrs[cc].begin(), gridPointsErrs[cc].end() );
-			float mean = 0.0f;
+			float meanGrids = 0.0f;
 			for( unsigned ec = 0; ec < gridPointsErrs[cc].size(); ++ec )
-				mean += gridPointsErrs[cc][ec];
-			mean /= gridPointsErrs[cc].size();
+				meanGrids += gridPointsErrs[cc][ec];
+			meanGrids /= gridPointsErrs[cc].size();
 			
-			if( gridPointsErrs[cc].size() > 0 )
-			{
-				cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
-				errfi << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
-			}
-			else
-			{
-				cout << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
-				errfi << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
-			}
-			grandMean += mean;
-			++grandCount;
-		}
-		else
-		{
-			cout << "camera " << cc << "     not-set    " << endl;
-			errfi << "camera " << cc << "     not-set    " << endl;
-		}
-	}
-	cout << "grand-mean: " << grandMean/grandCount << endl;
-	cout << endl << endl << endl << endl;
-	
-	errfi << "grand-mean: " << grandMean/grandCount << endl;
-	errfi << endl << endl << endl << endl;
-	
-	
-	cout << " == aux points == " << endl;
-	errfi << " == aux points == " << endl;
-	grandMean = 0.0f;
-	grandCount = 0;
-	for( unsigned cc = 0; cc < numCams; cc++ )
-	{
-		if( isSetC[cc] )
-		{
+			
 			std::sort( auxPointsErrs[cc].begin(), auxPointsErrs[cc].end() );
-			float mean = 0.0f;
+			float meanAux = 0.0f;
 			for( unsigned ec = 0; ec < auxPointsErrs[cc].size(); ++ec )
-				mean += auxPointsErrs[cc][ec];
-			mean /= auxPointsErrs[cc].size();
+				meanAux += auxPointsErrs[cc][ec];
+			meanAux /= auxPointsErrs[cc].size();
 			
-			if( auxPointsErrs[cc].size() > 0 )
+			
+			
+			
+			
+			
+			if( gridPointsErrs[cc].size() > 0 && auxPointsErrs[cc].size() > 0 )
 			{
-				cout << "camera " << cc << "  mean: " << mean << "  max: " << auxPointsErrs[cc].back() <<  "    min: " << auxPointsErrs[cc][0] << "   median: " << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
-				errfi << "camera " << cc << "  mean: " << mean << "  max: " << auxPointsErrs[cc].back() <<  "    min: " << auxPointsErrs[cc][0] << "   median: " << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				cout  << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << meanGrids << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << meanGrids << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				grandMeanGrids += meanGrids;
+				grandMeanAux += meanAux;
+				++grandCountAux;
+				++grandCountGrids;
+				
+			}
+			else if( gridPointsErrs[cc].size() > 0 && auxPointsErrs[cc].size() == 0 )
+			{
+				cout  << std::setw(6)  << cc << "|" 
+				<< std::setw(10) << meanGrids << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << "n/aux" << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				<< std::setw(10) << meanGrids << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << "n/aux" << endl;
+				
+				grandMeanGrids += meanGrids;
+				++grandCountGrids;
+			}
+			else if( gridPointsErrs[cc].size() == 0 && auxPointsErrs[cc].size() > 0 )
+			{
+				cout  << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				
+				grandMeanAux += meanAux;
+				++grandCountAux;
 			}
 			else
 			{
-				cout << "this error based only on aux points, and we ain't got any, so skipping the output" << endl;
-				errfi << "this error based only on aux points, and we ain't got any, so skipping the output" << endl;
+				cout << cc << " no errs for cam? " << endl;
+				errfi << cc << " no errs for cam? " << endl;
 			}
-			grandMean += mean;
-			++grandCount;
+			
 		}
 		else
 		{
@@ -1461,11 +1487,12 @@ float CamNetCalibrator::CalcReconError()
 			errfi << "camera " << cc << "     not-set    " << endl;
 		}
 	}
-	cout << "grand-mean: " << grandMean/grandCount << endl;
+	cout << "grand-means: " << std::setw(10) << grandMeanGrids/grandCountGrids << " " << std::setw(10) << grandMeanAux/grandCountAux << endl;
 	cout << endl << endl << endl << endl;
 	
-	errfi << "grand-mean: " << grandMean/grandCount << endl;
+	errfi << "grand-means: " << std::setw(10) << grandMeanGrids/grandCountGrids << " " << std::setw(10) << grandMeanAux/grandCountAux << endl;
 	errfi << endl << endl << endl << endl;
+	
 	
 	errfi.close();
 	

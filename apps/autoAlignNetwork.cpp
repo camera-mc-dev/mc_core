@@ -477,6 +477,11 @@ void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera )
 	}
 	meanCent /= meanCent(3);
 	
+	
+	//
+	// If the high camera has "lower" z than the meanCent, rotate everything
+	// around the y-axis by 180 degrees.
+	//
 	if( centres[ highCamera ](2) < meanCent(2) )
 	{
 		Eigen::Vector3f ax; ax << 0,1,0;
@@ -487,5 +492,31 @@ void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera )
 			c.L = c.L * R;
 		}
 	}
+	
+	
+	//
+	// The one other thing that it might be nice to do is get some control over 
+	// which way the x and y axes point.
+	//
+	// We'll assume the high-camera should be on the +ve x axis.
+	//
+// 	hVec3D highCamCent = calibs[ highCamera ].GetCameraCentre();
+// 	highCamCent(2) = 0.0f;
+// 	highCamCent(3) = 0.0f;
+// 	target <<  0.0, 1.0, 0.0, 0.0;
+// 	cout << highCamCent.transpose() << endl;
+// 	cout << target.transpose() << endl;
+// 	axis = Cross( highCamCent, target );
+// 	angle = axis.norm();
+// 	ax3 = axis.head(3);
+// 	R = RotMatrix( ax3, angle );
+// 	cout << ax3.transpose() << " : " << angle << endl;
+// 	cout << R << endl;
+// 	
+// 	for( unsigned sc = 0; sc < calibs.size(); ++sc )
+// 	{
+// 		Calibration &c = calibs[sc];
+// 		c.L = c.L * R;
+// 	}
 	
 }
