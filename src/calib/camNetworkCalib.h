@@ -52,18 +52,19 @@ private:
 
 	// image sources and configuration of
 	// for now assumed to be image directories
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	std::vector< hVec2D > downHints;
 	std::vector<bool> isDirectorySource;
 	std::string dataRoot;
 	std::string testRoot;
 	vector< std::string > imgDirs;
+	vector< std::string > tagFreePaths;
 	std::map< std::string, unsigned > srcId2Indx;
 
 	// grids.
 	std::vector< int > gridProg;
 	std::vector< int > gridFound;
-	void FindGridThread(ImageSource *dir, unsigned isc,omp_lock_t &coutLock, hVec2D downHint);
+	void FindGridThread(std::shared_ptr<ImageSource> dir, unsigned isc,omp_lock_t &coutLock, hVec2D downHint);
 	void GetGrids();
 	unsigned maxGridsForInitial;
 	unsigned gridRows;

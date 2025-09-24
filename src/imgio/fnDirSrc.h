@@ -13,7 +13,7 @@ class FNImageDirectory : public ImageSource
 protected:
 	
 	std::string info;
-	std::string format;
+	std::string prefix;
 	std::string path;
 	
 	std::map< int, std::string > imgMap;
@@ -26,6 +26,7 @@ protected:
 public:
 	FNImageDirectory( std::string in_info )
 	{
+		cout << "creating fnDirSrc from:" << in_info << endl;
 		this->info = in_info;
 		SplitInfo();
 		GetImgMap();
@@ -36,6 +37,7 @@ public:
 	
 	FNImageDirectory( std::string in_info, std::string in_calibPath )
 	{
+		cout << "creating fnDirSrc from:" << in_info << endl;
 		this->info = in_info;
 		SplitInfo();
 		GetImgMap();
@@ -55,52 +57,61 @@ public:
 		//
 		// The info string can have one of the following formats:
 		//   - <path>
-		//   - <tag>:<path>
+		//   - <path>:<tag>
 		//
 		// In the second case, the <tag> can have the format:
 		//   - <first frame>
-		//   - <fmt>:<first frame>
+		//   - <first frame>:<prefix>
 		//
 		// As you provide a directory of images with their frame numbers in
 		// the filename, it might be the case that those frame numbers don't start at 0.
 		// 
 		// The source always starts at frame 0, so when you use the source, you might 
 		// find that you have to go through 10k frames before you get to the first real image.
-		// (if that's how you're images are numbered). So, you can instead specify where the 
+		// (if that's how your images are numbered). So, you can instead specify where the 
 		// first frame is.
 		// 
 		// This means that when you use the source and ask from frame 0, you get frame n instead.
 		// when you ask for frame 1, you get n+1 instead.
 		// when you ask for frame x, you get n+x. Got it?
 		//
-		firstFrame = -1;
-		int a = info.rfind(":");
-		if( a == std::string::npos )
+		int n = 0;
+		for( unsigned c = 0; c < info.length(); ++c )
 		{
+			if( info[c] == ':' )
+				++n;
+		}
+		if( n == 0 )
+		{
+			firstFrame = 0;
 			path = info;
+		}
+		else if( n == 1 )
+		{
+			// path:firstFrame
+			int a = info.find(";");
+			path = std::string( info.begin(), info.begin()+a );
+			firstFrame = atoi( std::string( info.begin()+a+1, info.end() ).c_str() );
+			prefix = "";
+		}
+		else if( n == 2 )
+		{
+			// path:firstFrame:prefix
+			int a = info.find(":");
+			int b = info.rfind(":");
+			path  = std::string( info.begin(), info.begin()+a );
+			firstFrame = atoi( std::string( info.begin()+a+1, info.begin()+b ).c_str() );
+			prefix = std::string( info.begin() + b + 1, info.end() );
 		}
 		else
 		{
-			std::string tag( info.begin(), info.begin()+a );
-			path = std::string( info.begin()+a+1, info.end() );
-			
-			// tag can be just the first frame, or it can be a format string, and the first frame.
-			a = tag.rfind(":");
-			if( a == std::string::npos )
-			{
-				firstFrame = atoi( tag.c_str() );
-			}
-			else
-			{
-				cout << "The FNImageDirectory source does not currently support specifying the format of the image filename." << endl;
-				cout << "You must for now use <frameNumber>.ext as the format. Sorry!" << endl;
-				throw std::runtime_error("Pending feature not done yet!");
-			}
+			throw std::runtime_error("fnDirSrc needs path:firstframe or path:firstframe:prefix");
 		}
 	}
 	
 	void GetImgMap()
 	{
+		cout << "\t getting image map: " << endl;
 		// find the images in the directory.
 		boost::filesystem::path p(path);
 		std::vector< std::string > imageList;
@@ -110,7 +121,7 @@ public:
 			for( ; di != endi; ++di )
 			{
 				std::string s = di->path().string();
-
+				
 				if( IsImage(s) )
 				{
 					imageList.push_back(s);
@@ -121,7 +132,7 @@ public:
 		{
 			throw std::runtime_error("Could not find image source directory.");
 		}
-		
+		cout << "\t" << imageList.size() << " images " << endl;
 		//
 		// Now we need to process that image list so that we can find the frame number for each image.
 		//
@@ -137,18 +148,21 @@ public:
 		}
 		
 		minFrame = std::max( minFrame, firstFrame );
+		cout << path << " : " << firstFrame << " " << minFrame << endl;
 	}
 	
 	int ParseFilename( std::string fn )
 	{
 		//
-		// For now, we assume that the filename is <number>.ext
+		// For now, we assume that the filename is <prefix><number>.ext
 		//
 		// In the future, we should allow for other formats, e.g. : <timecode>-<frame>.ext
 		// or i-felt-i-needed-a-prefix-<number>-and-a-postfix.ext
 		//
 		boost::filesystem::path p(fn);
-		std::string numStr = p.stem().string();
+		std::string stemStr = p.stem().string();
+		std::string numStr  = std::string( stemStr.begin() + prefix.length(), stemStr.end() );
+		//cout << fn << " " << stemStr << " " << numStr << endl; exit(0);
 		return atoi(numStr.c_str());
 	}
 	
@@ -259,6 +273,7 @@ private:
 	{
 		unsigned end = s.size();
 		if( s.find(".jpg") == end-4  ||
+		    s.find(".jpeg") == end-5 ||
 			s.find(".png") == end-4  ||
 			s.find(".bmp") == end-4  ||
 			s.find(".tiff") == end-5 ||

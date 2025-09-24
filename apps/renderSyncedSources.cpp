@@ -280,6 +280,21 @@ int main(int argc, char* argv[])
 						nrows = std::max( nrows, grids[isc][ic][pc].row+1.0f );
 						ncols = std::max( nrows, grids[isc][ic][pc].col+1.0f );
 					}
+					
+					float mx, Mx, my, My;
+					mx = my = std::max( img.rows, img.cols );
+					Mx = My = 0;
+					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
+					{
+						float x,y;
+						x = grids[isc][ic][pc].pi(0);
+						y = grids[isc][ic][pc].pi(1);
+						mx = std::min( mx, x );
+						my = std::min( my, y );
+						Mx = std::max( Mx, x );
+					}
+					float rad = std::max( 5.0f, std::max( Mx - mx, My - my ) / (2.0f*(float)sqrt( grids[isc][ic].size()) ) );
+					
 					cv::Point oCorner, xCorner, yCorner;
 					int xCornerCol, yCornerRow;
 					xCornerCol = yCornerRow = 0;
@@ -312,7 +327,8 @@ int main(int argc, char* argv[])
 							yCornerRow = row;
 						}
 						
-						cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
+						cv::circle( img, cv::Point(x,y), rad, cv::Scalar(blue,green,red), std::max( 4.0f, rad/5.0f ) );
+
 					}
 					
 					//
