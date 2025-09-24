@@ -25,7 +25,7 @@ using std::vector;
 
 #include "SDS/opt.h"
 
-enum method_t {VIEW_CENT_RING};
+enum method_t {VIEW_CENT_RING, MEAN_POS_PLANE};
 
 #define MODE_CALIB_ONLY 0
 #define MODE_SOURCES    1
@@ -49,6 +49,7 @@ struct Settings
 void CreateSources( Settings &s, std::vector< ImageSource* > &sources );
 Settings ParseConfig( std::string cfn );
 void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera );
+void AlignMeanPosPlane( std::vector< Calibration > &calibs, int highCamera );
 
 
 int main(int argc, char *argv[] )
@@ -64,7 +65,12 @@ int main(int argc, char *argv[] )
 		cout << "this option, giving the calibrations on the command line."                           << endl;
 		cout << "This version wont actually load the images either."                                  << endl;
 		cout << endl;
-		cout << " <method> : one of viewCentRing or... no other options right now ;p"                 << endl;
+		cout << " <method> : "                                                                        << endl;
+		cout << "            viewCentRing : Cameras are in a ring looking towards a centre"           << endl;
+		cout << "                           make the view centre the origin, up based on highest cam" << endl;
+		cout << "            meanPosPlane : Cameras are on a plane,"                                  << endl;
+		cout << "                           make the mean the scene origin, up based on highest cam"  << endl;
+		cout << endl;
 		cout << " <high calib>  : the calib file for the camera that should be highest"               << endl;
 		cout << "                 after alignment."                                                   << endl;
 		cout << " <all calibs>  : all calib files _including_ the high calib."                        << endl;
@@ -95,6 +101,10 @@ int main(int argc, char *argv[] )
 		if( methodStr.compare("viewCentRing") == 0 )
 		{
 			settings.alignMethod = VIEW_CENT_RING;
+		}
+		else if( methodStr.compare("meanPosPlane") == 0 )
+		{
+			settings.alignMethod = MEAN_POS_PLANE;
 		}
 		else
 		{
@@ -137,6 +147,11 @@ int main(int argc, char *argv[] )
 		cout << "  - phase 2..." << endl;
 		AlignRingViewCent( calibs, settings.highCamera );
 		cout << "done" << endl;
+	}
+	else if( settings.alignMethod == MEAN_POS_PLANE )
+	{
+		cout << "mean pos plane align." << endl;
+		AlignMeanPosPlane( calibs, settings.highCamera );
 	}
 	else
 	{
@@ -366,6 +381,48 @@ public:
 };
 
 
+class PlaneAgent: public SDS::Agent
+{
+public:
+	PlaneAgent( std::vector< Calibration > *inCalibs, transMatrix3D inT ) : calibs( inCalibs ), T( inT )
+	{
+		
+	}
+	
+	std::vector< Calibration > *calibs;
+	transMatrix3D T;
+	
+	
+	
+	virtual double EvaluatePosition()
+	{
+		//
+		// input is a rotation axis
+		//
+		transMatrix3D R = RotMatrix( position[0], position[1], 0.0 );
+		
+		
+		Calibration cal;
+		hVec3D x;
+		std::vector<float> errs( calibs->size() );
+		for( unsigned c = 0; c < calibs->size(); ++c )
+		{
+			cal = calibs->at(c);
+			
+			cal.L = cal.L * T * R;
+			
+			x = cal.GetCameraCentre();
+			
+			errs[c] = x(2) * x(2);
+		}
+		
+		std::sort( errs.begin(), errs.end() );
+		error = errs[ errs.size()/2 ];
+		return error;
+	}
+};
+
+
 
 void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera )
 {
@@ -487,5 +544,105 @@ void AlignRingViewCent( std::vector< Calibration > &calibs, int highCamera )
 			c.L = c.L * R;
 		}
 	}
+	
+}
+
+
+
+void AlignMeanPosPlane( std::vector< Calibration > &calibs, int highCamera )
+{
+	
+	//
+	// Get camera centres and their view direction rays.
+	//
+	
+	cout << "Camera centres: " << endl;
+	std::vector< hVec3D > centres( calibs.size() );
+	std::vector<float> xs( calibs.size() ),ys( calibs.size() ),zs( calibs.size() );
+	for( unsigned sc = 0; sc < calibs.size(); ++sc )
+	{
+		centres[sc]  = calibs[sc].GetCameraCentre();
+		cout << "\t - " << sc << ": " << centres[sc].transpose() << endl;
+		
+		xs[sc] = centres[sc](0);
+		ys[sc] = centres[sc](1);
+		zs[sc] = centres[sc](2);
+	}
+	cout << endl;
+	
+	std::sort( xs.begin(), xs.end() );
+	std::sort( ys.begin(), ys.end() );
+	std::sort( zs.begin(), zs.end() );
+	
+	hVec3D medCent;
+	medCent << xs[ xs.size()/2 ], ys[ ys.size()/2 ], zs[ zs.size()/2 ], 1.0f;
+	
+	
+	
+	//
+	// Origin is the mean of all the cameras.
+	//
+	cout << medCent.transpose() << endl;
+	hVec3D origin = medCent;
+	cout << "New centre: " << origin.transpose() << endl;
+	
+	
+	
+	
+	// The cameras are approximately on a plane.
+	// We're going to make that plane the x/y plane with z-up.
+	
+	// first thing will be to move all cameras to the new origin,
+	// so that's a simple transformation matrix.
+	transMatrix3D T;
+	T = transMatrix3D::Identity();
+	T.block(0,3,3,1) = origin.head(3);
+	
+	// next thing we need to do is fit a plane to the camera centres.
+	// there is, of course, a stupidly easy way to do this mathematically.
+	// But I'm _really_ fucking stupid.
+	SDS::Optimiser sdsopt;
+	std::vector< PlaneAgent* > pagents;
+	pagents.assign( 200, NULL );
+	std::vector< SDS::Agent* > agents( pagents.size() );
+	for( unsigned ac = 0; ac < agents.size(); ++ac )
+	{
+		pagents[ac] = new PlaneAgent(&calibs, T);
+		agents[ac] = pagents[ac];
+	}
+
+	// initialise the search.
+	int bestAgent;
+	std::vector<double> initPos(2), initRanges(2);
+	initPos = {0.1, 0.1};
+	initRanges = {0.1, 0.1};
+	sdsopt.InitialiseOpt(initPos, initRanges, agents, 0.0001, 500000);
+
+	// loop until we have a solution.
+	int ic = 0;
+	do
+	{
+		bestAgent = sdsopt.StepOpt();
+		
+		cout << pagents[ bestAgent ]->error << " : " << pagents[ bestAgent ]->position[0] << " " << pagents[ bestAgent ]->position[1] << endl;
+		
+	}
+	while( !sdsopt.CheckTerm() );
+	
+	
+	transMatrix3D R = RotMatrix(  pagents[ bestAgent ]->position[0],  pagents[ bestAgent ]->position[1], 0.0 );
+	
+	transMatrix3D M = T * R;
+	
+	for( unsigned sc = 0; sc < calibs.size(); ++sc )
+	{
+		Calibration &c = calibs[sc];
+		c.L = c.L * M;
+	}
+	
+	std::ofstream tfi( "planeAlign.transform" );
+	tfi << M << endl;
+	tfi.close();
+	
 	
 }
