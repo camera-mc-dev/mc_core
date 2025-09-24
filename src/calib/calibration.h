@@ -46,18 +46,30 @@ public:
 	// we can also do some simple rescaling, this time of both the principle point and focal length.
 	void RescaleImage( float scale )
 	{
+		// start by rescaling width and height
+		float nwidth0  = width  * scale;
+		float nheight0 = height * scale;
+		
+		// then round to an appropriate integer size
+		float nwidth1  = round( nwidth0 );
+		float nheight1 = round( nheight0 );
+		
+		
+		// but our actual scale factors _are not_ the input scale factor.
+		float xs = nwidth1 / (float)width;
+		float ys = nheight1 / (float)height;
+		
 		// rescale focal length
-		K(0,0) *= scale;
-		K(1,1) *= scale;
+		K(0,0) *= xs;
+		K(1,1) *= ys;
 		
 		// rescale principle point.
-		K(0,2) *= scale;
-		K(1,2) *= scale;
+		K(0,2) *= xs;
+		K(1,2) *= ys;
 		
-		// rescale width/height
-		width  *= scale;
-		height *= scale;
-		
+		// and remember new size
+		width  = nwidth1;
+		height = nheight1;
 	}
 
 	// read and write the calibration.
