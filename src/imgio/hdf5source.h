@@ -2,6 +2,7 @@
 #define MC_DEV_HDF5UTILS
 
 #ifdef HAVE_HIGH_FIVE
+#undef None
 #include <highfive/H5File.hpp>
 #include "imgio/imagesource.h"
 

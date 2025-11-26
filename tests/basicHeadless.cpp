@@ -24,7 +24,7 @@ int main(void)
 	cout << "err after create: " <<  glGetError() << endl;
 	
 	// Image on the Background
-	cv::Mat img = LoadImage("data/bagpipe.jpg");
+	cv::Mat img = LoadImage("data/testcard.png");
 	ren->SetBGImage(img);
 	ren->Get2dBgCamera()->SetOrthoProjection(0,1024,0,512,-100,100);
 	

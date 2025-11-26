@@ -4,7 +4,11 @@
 
 int main(void)
 {
+#if BOOST_VERSION < 108000
 	boost::asio::io_service ioService;
+#else
+	boost::asio::io_context ioService;
+#endif
 	
 	ImageSender s(ioService, 123456);
 // 	ImageReceiver r(ioService, "127.0.0.1", 123456 );

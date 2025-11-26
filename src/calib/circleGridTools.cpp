@@ -1,6 +1,7 @@
 #include "calib/circleGridTools.h"
 #include "math/distances.h"
 #include "math/intersections.h"
+#include "math/matrixGenerators.h"
 #include "commonConfig/commonConfig.h"
 
 #include <iostream>
@@ -19,6 +20,8 @@ using std::endl;
 #include "opencv2/xfeatures2d.hpp"
 #endif
 
+#include "imgproc/idiapMSER/mser.h"
+
 
 class CircleDetector : public cv::Feature2D
 {
@@ -26,19 +29,20 @@ public:
 
 	CircleDetector(unsigned minSize)
 	{
-		fdet = cv::MSER::create(3,  // delta. def=5
-								minSize, // minArea. def=60
-								14400,
-								0.1, // max variation
-								0.2, // color only from here... \/
-								200,
-								1.01,
-								0.03,
-								5);
+		fdet = cv::MSER::create(
+		                          3,       // delta. def=5
+		                          minSize, // minArea. def=60
+		                          14400,
+		                          0.1,     // max variation
+		                          0.2,     // color only from here... \/
+		                          200,
+		                          1.01,
+		                          0.03,
+		                          5
+		                       );
 	}
 
-	CV_WRAP static cv::
-	Ptr<CircleDetector> create(unsigned minSize)
+	CV_WRAP static cv::Ptr<CircleDetector> create(unsigned minSize)
 	{
 		return cv::makePtr<CircleDetector>(minSize);
 	}
@@ -141,7 +145,7 @@ bool GetCircleGrids(ImageSource *imgSrc, vector<cv::Point2f> &centers, unsigned 
 	if( img.cols > 800 )
 	{
 		cv::resize(img, imgSmall,  cv::Size(800, 800*aspectRat ));
-		cv::cvtColor(imgSmall, graySmall, CV_BGR2GRAY );
+		cv::cvtColor(imgSmall, graySmall, cv::COLOR_BGR2GRAY );
 
 		// cv::SimpleBlobDetector::Params params;
 		// params.minThreshold = 28;
@@ -169,7 +173,7 @@ bool GetCircleGrids(ImageSource *imgSrc, vector<cv::Point2f> &centers, unsigned 
 	// or we found the grid in the smaller image and thus
 	// now consider it worth attacking at full resolution.
 	cv::Mat gray;
-	cv::cvtColor(img, gray, CV_BGR2GRAY);
+	cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
 	// cv::SimpleBlobDetector::Params params;
 	// if(img.cols > 1000)
@@ -286,7 +290,7 @@ void BuildGrid(vector< cv::Point3f > &gridCorners, unsigned rows, unsigned cols,
 
 
 
-CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesis, bool visualise, blobDetector_t in_bdt)
+CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesis, bool visualise, blobDetector_t in_bdt, hVec2D down)
 {
 	float ar = h / (float)w;
 	maxGridlineError = 32.0f;
@@ -294,6 +298,9 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 	showVisualiser = visualise;
 	useGridPointHypothesis = useHypothesis;
 	
+	assert( down(2) == 0.0f );
+	assert( down.norm() > 0.0f );
+	this->down = down / down.norm(); // make sure down is unit dir. 
 	
 	MSER_delta = 5;
 	MSER_minArea = 8;
@@ -351,11 +358,15 @@ CircleGridDetector::CircleGridDetector(unsigned w, unsigned h, bool useHypothesi
 
 
 
-CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg )
+CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg, hVec2D down )
 {
 	cd_minMagThresh = 0.1;
 	cd_detThresh = 0.35;
 	cd_rescale = 1.0;
+	
+	assert( down(2) == 0.0f );
+	assert( down.norm() > 0.0f );
+	this->down = down / down.norm(); // make sure down is unit dir. 
 	
 	try
 	{
@@ -741,11 +752,11 @@ bool CircleGridDetector::FindGrid( cv::Mat in_img, unsigned in_rows, unsigned in
 	auto t5 = std::chrono::steady_clock::now();
 	
 	
-	cout << "\tMSER     : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
-	cout << "\tinit lns : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
-	cout << "\tgrid lns : " << std::chrono::duration <double, std::milli> (t3-t2).count() << "ms" << endl;
-	cout << "\trows/cols: " << std::chrono::duration <double, std::milli> (t4-t3).count() << "ms" << endl;
-	cout << "\tverts    : " << std::chrono::duration <double, std::milli> (t5-t4).count() << "ms" << endl;
+// 	cout << "\tMSER     : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
+// 	cout << "\tinit lns : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
+// 	cout << "\tgrid lns : " << std::chrono::duration <double, std::milli> (t3-t2).count() << "ms" << endl;
+// 	cout << "\trows/cols: " << std::chrono::duration <double, std::milli> (t4-t3).count() << "ms" << endl;
+// 	cout << "\tverts    : " << std::chrono::duration <double, std::milli> (t5-t4).count() << "ms" << endl;
 	
 	return gotGL && gotOrder;
 }
@@ -943,10 +954,28 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 	
 	if( blobDetector == MSER_t )
 	{
-		// MSER makes an excellent blob detector for
-		// black (white) circles on a white (black) background but is very slow.
-		cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
-		mser->detect( grey, tmpkps );
+// 		// MSER makes an excellent blob detector for
+// 		// black (white) circles on a white (black) background but is very slow.
+// 		cv::Ptr< cv::MSER > mser = cv::MSER::create(MSER_delta, MSER_minArea, MSER_maxArea, MSER_maxVariation);
+// 		mser->detect( grey, tmpkps );
+		
+		// I find the OpenCV MSER implementation to be rather slow.
+		// As a little experiment, we can try the IDIAP version (even though OpenCV says it uses that algorithm...)
+		float MSER_minDiversity = 0.33;
+		MSER mser8(MSER_delta, MSER_minArea / (float)(grey.rows*grey.cols), MSER_maxArea / (float)(grey.rows*grey.cols), MSER_maxVariation, MSER_minDiversity, true);
+		
+		std::vector<MSER::Region> regions;
+		mser8(grey.data, grey.cols, grey.rows, regions);
+		
+		tmpkps.resize( regions.size() );
+		for( unsigned rc = 0; rc < regions.size(); ++rc )
+		{
+			tmpkps[rc].size = sqrt( regions[rc].area_ );
+			
+			tmpkps[rc].pt.x = regions[rc].moments_[0] / regions[rc].area_;
+			tmpkps[rc].pt.y = regions[rc].moments_[1] / regions[rc].area_;
+		}
+		
 	}
 	else if( blobDetector == SURF_t )
 	{
@@ -1027,8 +1056,8 @@ void CircleGridDetector::FindKeypoints(bool isGridLightOnDark)
 	auto t2 = std::chrono::steady_clock::now();
 	
 	
-	cout << "\t\tdetect   : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
-	cout << "\t\tpost : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
+// 	cout << "\t\tdetect   : " << std::chrono::duration <double, std::milli> (t1-t0).count() << "ms" << endl;
+// 	cout << "\t\tpost : " << std::chrono::duration <double, std::milli> (t2-t1).count() << "ms" << endl;
 	
 }
 
@@ -1806,48 +1835,70 @@ bool CircleGridDetector::SelectRowsCols(bool hasAlignmentDots)
 	{
 		// we just have to do our best possible guess, which is not going to be robust.
 		
-		// if we assume the calibration board has a more or less consistent orientation,
-		// we will assume that the (0,0) circle is the top left in the image.
+		// Let's say that we know what direction down is. We can assume that down is 
+		// at the bottom of the image, or we can get that information from a user 
+		// supplied config option.
 		
-		// col/row tells us if it is column or row _on the grid_, nothing
-		// about what direction it is in the image (unless that was how we decided col/row above).
-		hVec2D imgRowDir, imgColDir;
-		bool imgIsSwapped = false;
-		if( fabs( colDir(1) ) > fabs(colDir(0)) )
+		// If memory serves, and it is a long time since I did anything to this code,
+		// the col dir points from col 0 towards col n
+		// and row dir points from row 0 towards row n
+		
+		// Now, lacking any information other than where down is,
+		// and an assumption that the col dir should point down and col 0 row 0 should be 
+		// at the top left of the board...
+		
+// 		cout << " row lines: " << endl;
+// 		for(unsigned lc = 0; lc < rowLines.size(); ++lc )
+// 		{
+// 			const CircleGridDetector::kpLine &l = rowLines[lc];
+// 			
+// 			cout << lc << " : (" << kps[l.a].pt.x << ", " <<  kps[l.a].pt.y << " ) -> ( "
+// 			                     << kps[l.b].pt.x << ", " <<  kps[l.b].pt.y << " )" << endl;
+// 		}
+// 		
+// 		cout << " col lines: " << endl;
+// 		for(unsigned lc = 0; lc < colLines.size(); ++lc )
+// 		{
+// 			const CircleGridDetector::kpLine &l = colLines[lc];
+// 			
+// 			cout << lc << " : (" << kps[l.a].pt.x << ", " <<  kps[l.a].pt.y << " ) -> ( "
+// 			                     << kps[l.b].pt.x << ", " <<  kps[l.b].pt.y << " )" << endl;
+// 		}
+		
+		hVec2D cdn = colDir / colDir.norm();
+// 		cout << "col dir:  " << cdn.transpose() << endl;
+// 		cout << "down dir: " << down.transpose() << endl;
+		float a = acos( down.dot( cdn ) );
+// 		cout << "ang: " << a << endl;
+		if( a > 3.1415 / 2.0 )
 		{
-			imgColDir = colDir;
-			imgRowDir = rowDir;
-		}
-		else
-		{
-			imgIsSwapped = true;
-			imgRowDir = colDir;
-			imgColDir = rowDir;
+			// order of columns implies reversing rowLines
+// 			cout << "col direction implies row line reverse" << endl;
+			std::reverse( rowLines.begin(), rowLines.end() );
+			
+			// and thus, the rowDir
+			rowDir *= -1.0;
+			
 		}
 		
-	
-		if( imgColDir(1) < 0 )
+		// if 0,0 on the grid should be its top left and we know the 
+		// row direction, the implication is that the colum direction is 
+		// 90 degrees rotated from that.
+		// don't think I've got 2D rotation matrix generator so.... fudge it with 3D.
+		hVec3D cdn3; cdn3 << cdn(0), cdn(1), 0.0, 0.0;
+		auto R = RotMatrixEuler( 0, 0, -3.1415/2.0, EO_ZYX );
+		hVec3D aim3 = R * cdn3;
+		hVec2D aim; aim << aim3(0), aim3(1), 0.0f;
+		hVec2D rdn = rowDir / rowDir.norm();
+// 		cout << "row dir: " << rdn.transpose() << endl;
+// 		cout << "aim dir: " << aim.transpose() << endl;
+		a = acos( aim.dot( rdn ) );
+		if( a > 3.1415 / 2.0 )
 		{
-			if( imgIsSwapped )
-			{
-				std::reverse( colLines.begin(), colLines.end() );
-			}
-			else
-			{
-				std::reverse( rowLines.begin(), rowLines.end() );
-			}
+// 			cout << "row direction implies col line reverse" << endl;
+			std::reverse( colLines.begin(), colLines.end() );
 		}
-		if( imgRowDir(0) < 0 )
-		{
-			if( imgIsSwapped )
-			{
-				std::reverse( rowLines.begin(), rowLines.end() );
-			}
-			else
-			{
-				std::reverse( colLines.begin(), colLines.end() );
-			}
-		}
+		
 	}
 	
 	if( showVisualiser )

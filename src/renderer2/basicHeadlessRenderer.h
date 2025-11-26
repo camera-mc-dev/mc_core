@@ -2,7 +2,7 @@
 #define BASIC_HEADLESS_RENDERER_H
 
 #include "renderer2/baseHeadlessRenderer.h"
-
+#include "renderer2/renWrapper.h"
 
 
 // the basic renderer sets up three scene graphs:
@@ -23,6 +23,8 @@ namespace Rendering
 	class BasicHeadlessRenderer : public BaseHeadlessRenderer
 	{
 		friend class Rendering::RendererFactory;
+		template<class T0, class T1 > friend class RenWrapper;
+		
 	protected:
 		BasicHeadlessRenderer(unsigned width, unsigned height, std::string title);
 		

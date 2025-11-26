@@ -1,4 +1,4 @@
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
 #include <set>
@@ -154,8 +154,12 @@ Settings ParseConfig( std::string cfn )
 				s.calibFiles[ic] = str;
 			}
 		}
-
-		s.originFrame  = cfg.lookup("originFrame");
+		
+		s.originFrame = 0;
+		if( cfg.exists("originFrame" ) )
+		{
+			s.originFrame  = cfg.lookup("originFrame");
+		}
 		s.targetDepth  = cfg.lookup("targetDepth");
 		
 		if( cfg.exists("alignXisNegative") )

@@ -13,8 +13,11 @@ Rendering::LineplotRenderer::LineplotRenderer(unsigned width, unsigned height, s
 
 	fixXAxis = false;
 	fixYAxis = false;
+	
+	std::stringstream ss;
+	ss << ccfg.shadersRoot << "/alphaLine.glsl";
 
-	LoadFragmentShader("shaders/alphaLine.glsl", "alphaLineFrag" );
+	LoadFragmentShader(ss.str(), "alphaLineFrag" );
 	CreateShaderProgram("basicVertex", "alphaLineFrag", "alphaLineShader");
 }
 

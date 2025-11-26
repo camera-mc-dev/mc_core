@@ -1,12 +1,3 @@
-#include "cv.hpp"
-#include <iostream>
-#include <vector>
-#include <set>
-#include <string>
-using std::cout;
-using std::endl;
-using std::vector;
-
 #include <Eigen/Geometry>
 
 #include "imgio/imagesource.h"
@@ -22,7 +13,7 @@ using std::vector;
 #include "renderer2/geomTools.h"
 #include "renderer2/sdfText.h"
 
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
 #include <set>

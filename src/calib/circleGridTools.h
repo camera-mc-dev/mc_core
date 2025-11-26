@@ -7,7 +7,7 @@
 #include "renderer2/sdfText.h"
 
 #include <vector>
-#include <cv.hpp>
+#include <opencv2/core.hpp>
 using std::vector;
 
 // given an image source, find the circle centres
@@ -57,8 +57,8 @@ class CircleGridDetector
 public:
 	enum blobDetector_t {MSER_t, SURF_t, CIRCD_t};
 	
-	CircleGridDetector( unsigned w, unsigned h, bool useHypothesis, bool visualise = false, blobDetector_t in_bdt = MSER_t);
-	CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg );
+	CircleGridDetector( unsigned w, unsigned h, bool useHypothesis, bool visualise = false, blobDetector_t in_bdt = MSER_t, hVec2D down = {0,1,0});
+	CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg, hVec2D down = {0,1,0} );
 	
 	std::shared_ptr<CGDRenderer> ren;
 	
@@ -68,16 +68,16 @@ public:
 	{
 		// position in grid
 		unsigned row, col;
-
+		
 		// position in image.
 		hVec2D pi;
-
+		
 		// hypothesis in image.
 		hVec2D ph;
 		
 		// mostly only used for debugging.
 		float blobRadius;
-
+		
 		bool operator<( const GridPoint &oth) const
 		{
 			if( row < oth.row )
@@ -88,14 +88,14 @@ public:
 			}
 			return false;
 		}
-
+		
 	};
 	
 	
 	void TestKeypoints( cv::Mat img, bool isGridLightOnDark, vector< cv::KeyPoint > &kps, std::vector<float> &score );
-
+	
 	bool FindGrid( cv::Mat img, unsigned rows, unsigned cols, bool hasAlignmentDots, bool isGridLightOnDark, std::vector< GridPoint > &gridPoints );
-
+	
 	// occasionally useful. Only valid after call to FindGrid.
 	void GetAlignmentPoints( vector< cv::KeyPoint > &out_akps )
 	{
@@ -104,16 +104,16 @@ public:
 	
 	
 	float maxHypPointDist;
-
+	
 	struct kpLine
 	{
 		unsigned a, b;
 		float err;
 		vector<unsigned> closestVerts;
-
+		
 		hVec2D d;	// line direction
 		hVec2D p0;	// start point
-
+		
 		bool operator<(const kpLine &oth) const
 		{
 			return err < oth.err;
@@ -176,13 +176,16 @@ protected:
 	cv::Mat grey;
 	
 	blobDetector_t blobDetector;
-
+	
 	unsigned rows, cols;
+	hVec2D down;
+	
+	
 	bool showVisualiser;
 	
-
+	
 	int imgWidth, imgHeight;
-
+	
 	
 	
 	void RoughClassifyKeypoints( cv::Mat grey, bool isGridLightOnDark, vector< cv::KeyPoint > &filtkps );

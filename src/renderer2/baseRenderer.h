@@ -24,7 +24,9 @@ namespace Rendering
 	
 	class BaseRenderer : public AbstractRenderer
 	{
-		friend class RendererFactory;	
+		friend class RendererFactory;
+		template<class T0, class T1 > friend class RenWrapper;
+		
 		// The constructor should be private or protected so that we are forced 
 		// to use the factory...
 	protected:

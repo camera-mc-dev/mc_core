@@ -2,7 +2,7 @@
 #define BASIC_RENDERER
 
 #include "renderer2/baseRenderer.h"
-
+#include "renderer2/renWrapper.h"
 
 
 // the basic renderer sets up three scene graphs:
@@ -22,7 +22,9 @@ namespace Rendering
 
 	class BasicRenderer : public BaseRenderer
 	{
-		friend class Rendering::RendererFactory;		
+		friend class Rendering::RendererFactory;
+		template<class T0, class T1 > friend class RenWrapper;
+		
 	protected:
 		BasicRenderer(unsigned width, unsigned height, std::string title);
 					
@@ -70,6 +72,7 @@ namespace Rendering
 	protected:
 
 		virtual void InitialiseGraphs();
+		virtual void FinishConstructor();
 
 		// convenience for putting up a simple background image.
 		std::shared_ptr<Mesh>     bgImgCard;

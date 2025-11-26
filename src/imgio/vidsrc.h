@@ -86,7 +86,7 @@ private:
 	std::string vidPath;
 
 	unsigned frameIdx;
-	
+	int numberOfFirstFrame;
 	bool failAdvance;
 
 };

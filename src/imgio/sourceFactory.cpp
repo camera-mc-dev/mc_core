@@ -15,22 +15,23 @@ std::string GetBotLevelFile( std::string in )
 	return p.stem().string();
 }
 
-SourcePair CreateSource( std::string input, std::string calibFile )
+SourceHandle CreateSource( std::string input, std::string calibFile )
 {
 	//
 	// input is a string, and the acceptable format of that string is:
 	//   - /path/to/directory/
 	//   - /path/to/video.file
-	//   - <tag>:<info>
+	//   - <info>:<tag>
 	//
-	// where <tag>:<info> can be one of:
-	//   - fndir:<info> : create an image directory source where image filenames indicate the actual frame number
+	// where <tag> can be one of:
+	//   - fndir : create an image directory source where image filenames indicate the actual frame number
 	//
-	SourcePair retval;
+	SourceHandle retval;
+	retval.isDirectorySource = false;
 	
 	boost::filesystem::path inpth( input );
 	
-	int a = input.find(":");
+	int a = input.rfind(":");
 	if( a == std::string::npos )
 	{
 		if( boost::filesystem::is_directory( inpth ))
@@ -43,6 +44,8 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
+			retval.isDirectorySource = true;
+			retval.path = inpth.string();
 		}
 		else if( boost::filesystem::exists( inpth ) )
 		{
@@ -57,17 +60,26 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			}
 			else
 			{
+				if( calibFile.compare( "none" ) == 0 )
+				{
+					// can we find a calib file?
+					std::stringstream ss;
+					ss << input << ".calib";
+					if( boost::filesystem::exists( ss.str() ) )
+						calibFile = ss.str();
+				}
 				retval.source.reset( new VideoSource( input, calibFile ) );
 			}
 			
 			// return the filename without extension as a source name.
 			retval.name = GetBotLevelFile( input );
+			retval.path = inpth.string();
 		}
 	}
 	else
 	{
-		std::string tag( input.begin(), input.begin()+a);
-		std::string info( input.begin()+a+1, input.end());
+		std::string tag( input.begin()+a+1, input.end() );
+		std::string info( input.begin(), input.begin()+a);
 		
 		if( inpth.extension().compare(std::string(".hdf5")) == 0 )
 		{
@@ -87,6 +99,19 @@ SourcePair CreateSource( std::string input, std::string calibFile )
 			
 			// return the top-level directory name as a source name.
 			retval.name = GetBotLevelDir(input);
+			retval.isDirectorySource = true;
+			
+			int b = info.find(":");
+			retval.path = std::string( info.begin(), info.begin()+b );
+		}
+		else if( info.find(".hdf5") != std::string::npos ) // we'll assume it is an .hdf5 file with 
+		{
+			#ifdef HAVE_HIGH_FIVE
+			cout << input << " " << tag << " " << info << endl;
+			retval.source.reset( new HDF5Source( input, calibFile ) );
+			#else
+			throw std::runtime_error("Can't open an hdf5 image source because not compiled with high five library");
+			#endif
 		}
 		else
 		{

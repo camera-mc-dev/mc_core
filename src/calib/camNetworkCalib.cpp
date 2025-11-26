@@ -9,7 +9,7 @@
 
 #include "calib/camNetworkCalib.h"
 #include "math/intersections.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/calibrationC.h"
 #include "commonConfig/commonConfig.h"
 
@@ -17,7 +17,7 @@
 
 #include <iomanip>
 
-// #include <sfm/sfm.hpp>
+#include <opencv2/sfm/fundamental.hpp>
 
 void CamNetCalibrator::ReadConfig()
 {
@@ -41,6 +41,27 @@ void CamNetCalibrator::ReadConfig()
 			srcId2Indx[ (const char*) idirs[ic] ] = ic;
 		}
 		maxGridsForInitial = cfg.lookup("maxGridsForInitial");
+		
+		if( cfg.exists("downHints") )
+		{
+			libconfig::Setting &dhints = cfg.lookup("downHints");
+			assert( dhints.getLength() == imgDirs.size() );
+			downHints.resize( dhints.getLength() );
+			for( unsigned c = 0; c < downHints.size(); ++c )
+			{
+				downHints[c] << dhints[c][0], dhints[c][1], 0.0f;
+			}
+		}
+		else
+		{
+			cout << "no downHints in config file, assuming down is (0,1)" << endl;
+			sleep(2);
+			downHints.resize( imgDirs.size() );
+			for( unsigned c = 0; c < downHints.size(); ++c )
+			{
+				downHints[c] << 0, 1, 0;
+			}
+		}
 
 		// Basic information about the grid
 		gridRows = cfg.lookup("grid.rows");
@@ -65,6 +86,10 @@ void CamNetCalibrator::ReadConfig()
 		if( cfg.exists("forceOneCam") )
 			forceOneCam = cfg.lookup("forceOneCam");
 			
+		intrinsicsOnly = false;
+		if( cfg.exists("intrinsicsOnly") )
+			intrinsicsOnly = cfg.lookup("intrinsicsOnly");
+		
 		onlyExtrinsicsForBA = false;
 		if( cfg.exists("onlyExtrinsicsForBA") )
 			onlyExtrinsicsForBA = cfg.lookup("onlyExtrinsicsForBA");
@@ -77,6 +102,13 @@ void CamNetCalibrator::ReadConfig()
 		{
 			auxMatchesFile = dataRoot + testRoot + (const char*)cfg.lookup("matchesFile");
 		}
+		
+		rootCam = 99999999;
+		if( cfg.exists("rootCam") )
+		{
+			rootCam = cfg.lookup("rootCam");
+		}
+		
 		
 		numIntrinsicsToSolve = 3;
 		if( cfg.exists("numIntrinsicsToSolve" ) )
@@ -145,6 +177,7 @@ void CamNetCalibrator::ReadConfig()
 	for( unsigned ic = 0; ic < imgDirs.size(); ++ic )
 	{
 		cout << "creating source: " << imgDirs[ic] << endl;
+		/*
 		ImageSource *isrc;
 		if( boost::filesystem::is_directory( imgDirs[ic] ))
 		{
@@ -153,10 +186,20 @@ void CamNetCalibrator::ReadConfig()
 		}
 		else
 		{
-			isrc = (ImageSource*) new VideoSource(imgDirs[ic], "none");
+			std::string cfn = imgDirs[ic] + std::string(".calib");
+			if( boost::filesystem::exists( cfn ) )
+				isrc = (ImageSource*) new VideoSource(imgDirs[ic], cfn);
+			else
+				isrc = (ImageSource*) new VideoSource(imgDirs[ic], "none");
 			isDirectorySource.push_back(false);
 		}
 		sources.push_back( isrc );
+		/*/
+		auto sh = CreateSource( imgDirs[ic] );
+		sources.push_back( sh.source );
+		isDirectorySource.push_back( sh.isDirectorySource );
+		tagFreePaths.push_back( sh.path );
+		//*/
 	}
 
 	if( auxMatchesFile.size() > 0 )
@@ -232,48 +275,55 @@ void CamNetCalibrator::Calibrate()
 {
 	GetGrids();
 	CalibrateIntrinsics();
-
-
-	// make sure we only have grids that are visible in more than
-	// a single camera - unless we only have one camera!
-	//std::vector< std::vector< std::vector< cv::Point2f > > > valGrids;
-	std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
-
-	unsigned numTotalGrids = grids[0].size();
-	for( unsigned cc = 0; cc < grids.size(); ++cc )
-	{
-		numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
-	}
 	
-	valGrids.resize(grids.size());
-	gridFrames.clear();
-	for( unsigned gc = 0; gc < numTotalGrids; ++gc )
+	if( intrinsicsOnly )
 	{
-		unsigned cnt = 0;
+		Ls.assign( grids.size(), transMatrix3D::Identity() );
+	}
+	else
+	{
+		
+
+		// make sure we only have grids that are visible in more than
+		// a single camera - unless we only have one camera!
+		std::vector< std::vector< std::vector< CircleGridDetector::GridPoint > > > valGrids;
+
+		unsigned numTotalGrids = grids[0].size();
 		for( unsigned cc = 0; cc < grids.size(); ++cc )
 		{
-			if( grids[cc][gc].size() > 0 )
-				++cnt;
+			numTotalGrids = std::min( (size_t)numTotalGrids, grids[cc].size() );
 		}
-
-		if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+		
+		valGrids.resize(grids.size());
+		gridFrames.clear();
+		for( unsigned gc = 0; gc < numTotalGrids; ++gc )
 		{
+			unsigned cnt = 0;
 			for( unsigned cc = 0; cc < grids.size(); ++cc )
 			{
-				valGrids[cc].push_back( grids[cc][gc] );
+				if( grids[cc][gc].size() > 0 )
+					++cnt;
 			}
-			gridFrames.push_back(gc);
+
+			if(cnt > 1 || grids.size() == 1)	// we care about grids with more than one camera, or all grids if there's only one camera.
+			{
+				for( unsigned cc = 0; cc < grids.size(); ++cc )
+				{
+					valGrids[cc].push_back( grids[cc][gc] );
+				}
+				gridFrames.push_back(gc);
+			}
 		}
+
+		grids.clear();
+		grids = valGrids;
+
+		DetermineGridVisibility();
+
+		//exit(1);
+
+		CalibrateExtrinsics();
 	}
-
-	grids.clear();
-	grids = valGrids;
-
-	DetermineGridVisibility();
-
-	//exit(1);
-
-	CalibrateExtrinsics();
 
 	cout << "done calibration." << endl;
 	cout << "saving..." << endl;
@@ -293,7 +343,7 @@ void CamNetCalibrator::Calibrate()
 
 }
 
-void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t &coutLock)
+void CamNetCalibrator::FindGridThread(std::shared_ptr<ImageSource> dir, unsigned isc, omp_lock_t &coutLock, hVec2D downHint)
 {
 	// Print startup message.
 	//coutLock.lock();
@@ -309,11 +359,11 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	CircleGridDetector *cgd;
 	if( cfg.exists("gridFinder" ) )
 	{
-		cgd = new CircleGridDetector( dir->GetCurrent().cols,dir->GetCurrent().rows, cfg.lookup("gridFinder") );
+		cgd = new CircleGridDetector( dir->GetCurrent().cols,dir->GetCurrent().rows, cfg.lookup("gridFinder"), downHint );
 	}
 	else
 	{
-		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis);
+		cgd = new CircleGridDetector(dir->GetCurrent().cols,dir->GetCurrent().rows, useHypothesis, false, CircleGridDetector::MSER_t, downHint );
 	}
 	
 	cout << "potentialLinesNumNearest     : " << cgd->potentialLinesNumNearest      << endl;
@@ -346,26 +396,36 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	{
 		// Get current image and convert it to greyscale.
 		currentImage = dir->GetCurrent();
-		cv::cvtColor(currentImage, grey, CV_BGR2GRAY);
+		cv::cvtColor(currentImage, grey, cv::COLOR_BGR2GRAY);
 		++imgCount;
-
+		gridProg[isc] = imgCount;
+		
 		// Find grid.
 		cgd->FindGrid(grey, gridRows, gridCols, gridHasAlignmentDots, isGridLightOnDark,  gps);
-
+		
 		// if we didn't find anything, we still want to push
 		// in something, even if empty.
 		grids[isc].push_back(gps);
-
+		
 		// Increment grid number if valid grid found.
 		if( gps.size() > 0 )
 		{
 			++gridCount;
+			
+			++gridFound[isc];
 		}
-
+		
 		// Print status message.
 // 		coutLock.lock();
 		omp_set_lock( &coutLock );
-		cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
+		//cout << "Dir No. " << isc << ": " << gridCount << " grids out of " << imgCount << " images." << endl;
+		
+		for( unsigned c = 0; c < gridFound.size(); ++c )
+		{
+			cout << "Dir No. " << std::setw(4) << c << " : " << std::setw(6) << gridFound[c] << " grids out of " << std::setw(6) << gridProg[c] << " images " << endl;
+		}
+		cout << "-------------------------------------" << endl;
+		
 		omp_unset_lock( &coutLock );
 // 		coutLock.unlock();
 
@@ -381,9 +441,9 @@ void CamNetCalibrator::FindGridThread(ImageSource *dir, unsigned isc, omp_lock_t
 	// Save grids to a file.
 	std::string filePath;
 	if( isDirectorySource[isc] )
-		filePath = imgDirs[isc] + "grids";
+		filePath = tagFreePaths[isc] + "grids";
 	else
-		filePath = imgDirs[isc] + ".grids";
+		filePath = tagFreePaths[isc] + ".grids";
 // 	coutLock.lock();
 	omp_set_lock( &coutLock );
 	cout << "Writing grids file: " << filePath << endl;
@@ -415,9 +475,9 @@ void CamNetCalibrator::GetGrids()
 		{
 			std::string s;
 			if( isDirectorySource[isc] )
-				s = imgDirs[isc] + "grids";
+				s = tagFreePaths[isc] + "grids";
 			else
-				s = imgDirs[isc] + ".grids";
+				s = tagFreePaths[isc] + ".grids";
 			std::ifstream infi(s);
 
 			if( !infi.is_open() )
@@ -447,11 +507,21 @@ void CamNetCalibrator::GetGrids()
 				
 				for( unsigned pc = 0; pc < grids[isc][gc].size(); ++pc )
 				{
-					assert( grids[isc][gc][pc].row < gridRows );
-					assert( grids[isc][gc][pc].col < gridCols );
-					                      
-					assert( grids[isc][gc][pc].row >= 0 );
-					assert( grids[isc][gc][pc].col >= 0 );
+					bool check = 
+					              grids[isc][gc][pc].row < gridRows &&
+					              grids[isc][gc][pc].col < gridCols &&
+					              
+					              grids[isc][gc][pc].row >= 0       &&
+					              grids[isc][gc][pc].col >= 0        ;
+					
+					if( !check )
+					{
+						cout << "\t grid failed check - ignoring." << endl;
+						++icount;
+						grids[isc][gc].clear();
+						break;
+					}
+					
 				}
 			}
 			cout << count << " " << icount << endl;
@@ -460,24 +530,21 @@ void CamNetCalibrator::GetGrids()
 	else
 	{
 		cout << "Getting grids - be patient!" << endl;
-
-		// Create vector of threads. One for each source.
-		vector<std::thread> gridThreads;
-		gridThreads.clear();
-		gridThreads.resize(sources.size());
-
+		
+		
 		// Determine number of concurrent threads supported.
 		unsigned long numThreads = std::thread::hardware_concurrency();
 		cout << numThreads << " concurrent threads are supported.\n";
 		cout << "sources: " << sources.size() << endl;
-
 		
+		gridProg.assign( sources.size(), 0 );
+		gridFound.assign( sources.size(), 0 );
 		omp_lock_t coutLock;
 		omp_init_lock( &coutLock );
 		#pragma omp parallel for
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
-			FindGridThread( sources[isc], isc, coutLock );
+			FindGridThread( sources[isc], isc, coutLock, downHints[isc] );
 		}
 	
 	}
@@ -795,12 +862,12 @@ void CamNetCalibrator::CalibrateIntrinsics()
 			{
 				// distortion parameters are often a flaky prospect, so try calibrating initially
 				// without them, then let the bundle adjustment worry about them later.
-				flags = CV_CALIB_FIX_PRINCIPAL_POINT | CV_CALIB_FIX_ASPECT_RATIO | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3 | CV_CALIB_ZERO_TANGENT_DIST;
+				flags = cv::CALIB_FIX_PRINCIPAL_POINT | cv::CALIB_FIX_ASPECT_RATIO | cv::CALIB_FIX_K1 | cv::CALIB_FIX_K2 | cv::CALIB_FIX_K3 | cv::CALIB_ZERO_TANGENT_DIST;
 			}
 			else
 			{
 				// let OpenCV try a few distortion parameters.
-				flags = CV_CALIB_FIX_PRINCIPAL_POINT | CV_CALIB_FIX_ASPECT_RATIO | CV_CALIB_FIX_K3 | CV_CALIB_ZERO_TANGENT_DIST;
+				flags = cv::CALIB_FIX_PRINCIPAL_POINT | cv::CALIB_FIX_ASPECT_RATIO | cv::CALIB_FIX_K3 | cv::CALIB_ZERO_TANGENT_DIST;
 			}
 			double error = cv::calibrateCamera(allObjCorners, gridsToUse, imgSizes[isc], K, k, Rs, ts, flags);
 			
@@ -1231,14 +1298,15 @@ float CamNetCalibrator::CalcReconError()
 	std::vector< std::vector<float> > gridPointsErrs;
 	std::vector< std::vector<float> > auxPointsErrs;
 	
+	std::ofstream errfi( "/tmp/mc_calib_err" );
+	
 	gridPointsErrs.resize( numCams );
-	auxPointsErrs.resize( numCams );
 	for( unsigned wpc = 0; wpc < worldPoints.size(); ++wpc )
 	{
 		// which grid did it come from?
 		unsigned gc = pc2gc[wpc].gc;
 		unsigned ipc = pc2gc[wpc].pc;
-
+		
 		if( isSetG[gc] )
 		{
 			for( unsigned cc = 0; cc < numCams; ++cc )
@@ -1273,41 +1341,164 @@ float CamNetCalibrator::CalcReconError()
 		}
 	}
 	
+	auxPointsErrs.resize( numCams );
+	for( unsigned amc = 0; amc < auxMatches.size(); ++amc )
+	{
+		PointMatch &m = auxMatches[amc];
+		
+		if( m.has3D )
+		{
+			hVec3D p3d = m.p3D;
+			
+			// what views is the point in?
+			for( unsigned cc = 0; cc < numCams; ++cc )
+			{
+				Calibration c;
+				c.width  = sources[cc]->GetCurrent().cols;
+				c.height = sources[cc]->GetCurrent().rows;
+				c.L = Ls[cc];
+				for( unsigned x = 0; x < 3; ++x )
+					for( unsigned y = 0; y < 3; ++y )
+						c.K(y,x) = Ks[cc].at<double>(y,x);
+				c.distParams = ks[cc];
+					
+				if( m.p2D.find( cc ) != m.p2D.end()  &&  m.proj2D.find( cc ) != m.proj2D.end() )
+				{
+					hVec2D ev = m.p2D[cc] - m.proj2D[cc];
+					auxPointsErrs[cc].push_back( ev.norm() );
+				}
+				else if( m.p2D.find( cc ) != m.p2D.end() )
+				{
+					hVec2D proj = c.Project(p3d);
+					hVec2D ev = m.p2D[cc] - proj;
+					auxPointsErrs[cc].push_back( ev.norm() );
+				}
+			}
+		}
+	}
+	
+	
 	cout << endl << endl;
 	cout << "====================================================================================================" << endl;
-	cout << "======================     Current reconstruction errors  (grid points)   ==========================" << endl;
+	cout << "======================     Current reconstruction errors                  ==========================" << endl;
 	cout << "====================================================================================================" << endl;
 	cout << endl << endl;
-	float grandMean = 0.0f;
-	int grandCount = 0;
+	
+	
+	errfi << endl << endl;
+	errfi << "====================================================================================================" << endl;
+	errfi << "======================     Current reconstruction errors                  ==========================" << endl;
+	errfi << "====================================================================================================" << endl;
+	errfi << endl << endl;
+	
+	
+	cout << " == grid points == " << endl;
+	errfi << " == grid points == " << endl;
+	float grandMeanGrids = 0.0f;
+	float grandMeanAux   = 0.0f;
+	int grandCountGrids = 0;
+	int grandCountAux   = 0;
+	
+	cout  << std::setw(6) << "  cam  " << "|" << std::setw(20) << "means" << " | " << std::setw(20) << "mins" << "|" << std::setw(20) << "maxs" << "|" << std::setw(20) << "meds" << endl;
+	errfi << std::setw(6) << "  cam  " << "|" << std::setw(20) << "means" << " | " << std::setw(20) << "mins" << "|" << std::setw(20) << "maxs" << "|" << std::setw(20) << "meds" << endl;
 	for( unsigned cc = 0; cc < numCams; cc++ )
 	{
 		if( isSetC[cc] )
 		{
 			std::sort( gridPointsErrs[cc].begin(), gridPointsErrs[cc].end() );
-			float mean = 0.0f;
+			float meanGrids = 0.0f;
 			for( unsigned ec = 0; ec < gridPointsErrs[cc].size(); ++ec )
-				mean += gridPointsErrs[cc][ec];
-			mean /= gridPointsErrs[cc].size();
+				meanGrids += gridPointsErrs[cc][ec];
+			meanGrids /= gridPointsErrs[cc].size();
 			
-			if( gridPointsErrs[cc].size() > 0 )
+			
+			std::sort( auxPointsErrs[cc].begin(), auxPointsErrs[cc].end() );
+			float meanAux = 0.0f;
+			for( unsigned ec = 0; ec < auxPointsErrs[cc].size(); ++ec )
+				meanAux += auxPointsErrs[cc][ec];
+			meanAux /= auxPointsErrs[cc].size();
+			
+			
+			
+			
+			
+			
+			if( gridPointsErrs[cc].size() > 0 && auxPointsErrs[cc].size() > 0 )
 			{
-				cout << "camera " << cc << "  mean: " << mean << "  max: " << gridPointsErrs[cc].back() <<  "    min: " << gridPointsErrs[cc][0] << "   median: " << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << endl;
+				cout  << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << meanGrids << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << meanGrids << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				grandMeanGrids += meanGrids;
+				grandMeanAux += meanAux;
+				++grandCountAux;
+				++grandCountGrids;
+				
+			}
+			else if( gridPointsErrs[cc].size() > 0 && auxPointsErrs[cc].size() == 0 )
+			{
+				cout  << std::setw(6)  << cc << "|" 
+				<< std::setw(10) << meanGrids << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << "n/aux" << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				<< std::setw(10) << meanGrids << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][0] << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc].back() << " " << std::setw(9) << "n/aux" << " | "
+				<< std::setw(10) << gridPointsErrs[cc][ gridPointsErrs[cc].size()/2 ] << " " << std::setw(9) << "n/aux" << endl;
+				
+				grandMeanGrids += meanGrids;
+				++grandCountGrids;
+			}
+			else if( gridPointsErrs[cc].size() == 0 && auxPointsErrs[cc].size() > 0 )
+			{
+				cout  << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				errfi << std::setw(6)  << cc << "|" 
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << meanAux << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][0] << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc].back() << " | "
+				      << std::setw(10) << "n/grid" << " " << std::setw(9) << auxPointsErrs[cc][ auxPointsErrs[cc].size()/2 ] << endl;
+				
+				
+				grandMeanAux += meanAux;
+				++grandCountAux;
 			}
 			else
 			{
-				cout << "this error based only on grids points, and we ain't got any, so skipping the output" << endl;
+				cout << cc << " no errs for cam? " << endl;
+				errfi << cc << " no errs for cam? " << endl;
 			}
-			grandMean += mean;
-			++grandCount;
+			
 		}
 		else
 		{
 			cout << "camera " << cc << "     not-set    " << endl;
+			errfi << "camera " << cc << "     not-set    " << endl;
 		}
 	}
-	cout << "grand-mean: " << grandMean/grandCount << endl;
+	cout << "grand-means: " << std::setw(10) << grandMeanGrids/grandCountGrids << " " << std::setw(10) << grandMeanAux/grandCountAux << endl;
 	cout << endl << endl << endl << endl;
+	
+	errfi << "grand-means: " << std::setw(10) << grandMeanGrids/grandCountGrids << " " << std::setw(10) << grandMeanAux/grandCountAux << endl;
+	errfi << endl << endl << endl << endl;
+	
+	
+	errfi.close();
 	
 	return 0.0f;
 }
@@ -1454,16 +1645,22 @@ void CamNetCalibrator::Visualise()
 	
 	
 	// find the first frame where there is a set grid.
-	unsigned gc = 0;
-	while( !isSetG[gc] )
+	int gc = 0;
+	while( gc < isSetG.size() && !isSetG[gc]  )
 	{
 		++gc;
 	}
 	
+	if( gc == isSetG.size() )
+		gc = -1;
+	
 	// now make sure all image sources are at the appropriate frame.
+	int viewFrame = 0;
+	if( gridFrames.size() > 0 )
+		viewFrame = gridFrames[gc]; 
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{
-		sources[isc]->JumpToFrame( gridFrames[gc] );
+		sources[isc]->JumpToFrame( viewFrame );
 	}
 	
 	// decide which camera we're viewing
@@ -1474,10 +1671,14 @@ void CamNetCalibrator::Visualise()
 	dren->SetBGImage( sources[ camID ]->GetCurrent() );
 	
 	
-	
-	cout << "grid set?:" << isSetG[gc] << endl;
-	for( unsigned cc = 0; cc < numCams; ++cc )
-		cout << grids[cc][gc].size() << " ";
+	if( isSetG.size() > 0 )
+	{
+		cout << "grid set?:" << isSetG[gc] << endl;
+		for( unsigned cc = 0; cc < numCams; ++cc )
+			cout << grids[cc][gc].size() << " ";
+	}
+	else
+		cout << "grid set?: no grids to set." << endl;
 	cout << "cams set?:" << endl;
 	hVec3D o; o << 0,0,0,1;
 	for( unsigned cc = 0; cc < numCams; ++cc )
@@ -1501,7 +1702,7 @@ void CamNetCalibrator::Visualise()
 		cout << Ks[cc] << endl << "-" << endl;
 		
 	}
-	cout << "frame: " << gridFrames[gc] << endl;
+	cout << "frame: " << viewFrame << endl;
 	
 	
 	
@@ -1511,7 +1712,7 @@ void CamNetCalibrator::Visualise()
 		if( camChanged )
 		{
 			// now make sure all image sources are at the appropriate frame.
-			sources[camID]->JumpToFrame( gridFrames[gc] );
+			sources[camID]->JumpToFrame( viewFrame );
 			
 			// get camera's bg image
 			cv::Mat img = sources[ camID ]->GetCurrent().clone();
@@ -1892,9 +2093,17 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 		}
 	}
 
-	cout << "gtu: " << gridsToUse.size() << endl;
+	//
+	// If we've not got all that many grids available, we can choose to ignore 
+	// the grids and instead use auxilliary points instead.
+	//
 	if( gridsToUse.size() < minGridsToInitialiseCam )
-		return false;
+	{
+		if( auxMatches.size() > 4 )
+			gridsToUse.clear();
+		else
+			return false;
+	}
 
 	// construct vectors of the 2D and 3D points that we're going to use.
 	// this first set come from the grids....
@@ -1951,7 +2160,10 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 			}
 		}
 	}
-
+	
+	if( p3D.size() < 4 )
+		return false;
+	
 	cv::Mat rvec,t;
 	cv::solvePnPRansac(p3D, p2D, Ks[camID], ks[camID], rvec, t);
 
@@ -2033,6 +2245,79 @@ bool CamNetCalibrator::EstimateCamPos(unsigned camID)
 
 }
 
+#include "math/distances.h"
+int PickM( std::vector< transMatrix3D > Ms, cv::Mat othK, cv::Mat camK, std::vector< cv::Point2d > othPoints, std::vector< cv::Point2d > camPoints )
+{
+	std::vector< bool > allInfront(4, true);
+	std::vector< int  > numInfront(4, 0 );
+	unsigned solutionToUse = 0;
+	for( unsigned sc = 0; sc < Ms.size(); ++sc )
+	{
+		cout << "------------------------" << endl;
+		Calibration c,o;
+		c.width  = 1000; // doesn't matter
+		c.height = 1000; // doesn't matter
+		c.L = Ms[sc].inverse();                 // deffo!
+		for( unsigned x = 0; x < 3; ++x )
+			for( unsigned y = 0; y < 3; ++y )
+				c.K(y,x) = camK.at<double>(y,x);
+		
+		
+		o.width  = 1000;
+		o.height = 1000;
+		o.L = transMatrix3D::Identity();
+		for( unsigned x = 0; x < 3; ++x )
+			for( unsigned y = 0; y < 3; ++y )
+				o.K(y,x) = othK.at<double>(y,x);
+		
+		std::vector< hVec3D > centres(2);
+		centres[0] = c.GetCameraCentre();    // should be t of the solution.
+		centres[1] = o.GetCameraCentre();    // should be origin.
+		for( unsigned pc = 0; pc < camPoints.size(); ++pc )
+		{
+			cout << "  *--* " << endl;
+			std::vector< hVec3D > rays(2);
+			hVec2D cp, op;
+			cp << camPoints[pc].x, camPoints[pc].y, 1.0;
+			op << othPoints[pc].x, othPoints[pc].y, 1.0;
+			rays[0] = c.Unproject( cp );
+			rays[1] = o.Unproject( op );
+			
+			
+			
+			hVec3D p3d = IntersectRays( centres, rays );
+			hVec2D cpc, opc;
+			cpc = c.Project( p3d );
+			opc = o.Project( p3d );
+			
+			float dstr = DistanceBetweenRays( centres[0], rays[0], centres[1], rays[1] );
+			float dst0 = PointRayDistance3D( p3d, centres[0], rays[0] );
+			float dst1 = PointRayDistance3D( p3d, centres[1], rays[1] );
+			cout << p3d.transpose() << " : " << dst0 << " | " << dst1 << " || " << (cpc - cp).norm() << " <> " << (opc - op).norm() << endl;
+			if( p3d(2) > 0 )
+			{
+				// so we're infront of the other camera, but what about this camera?
+				p3d = c.TransformToCamera( p3d );
+				if( p3d(2) > 0 )
+				{
+					++numInfront[sc];
+				}
+				else
+					allInfront[sc] = false;
+			}
+			else
+				allInfront[sc] = false;
+		}
+		cout << sc << " : " << numInfront[sc] << endl;
+		if( (allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse ]) ||
+			(!allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse] && !allInfront[ solutionToUse ] ) )
+		{
+			solutionToUse = sc;
+		}
+	}
+	exit(0);
+	return solutionToUse;
+}
 
 
 bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
@@ -2064,7 +2349,7 @@ bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
 	
 	// right then, now we need 2D points for each camera in a way
 	// that lets us calculate F using OpenCV
-	std::vector< cv::Point > camPoints, othPoints;
+	std::vector< cv::Point2d > camPoints, othPoints;
 	std::vector< unsigned > usedAux;
 	for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
 	{
@@ -2091,140 +2376,36 @@ bool CamNetCalibrator::EstimateCamPosFromF(unsigned camID)
 	
 	if( camPoints.size() > 8 && othPoints.size() == camPoints.size() )
 	{
-// 		// TODO: Robustify this! (distortion?)
-// 		cv::Mat F;
-// 		cv::sfm::normalizedEightPointSolver(othPoints, camPoints, F);
-// 		
-// 		// now, given that we "know" the intrinsics for the camera, we 
-// 		// should be able to upgrade this F to an E
-// 		cv::Mat E;
-// 		cv::sfm::essentialFromFundamental(F, Ks[othCam], Ks[camID], E)
-// 		
-// 		// and that can then give us an R and an unscaled t;
-// 		// except there are multiple solutions...
-// 		std::vector<cv::Mat> Rs,ts;
-// 		cv::sfm::motionFromEssential(E, Rs, ts);
-// 		
-// 		// so now we need to resolve the solutions by use of a single point.
-// 		int solutionToUse = cv::sfm::motionFromEssentialChooseSolution(Rs, ts, Ks[othCam],  othPoints[0], Ks[camID], camPoints[0] );
-		
-		
-		// not really sure why the cv::sfm stuff exists, given that the same functionality is elsewhere as well....
-		// and for that matter, I can't use the cv::sfm stuff because it doesn't seem to be compiled with opencv.
-		// Note that OpenC does have a findEssentialMatrix function, but the idiot that created it assumed you have
-		// the same K matrix for each camera. Idiot.
-		cv::Mat F;
-		F = cv::findFundamentalMat(othPoints, camPoints, CV_FM_LMEDS);
-		
-		// we don't get the nice sfm::essentialFromFundamental here, but we can do it manually
-		// because E = K_2' * F * K_1
-		cv::Mat E = GetEssentialFromF( F, Ks[othCam], Ks[camID] );
-		
-		// recovering R and t is again stupid in OpenCV because it again stupidly assumes that the cameras
-		// have the same K matrix. Which is an unutterably stupid thing to do. So because the cv::sfm stuff
-		// doesn't work, we end up having to do this shitty thing ourselves as well. And we know how well that
-		// fucking worked in the cvg code we had many moons ago. Feck. Time to dig out the cvg code I think...
-		std::vector<cv::Mat> Rs, ts;
-		DecomposeE( E, Rs, ts );
-		
-		// now we have four possible solutions.
-		std::vector< transMatrix3D > Ms;
-		for( unsigned rc = 0; rc < Rs.size(); ++rc )
+		cv::Mat E, R, t;
+		cout << camPoints.size() << " " << othPoints.size() << endl;
+		cout << Ks[othCam].type() << " " << Ks[camID].type() << endl;
+		cv::Mat ko( ks[othCam].size(), 1, CV_64F );
+		cv::Mat kc( ks[othCam].size(), 1, CV_64F );
+		for( unsigned c = 0; c < ks[othCam].size(); ++c )
 		{
-			for( unsigned tc = 0; tc < ts.size(); ++tc )
-			{
-				cv::Mat R = Rs[ rc ];
-				cv::Mat t = ts[ tc ];
-				transMatrix3D M;
-				M << R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0,0),
-				     R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1,0),
-				     R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2,0),
-				     0,0,0,1;
-				Ms.push_back(M);
-			}
+			ko.at<double>(c,0) = ks[othCam][c];
+			kc.at<double>(c,0) = ks[camID][c];
 		}
+		cv::recoverPose( othPoints, camPoints, Ks[othCam], ko, Ks[camID], kc, E, R, t, cv::RANSAC, 0.99999999, 1.0 );
 		
-		// which one do we want to use?
-		std::vector< bool > allInfront(4, true);
-		std::vector< int  > numInfront(4, 0 );
-		unsigned solutionToUse = 0;
-		for( unsigned sc = 0; sc < Ms.size(); ++sc )
-		{
-			Calibration c,o;
-			c.width  = sources[camID]->GetCurrent().cols;
-			c.height = sources[camID]->GetCurrent().rows;
-			c.L = Ms[sc];
-			for( unsigned x = 0; x < 3; ++x )
-				for( unsigned y = 0; y < 3; ++y )
-					c.K(y,x) = Ks[camID].at<double>(y,x);
-			//c.distParams = ks[camID];
-			
-			o.width  = sources[othCam]->GetCurrent().cols;
-			o.height = sources[othCam]->GetCurrent().rows;
-			o.L = transMatrix3D::Identity();
-			for( unsigned x = 0; x < 3; ++x )
-				for( unsigned y = 0; y < 3; ++y )
-					o.K(y,x) = Ks[othCam].at<double>(y,x);
-			//o.distParams = ks[othCam];
-			std::vector< hVec3D > centres(2);
-			centres[0] = c.GetCameraCentre();
-			centres[1] = o.GetCameraCentre();	// should be origin.
-			for( unsigned pc = 0; pc < camPoints.size(); ++pc )
-			{
-				std::vector< hVec3D > rays(2);
-				hVec2D cp, op;
-				cp << camPoints[pc].x, camPoints[pc].y, 1.0;
-				op << othPoints[pc].x, othPoints[pc].y, 1.0;
-				rays[0] = c.Unproject( cp );
-				rays[1] = o.Unproject( op );
-				
-				hVec3D p3d = IntersectRays( centres, rays );
-				if( p3d(2) > 0 )
-				{
-					// so we're infront of the other camera, but what about this camera?
-					p3d = Ms[sc].inverse() * p3d;
-					if( p3d(2) > 0 )
-					{
-						++numInfront[sc];
-					}
-					else
-						allInfront[sc] = false;
-				}
-				else
-					allInfront[sc] = false;
-			}
-			
-			if( (allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse ]) ||
-			    (!allInfront[sc] && numInfront[sc] >= numInfront[ solutionToUse] && !allInfront[ solutionToUse ] ) )
-			{
-				solutionToUse = sc;
-			}
-			
-		}
-		for( unsigned sc = 0; sc < Ms.size(); ++sc )
-		{
-			cout << sc << " infront? " << allInfront[sc] << " " << numInfront[sc] << " of " << camPoints.size() << endl;
-		}
-		cout << "s2u: " << solutionToUse << endl;
+		transMatrix3D M;
+		M << R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0,0),
+		     R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1,0),
+		     R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2,0),
+		     0,0,0,1;
 		
-		cout << Ms[ solutionToUse ] << endl;
+		
 		
 		// so in theory we can now position camID relative to othCam using the chosen R and t.
-		// Ms[sol] takes a point from camID to othCam.
-		// Ls[othCam] takes a point from world to othCam. 
-		// Thus, inv(Ls[othCam]) would take a point from othCam to world.
-		// We want Ls[camID] to be world to camID
-		// Ls[othCam] * p => p goes to othCam
-		// inv(Ms[sol]) * Ls[othCam] => p goes to othCam, then to camID.
+		Ls[camID] = M * Ls[ othCam ];
 		
-		Ls[camID] = Ms[ solutionToUse ].inverse() * Ls[ othCam ];
 		
 		// then we have an option. If any of the auxMatches we've been using have 3D points
-		// associated to them, we can reconstruct that point from the new camera, and adjust until
+		// associated to them, we can reconstruct that point from the new camera
 		
 		// useful to have calibration classes for each camera.
 		Calibration c,o;
-
+		
 		c.width  = sources[camID]->GetCurrent().cols;
 		c.height = sources[camID]->GetCurrent().rows;
 		c.L = Ls[camID];
@@ -2441,30 +2622,47 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 		}
 		if( maxShare < minSharedGrids )
 			minSharedGrids = maxShare-1;
-		rootCam = 0;
-		// this is a first call.
-		// we want to pick the root camera as well.
-
-		// find the camera which shares overlap with the most other cameras.
-		unsigned bestSharing = 0;
-		for( unsigned cc0 = 0; cc0 < Ls.size(); ++cc0 )
+		
+		
+		
+		//
+		// Unless the config file is overriding us, we will choose the camera 
+		// with the most other cameras as our root camera.
+		//
+		if( rootCam >= Ls.size() )
 		{
-			unsigned shareCount = 0;
-			for( unsigned cc1 = 0; cc1 < Ls.size(); ++cc1 )
+			// find the camera which shares overlap with the most other cameras.
+			unsigned bestSharing = 0;
+			for( unsigned cc0 = 0; cc0 < Ls.size(); ++cc0 )
 			{
-				if( sharing(cc0, cc1) > minSharedGrids )
-					++shareCount;
-			}
-			if( shareCount > bestSharing )
-			{
-				bestSharing = shareCount;
-				rootCam = cc0;
+				unsigned shareCount = 0;
+				for( unsigned cc1 = 0; cc1 < Ls.size(); ++cc1 )
+				{
+					if( sharing(cc0, cc1) > minSharedGrids )
+						++shareCount;
+				}
+				if( shareCount > bestSharing )
+				{
+					bestSharing = shareCount;
+					rootCam = cc0;
+				}
 			}
 		}
 		
-
+		//
+		// Have we _still_ not found a root cam? Probably that akward situation where we have _no_ grids at all.
+		//
+		if( rootCam >= Ls.size() )
+		{
+			if( auxMatches.size() > 8 )
+				rootCam = 0;
+			else
+				throw( std::runtime_error( "Couldn't pick root cam - no grids, no aux matches." ) );
+		}
+		
+		
 		variCams.push_back(rootCam);
-
+		
 		isSetC[ rootCam ] = true;
 	}
 	else
@@ -2499,7 +2697,7 @@ bool CamNetCalibrator::PickCameras(vector<unsigned> &fixedCams, vector<unsigned>
 				shareCnt += sharing(cc, fixedCams[fcc] );
 			}
 
-			if( !rootChecked )
+			if( !rootChecked && rootCam < sharing.cols() )
 			{
 				shareCnt += sharing(cc, rootCam );
 			}
@@ -3357,39 +3555,46 @@ void CamNetCalibrator::CheckAndFixScale()
 		meanRspacing /= count;
 		meanCspacing /= count;
 		
-		cout << "mean spacing: " << meanRspacing << " " << meanCspacing << endl;
-		
-		float rscale = gridRSpacing / meanRspacing;
-		float cscale = gridCSpacing / meanCspacing;
-		float scale  = (rscale + cscale) / 2.0f;
-		cout << "fixing scales: " << rscale << " " << cscale << endl;
-		
-		cout << " note, if fixing scales are very different, that's probably a hint that the calibration has gone awry... " << endl;
-		
-		// now we can just scale all camera translations.... honest...
-		for( unsigned cc = 0; cc < Ls.size(); ++cc )
+		if( count > 0 )
 		{
-			Ls[cc](0,3) *= scale;
-			Ls[cc](1,3) *= scale;
-			Ls[cc](2,3) *= scale;
+			cout << "mean spacing: " << meanRspacing << " " << meanCspacing << endl;
+			
+			float rscale = gridRSpacing / meanRspacing;
+			float cscale = gridCSpacing / meanCspacing;
+			float scale  = (rscale + cscale) / 2.0f;
+			cout << "fixing scales: " << rscale << " " << cscale << endl;
+			
+			cout << " note, if fixing scales are very different, that's probably a hint that the calibration has gone awry... " << endl;
+		
+			// now we can just scale all camera translations.... honest...
+			for( unsigned cc = 0; cc < Ls.size(); ++cc )
+			{
+				Ls[cc](0,3) *= scale;
+				Ls[cc](1,3) *= scale;
+				Ls[cc](2,3) *= scale;
+			}
+			
+			// and of course, all points! (Duh!)
+			for( unsigned pc = 0; pc < worldPoints.size(); ++pc )
+			{
+				worldPoints[pc](0) *= scale;
+				worldPoints[pc](1) *= scale;
+				worldPoints[pc](2) *= scale;
+			}
+			
+			// and obviously, who could possibly forget, I mean come on, honestly,
+			// really, _who_ could forget them, they are _utterly_ unforgettable...
+			// the auxPoints...
+			for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
+			{
+				auxMatches[ac].p3D(0) *= scale;
+				auxMatches[ac].p3D(1) *= scale;
+				auxMatches[ac].p3D(2) *= scale;
+			}
 		}
-		
-		// and of course, all points! (Duh!)
-		for( unsigned pc = 0; pc < worldPoints.size(); ++pc )
+		else
 		{
-			worldPoints[pc](0) *= scale;
-			worldPoints[pc](1) *= scale;
-			worldPoints[pc](2) *= scale;
-		}
-		
-		// and obviously, who could possibly forger, I mean come on, honestly,
-		// really, _who_ could forget them, they are _utterly_ unforgettable...
-		// the auxPoints...
-		for( unsigned ac = 0; ac < auxMatches.size(); ++ac )
-		{
-			auxMatches[ac].p3D(0) *= scale;
-			auxMatches[ac].p3D(1) *= scale;
-			auxMatches[ac].p3D(2) *= scale;
+			cout << "no grids to do scale/spacing check" << endl;
 		}
 	}
 }

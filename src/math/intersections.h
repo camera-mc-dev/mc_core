@@ -12,6 +12,9 @@ hVec3D IntersectRays( vector<hVec3D> s, vector<hVec3D> d );
 
 // Intersect 3D ray (originating at p0 with direction dir) with the plane (nx,ny,nz,d)
 hVec3D IntersectRayPlane( const hVec3D &p0, const hVec3D &dir, const Eigen::Vector4f &plane);
+float IntersectRayPlane0( const hVec3D &p0, const hVec3D &dir, const Eigen::Vector4f &plane);
+
+bool IntersectRayAABox3D( const hVec3D &p0, const hVec3D &dir, std::vector< std::vector<float> > bounds, float &t0, float &t1 );
 
 // Intersect 2D ray with another ray. Note that this will normalise the directions.
 float IntersectRays( const hVec2D &s0, hVec2D &d0, const hVec2D &s1,  hVec2D &d1 );

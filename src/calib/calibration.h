@@ -15,8 +15,8 @@ public:
 	Calibration()
 	{
 		distParams.assign(5,0);
-		K = transMatrix2D::Identity();
-		L = transMatrix3D::Identity();
+		K = transMatrix2D::Zero();
+		L = transMatrix3D::Zero();
 	}
 
 	transMatrix2D K;
@@ -46,18 +46,30 @@ public:
 	// we can also do some simple rescaling, this time of both the principle point and focal length.
 	void RescaleImage( float scale )
 	{
+		// start by rescaling width and height
+		float nwidth0  = width  * scale;
+		float nheight0 = height * scale;
+		
+		// then round to an appropriate integer size
+		float nwidth1  = round( nwidth0 );
+		float nheight1 = round( nheight0 );
+		
+		
+		// but our actual scale factors _are not_ the input scale factor.
+		float xs = nwidth1 / (float)width;
+		float ys = nheight1 / (float)height;
+		
 		// rescale focal length
-		K(0,0) *= scale;
-		K(1,1) *= scale;
+		K(0,0) *= xs;
+		K(1,1) *= ys;
 		
 		// rescale principle point.
-		K(0,2) *= scale;
-		K(1,2) *= scale;
+		K(0,2) *= xs;
+		K(1,2) *= ys;
 		
-		// rescale width/height
-		width  *= scale;
-		height *= scale;
-		
+		// and remember new size
+		width  = nwidth1;
+		height = nheight1;
 	}
 
 	// read and write the calibration.
@@ -163,41 +175,7 @@ public:
 		return cvL;
 	}
 
-	// although the SBA FAQ very explicitly says the demo program uses
-	// a left handed coordinate system with the z-axis pointing into the image,
-	// the images it links to very explcitly show a right-handed coordinate system
-	// with the z axis pointing into the image, y-up and x to the LEFT.
-	// that's a 180-degree rotation around z from my coordinate system.
-	// but that doesn't make sense, because none of the demo program input data
-	// has negative x principle points. This CAN'T be the problem?
-	// Calibration ConvertToSBA()
-	// {
-	// 	transMatrix3D R = transMatrix3D::Identity();
-	// 	Eigen::AngleAxisf zrot(3.14159265359, Eigen::Vector3f::UnitZ());
-
-	// 	R.block(0,0,3,3) = zrot.matrix();
-
-	// 	Calibration sba;
-	// 	sba.K = K;
-	// 	sba.L = L;
-	// 	sba.width = width;
-	// 	sba.height = height;
-	// 	sba.distParams = distParams;
-
-	// 	sba.L = R * sba.L;
-
-	// 	// tweak the principle point for the new camera orientation.
-	// 	// why would anyone use this orientation? -ve values of the x axis? Seriously?
-	// 	sba.K(0,2) *= -1.0;
-	// 	sba.K(1,2) = height - sba.K(1,2);
-
-	// }
-
-	// Calibration ConvertFromSBA()
-	// {
-	// 	// exactly the same transformation will do.
-	// }
-	
+	void ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b );
 	
 	
 	

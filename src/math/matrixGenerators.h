@@ -34,6 +34,10 @@ namespace ceres
 
 transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target );
 
+// OpenGL projection matrix from camera K matrix
+transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, float far );
+
+
 
 // useful stuff...
 transMatrix3D ScaleMatrix(float sx, float sy, float sz);
@@ -99,6 +103,8 @@ enum EulerOrder
 	EO_ZYX
 };
 transMatrix3D RotMatrixEuler( float rx, float ry, float rz, EulerOrder order );
+
+void TransformToEuler( transMatrix3D T, hVec3D &t, float &rx, float &ry, float &rz, EulerOrder order );
 
 
 // it has become necessary to have the option of using these as well.

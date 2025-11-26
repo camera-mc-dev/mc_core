@@ -7,26 +7,22 @@
 #include <mutex>
 #include <chrono>
 
-#include <cv.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <iostream>
 using std::cout;
 using std::endl;
 
-void ReadToNewLine( boost::asio::ip::tcp::socket *socket, std::stringstream &ss )
-{
-	char ch = ' ';
-	while( ch != '\n' )
-	{
-		boost::asio::read(*socket, boost::asio::buffer( &ch, 1 ) );
-		ss << ch;
-	}
-}
+void ReadToNewLine( boost::asio::ip::tcp::socket *socket, std::stringstream &ss );
 
 class ImageSender
 {
 public:
+#if BOOST_VERSION < 108000
 	ImageSender( boost::asio::io_service &in_ioService, unsigned port )
+#else
+	ImageSender( boost::asio::io_context &in_ioService, unsigned port )
+#endif
 	{
 		ioService = &in_ioService;
 		acceptor = new boost::asio::ip::tcp::acceptor( *ioService, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port ) );
@@ -75,9 +71,12 @@ public:
 					goodConnection = false;
 					continue;
 				}
+				#if BOOST_VERSION < 108000
 				std::string rq = boost::asio::buffer_cast<const char*>(buf.data());
-				
-				 // cout << "img sender got: " << rq << endl;
+				#else
+				std::string rq(static_cast<const char*>(buf.data().data()), buf.size());
+				#endif
+
 				
 				lock.lock();
 				
@@ -200,7 +199,11 @@ private:
 	
 	boost::asio::ip::tcp::acceptor *acceptor;
 	boost::asio::ip::tcp::socket   *socket;
-	boost::asio::io_service        *ioService;
+#if BOOST_VERSION < 108000
+	boost::asio::io_service       *ioService;
+#else
+	boost::asio::io_context        *ioService;
+#endif
 	
 	std::thread sthread;
 	std::mutex  lock;
@@ -216,11 +219,11 @@ private:
 class ImageReceiver
 {
 public:
-	ImageReceiver( boost::asio::io_service &ioService, std::string address, unsigned port )
+	ImageReceiver( boost::asio::io_context &ioService, std::string address, unsigned port )
 	{
 		socket   = new boost::asio::ip::tcp::socket( ioService );
 		
-		socket->connect( boost::asio::ip::tcp::endpoint( boost::asio::ip::address::from_string( address ), port ) );
+		socket->connect( boost::asio::ip::tcp::endpoint( boost::asio::ip::make_address( address ), port ) );
 		
 		boost::asio::socket_base::receive_buffer_size option;
 		socket->get_option(option);
@@ -272,7 +275,13 @@ public:
 		// b) info string
 		boost::asio::streambuf istrbuf;
 		boost::asio::read(*socket, istrbuf, boost::asio::transfer_exactly( infoSize ) );
+
+		#if BOOST_VERSION < 108000
 		infoString = boost::asio::buffer_cast<const char*>( istrbuf.data() );
+		#else
+		infoString = std::string( static_cast<const char*>(istrbuf.data().data()), istrbuf.size() );
+		#endif
+
 		
 		// c) images
 		imgs.resize( numImgs );

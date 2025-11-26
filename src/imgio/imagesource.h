@@ -4,7 +4,7 @@
 #include "calib/calibration.h"
 #include "misc/types.h"
 
-#include <cv.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp> // only keep this line until we get up to openCV 3.0!
 
 #include <string>
@@ -15,8 +15,11 @@ using std::string;
 
 #include <thread>
 #include <condition_variable>
+#include <random>
 
 #include "imgio/loadsave.h"
+
+#include <random>
 
 // and ImageSource is the basic root class for something that provides images.
 // It could be a camera, or it could be a directory of images, or any number
@@ -85,32 +88,8 @@ public:
 class ImageDirectory : public ImageSource
 {
 private:
-	void PreFetchThread()
-	{
-		while( !threadQuit )
-		{
-			// wait for trigger
-			std::unique_lock<std::mutex> lock( nextImage_mutex );
-			while( !getNext )
-			{
-				nextImage_cv.wait( lock );
-			}
-			
-			// read image 
-			if( frameIdx+1  < imageList.size() )
-			{
-// 				std::cout << "\n*\n*\n*\n*\nprefetch load \n*\n*\n*\n*" << std::endl;
-				nextImage = LoadImage( imageList[frameIdx+1] );
-			}
-			
-			// release mutex and allow anyone waiting on us to continue.
-			getNext = false;
-			lock.unlock();
-			nextImage_cv.notify_one();
-			
-		}
-		
-	}
+	void PreFetchThread();
+	
 	cv::Mat nextImage;
 	std::condition_variable nextImage_cv;
 	std::mutex nextImage_mutex;
@@ -119,221 +98,44 @@ private:
 	bool threadQuit;
 	
 public:
-	ImageDirectory( std::string in_path )
-	{
-		this->path = in_path;
-
-		// find the images in the directory.
-		boost::filesystem::path p(path);
-
-		if( boost::filesystem::exists(p) && boost::filesystem::is_directory(p))
-		{
-			boost::filesystem::directory_iterator di(p), endi;
-			for( ; di != endi; ++di )
-			{
-				std::string s = di->path().string();
-
-				if( IsImage(s) )
-				{
-					imageList.push_back(s);
-				}
-			}
-		}
-		else
-		{
-			throw std::runtime_error("Could not find image source directory.");
-		}
-
-		std::sort( imageList.begin(), imageList.end() );
-
-		// find the calibration file in the directory and read it.
-		// if there's no file, this will return false, but we'll still
-		// have a null calibration.
-		calibration.Read( path + "/calibFile");
-
-
-		// advance to the first frame.
-		frameIdx = 0;
-		ReadImage();
-		
-		// start the pre-fetch thread.
-		// If we're doing heavy processing, we don't want to have to also wait to
-		// read the next image from disk if we don't have to.
-		getNext = true;
-		threadQuit = false;
-		preFetchThread = std::thread( &ImageDirectory::PreFetchThread, this );
-		
-	}
+	ImageDirectory( std::string in_path );
 	
-	ImageDirectory( std::string in_path, std::string in_calibPath )
-	{
-		this->path = in_path;
-
-		// find the images in the directory.
-		boost::filesystem::path p(path);
-
-		if( boost::filesystem::exists(p) && boost::filesystem::is_directory(p))
-		{
-			boost::filesystem::directory_iterator di(p), endi;
-			for( ; di != endi; ++di )
-			{
-				std::string s = di->path().string();
-
-				if( IsImage(s) )
-				{
-					imageList.push_back(s);
-				}
-			}
-		}
-		else
-		{
-			throw std::runtime_error("Could not find image source directory.");
-		}
-
-		std::sort( imageList.begin(), imageList.end() );
-
-		// find the calibration file in the directory and read it.
-		// if there's no file, this will return false, but we'll still
-		// have a null calibration.
-		calibration.Read( in_calibPath );
-
-
-		// advance to the first frame.
-		frameIdx = 0;
-		ReadImage();
-		
-		// start the pre-fetch thread.
-		// If we're doing heavy processing, we don't want to have to also wait to
-		// read the next image from disk if we don't have to.
-		getNext = true;
-		threadQuit = false;
-		preFetchThread = std::thread( &ImageDirectory::PreFetchThread, this );
-		
-	}
+	ImageDirectory( std::string in_path, std::string in_calibPath );
 	
-	~ImageDirectory()
-	{
-		std::unique_lock<std::mutex> lock( nextImage_mutex );
-		threadQuit = true;
-		lock.unlock();
-		nextImage_cv.notify_one();
-		
-		preFetchThread.join();
-	}
-
-	cv::Mat GetCurrent()
-	{
-		// return the current image.
-		return current;
-	}
-
-	bool Advance()
-	{
-		if( frameIdx == imageList.size()-1 )
-			return false;
-		
-		//
-		// The prefetch should have the next image ready for us.
-		//
-		
-		
-		// try to lock nextImage mutex
-		std::unique_lock<std::mutex> lock( nextImage_mutex );
-		current = nextImage.clone();
-		++frameIdx;
-		
-		// let the prefetch work on getting the next image.
-		getNext = true;
-		lock.unlock();
-		nextImage_cv.notify_one();
-		
-		return true;
-	}
-
-	bool Regress()
-	{
-		if( frameIdx == 0 )
-			return false;
-		
-		// have some care of the pre-fetch...
-		std::unique_lock<std::mutex> lock( nextImage_mutex );
-		nextImage = current.clone();
-		
-		// decrement the frame index
-		--frameIdx;
-		
-		lock.unlock();
-
-		// load the image and update timestamps etc.
-		return ReadImage();
-	}
-
-	unsigned GetCurrentFrameID()
-	{
-		return frameIdx;
-	}
-
-	frameTime_t GetCurrentFrameTime()
-	{
-		return frameTime;
-	}
-
-	bool ReadImage( )
-	{
-		// current = cv::imread( imageList[frameIdx] );
-		current = LoadImage( imageList[frameIdx] );
-		return true;
-		//TODO: Error checks!
-	}
-
-	int GetNumImages()
-	{
-		return imageList.size();
-	}
-
+	~ImageDirectory();
+	
+	cv::Mat GetCurrent();
+	
+	bool Advance();
+	
+	bool Regress();
+	
+	unsigned GetCurrentFrameID();
+	
+	frameTime_t GetCurrentFrameTime();
+	
+	bool ReadImage( );
+	
+	int GetNumImages();
+	
 	// WARNING!!!
 	// replaces the calibration file in the source directory!
-	void SaveCalibration()
-	{
-		calibration.Write( path + "/calibFile" );
-	}
+	void SaveCalibration();
 
-	virtual bool JumpToFrame(unsigned frame)
-	{
-		std::unique_lock<std::mutex> lock( nextImage_mutex );
-		
-		frameIdx = frame;
-		if( ReadImage() )
-		{
-			// let the prefetch work on getting the next image.
-			getNext = true;
-			lock.unlock();
-			nextImage_cv.notify_one();
-			
-			return true;
-		}
-		return false;
-	}
-
+	virtual bool JumpToFrame(unsigned frame);
+	
+	
+	// sometimes we might want something weird like this.
+	void SortImageList();
+	
+	void ShuffleImageList();
+	
+	
+	std::vector<string> GetImageList() {return imageList;}
 private:
 
-	bool IsImage(string s)
-	{
-		unsigned end = s.size();
-		if( s.find(".jpg") == end-4  ||
-			s.find(".png") == end-4  ||
-			s.find(".bmp") == end-4  ||
-			s.find(".tiff") == end-5 ||
-			s.find(".tif") == end-4 ||
-		    s.find(".charImg") == end-8 ||
-			s.find(".floatImg") == end-9
-			)
-		{
-			return true;
-		}
-		return false;
-	}
-
+	bool IsImage(string s);
+	
 	std::vector<string> imageList;
 	unsigned frameIdx;
 	frameTime_t frameTime;

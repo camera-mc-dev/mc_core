@@ -38,8 +38,13 @@ namespace Rendering
 			normals     = vertexMatrix::Zero(4, numVerts);
 			texCoords   = vertexMatrix::Zero(2, numVerts);
 			vertColours = vertexMatrix::Zero(4, numVerts);
-
+			
 			faces   = primitiveMatrix::Zero(vertsPerFace, numFaces);
+			
+			for( unsigned vc = 0; vc < numVerts; ++vc )
+			{
+				vertices(3,vc) = 1.0f;
+			}
 		}
 
 		~Mesh();

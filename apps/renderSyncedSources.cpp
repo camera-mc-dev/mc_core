@@ -273,6 +273,31 @@ int main(int argc, char* argv[])
 				cv::Mat img = sources[isc]->GetCurrent();
 				if( grids.size() > 0 && grids[isc].size() > 0 && grids[isc][ic].size() > 0 )
 				{
+					float nrows = 0;
+					float ncols = 0;
+					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
+					{
+						nrows = std::max( nrows, grids[isc][ic][pc].row+1.0f );
+						ncols = std::max( nrows, grids[isc][ic][pc].col+1.0f );
+					}
+					
+					float mx, Mx, my, My;
+					mx = my = std::max( img.rows, img.cols );
+					Mx = My = 0;
+					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
+					{
+						float x,y;
+						x = grids[isc][ic][pc].pi(0);
+						y = grids[isc][ic][pc].pi(1);
+						mx = std::min( mx, x );
+						my = std::min( my, y );
+						Mx = std::max( Mx, x );
+					}
+					float rad = std::max( 5.0f, std::max( Mx - mx, My - my ) / (2.0f*(float)sqrt( grids[isc][ic].size()) ) );
+					
+					cv::Point oCorner, xCorner, yCorner;
+					int xCornerCol, yCornerRow;
+					xCornerCol = yCornerRow = 0;
 					for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
 					{
 						float x,y;
@@ -283,12 +308,41 @@ int main(int argc, char* argv[])
 						col = grids[isc][ic][pc].col;
 						
 						float red,green,blue;
-						red   = (std::min(row,10)/10.0f) * 255.0f;
-						green = (std::min(col,10)/10.0f) * 255.0f;
+						red   = (row/nrows) * 255.0f;
+						green = (col/ncols) * 255.0f;
 						blue  = 255.0f;
 						
-						cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
+						if( row == 0 && col == 0 )
+						{
+							oCorner = cv::Point(x,y);
+						}
+						else if( row == 0 && col > xCornerCol )
+						{
+							xCorner = cv::Point(x,y);
+							xCornerCol = col;
+						}
+						else if( col == 0 && row > yCornerRow )
+						{
+							yCorner = cv::Point(x,y);
+							yCornerRow = row;
+						}
+						
+						cv::circle( img, cv::Point(x,y), rad, cv::Scalar(blue,green,red), std::max( 4.0f, rad/5.0f ) );
+
 					}
+					
+					//
+					// draw an arrow from origin to x-axis, y-axis corners.
+					//
+					if( xCornerCol > 0 && yCornerRow > 0 )
+					{
+						cv::line( img, oCorner, xCorner, cv::Scalar(255,255,255), 7 );
+						cv::line( img, oCorner, xCorner, cv::Scalar(0,0,255), 3 );
+						
+						cv::line( img, oCorner, yCorner, cv::Scalar(0,0,0), 7 );
+						cv::line( img, oCorner, yCorner, cv::Scalar(0,255,0), 3 );
+					}
+					
 				}
 				
 				imgCards[isc]->GetTexture()->UploadImage( img );

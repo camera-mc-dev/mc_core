@@ -1,29 +1,42 @@
 #include "misc/tokeniser.h"
 
+bool IsDelimitor( char c, const std::string& delimitors )
+{
+	for( unsigned dc = 0; dc < delimitors.size(); ++dc )
+	{
+		if( c == delimitors[dc] ) return true;
+	}
+	return false;
+}
+#include <iostream>
+using std::cout;
+using std::endl;
 std::vector<std::string> SplitLine(const std::string& input, const std::string& delimitors)
 {
 	std::vector<std::string> result;
 	
-	size_t pos = std::string::npos;
-	for( char c : delimitors )
+	int tokenStart = 0;
+	int tokenEnd   = 0;
+	cout << input << endl;
+	while( tokenStart < input.size() )
 	{
-		pos = std::min(pos, input.find( c ) );
-	}
-	
-	size_t startIndex = 0;
-	while(pos != std::string::npos)
-	{
-		std::string temp(input.begin()+startIndex, input.begin()+pos);
-		if( temp.size() > 0 )
-			result.push_back(temp);
-		startIndex = pos + 1;
-		pos = std::string::npos;
-		for( char c : delimitors )
+		while( IsDelimitor( input[ tokenStart ], delimitors ) )
 		{
-			pos = std::min(pos, input.find( c, startIndex ) );
+			++tokenStart;
+		}
+		
+		tokenEnd = tokenStart;
+		while( !IsDelimitor( input[tokenEnd], delimitors ) && tokenEnd < input.size() )
+		{
+			++tokenEnd;
+		}
+		
+		if( tokenStart < input.size() && tokenEnd > tokenStart)
+		{
+			result.push_back( std::string( input.begin()+tokenStart, input.begin()+tokenEnd ) );
+			tokenStart = tokenEnd;
 		}
 	}
-	if(startIndex != input.size())
-		result.push_back(std::string(input.begin()+startIndex, input.end()));
+	
 	return result;      
 }

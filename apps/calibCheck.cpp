@@ -1,4 +1,5 @@
-#include "cv.hpp"
+#include <opencv2/opencv.hpp>
+
 #include <iostream>
 #include <vector>
 #include <set>
@@ -9,8 +10,7 @@ using std::vector;
 
 #include <Eigen/Geometry>
 
-#include "imgio/imagesource.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/circleGridTools.h"
 #include "math/intersections.h"
 #include "math/products.h"
@@ -24,7 +24,6 @@ using std::vector;
 
 #include "commonConfig/commonConfig.h"
 
-#include "cv.hpp"
 #include <iostream>
 #include <vector>
 #include <set>
@@ -134,6 +133,9 @@ void LoadPointMatches( std::string matchesFile, std::map< unsigned, PointMatch >
 	cout << "loaded " << numMatches << endl;
 }
 
+std::vector< ImageSource* > sources;
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube );
+
 int main(int argc, char *argv[] )
 {
 	
@@ -153,6 +155,12 @@ int main(int argc, char *argv[] )
 	float targetDepth = 0;
 	unsigned originFrame = 0;
 	std::string matchesFile("none");
+	bool renderCube = false;
+	std::vector< std::vector<float> > cube;
+	
+	bool resCheck = false;
+	
+	
 	try
 	{
 		cfg.readFile(argv[1]);
@@ -192,6 +200,23 @@ int main(int argc, char *argv[] )
 			}
 		}
 		
+		if( cfg.exists("cube") )
+		{
+			libconfig::Setting &cs = cfg.lookup("cube");
+			assert( cs.getLength() == 3 );
+			cube.resize(3);
+			for( unsigned ac = 0; ac < cs.getLength(); ++ac )
+			{
+				cube[ac] = { cs[ac][0], cs[ac][1] };
+			}
+			renderCube = true;
+			
+			if( cfg.exists("resCheck") )
+			{
+				resCheck = cfg.lookup("resCheck");
+			}
+		}
+		
 		if( cfg.exists("matchesFile") )
 		{
 			matchesFile = dataRoot + testRoot + (const char*)cfg.lookup("matchesFile");
@@ -217,7 +242,7 @@ int main(int argc, char *argv[] )
 	}
 
 	// create image sources
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	
 	bool gotSources = false;
 	if( imgDirs.size() > 0 )
@@ -228,18 +253,19 @@ int main(int argc, char *argv[] )
 // 			sources.push_back( new ImageDirectory(imgDirs[ic]));
 			
 			
-			cout << "creating source: " << imgDirs[ic] << endl;
-			ImageSource *isrc;
-			if( boost::filesystem::is_directory( imgDirs[ic] ))
-			{
-				isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
-			}
-			else
-			{
-				calibFiles[ic] = imgDirs[ic] + ".calib";
-				isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
-			}
-			sources.push_back( isrc );
+			// cout << "creating source: " << imgDirs[ic] << endl;
+			// ImageSource *isrc;
+			// if( boost::filesystem::is_directory( imgDirs[ic] ))
+			// {
+			// 	isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
+			// }
+			// else
+			// {
+			// 	calibFiles[ic] = imgDirs[ic] + ".calib";
+			// 	isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
+			// }
+			auto sh = CreateSource( imgDirs[ic] );
+			sources.push_back( sh.source );
 			
 		}
 		
@@ -252,7 +278,7 @@ int main(int argc, char *argv[] )
 		for( unsigned ic = 0; ic < vidFiles.size(); ++ic )
 		{
 			cout << "creating source: " << vidFiles[ic] << " with " << calibFiles[ic] << endl;
-			sources.push_back( new VideoSource( vidFiles[ic], calibFiles[ic] ) );;
+			sources.push_back( std::shared_ptr<ImageSource>( new VideoSource( vidFiles[ic], calibFiles[ic] ) ) );;
 		}
 		gotSources = true;
 	}
@@ -262,6 +288,10 @@ int main(int argc, char *argv[] )
 		sources[isc]->JumpToFrame( originFrame );
 	}
 	
+	if( resCheck )
+	{
+		ResCheck( sources, cube );
+	}
 	
 	// work out where all the cameras are.
 	cout << "original camera centres: " << endl;
@@ -316,10 +346,23 @@ int main(int argc, char *argv[] )
 	
 
 
-	// how big are the images?
+	// are all the images the same ratio, or should we force a square window instead?
+	bool allSameRatio = true;
 	cv::Mat img = sources[0]->GetCurrent();
 	float ar = img.rows / (float) img.cols;
-
+	for( unsigned c = 1; c < sources.size(); ++c )
+	{
+		cv::Mat img = sources[c]->GetCurrent();
+		float ar2 = img.rows / (float) img.cols;
+		
+		if( ar2 != ar ) // probably not good enough, what with float rounding. But, feeling lazy.
+			allSameRatio = false; 
+	}
+	
+	if( !allSameRatio )
+		ar = 1.0f;
+	
+	
 	// create the renderer for display purposes.
 	cout << "creating window" << endl;
 	std::shared_ptr<CalCheckRenderer> ren;
@@ -350,6 +393,50 @@ int main(int argc, char *argv[] )
 	std::vector< std::shared_ptr<Rendering::MeshNode> > camNodes(sources.size());
 	Eigen::Vector4f magenta;
 	magenta << 1.0, 0, 1.0, 1.0;
+	
+	bool scaleIsMM = false;
+	std::vector<float> dists;
+	for( unsigned isc = 0; isc < sources.size(); ++isc )
+	{
+		hVec3D c = sources[isc]->GetCalibration().GetCameraCentre();
+		
+		dists.push_back( c.head(3).norm() );
+	}
+	std::sort( dists.begin(), dists.end() );
+	if( dists[ dists.size()/2 ] > 200 )
+		scaleIsMM = true;
+	
+	if( scaleIsMM )
+		cout << "looks like calib is using mm" << endl;
+	else
+		cout << "looks like calib is using m" << endl;
+	
+	std::shared_ptr<Rendering::MeshNode> cubeNode;
+	if( renderCube )
+	{
+		hVec3D zero; zero << 0,0,0,1.0f;
+		auto cubeMesh = Rendering::GenerateWireCube(zero, 20);
+		
+		cubeMesh->vertices << cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],
+		                      cube[1][0], cube[1][1], cube[1][1], cube[1][0],    cube[1][0], cube[1][1], cube[1][1], cube[1][0],
+		                      cube[2][0], cube[2][0], cube[2][0], cube[2][0],    cube[2][1], cube[2][1], cube[2][1], cube[2][1],
+		                               1,          1,          1,          1,             1,          1,          1,          1;
+		
+		cubeMesh->UploadToRenderer(ren);
+		
+		Eigen::Vector4f cubeCol;
+		magenta << 0.6, 0.8, 0.6, 0.5;
+		
+		
+		Rendering::NodeFactory::Create(cubeNode, "cubeNode" );
+		cubeNode->SetMesh( cubeMesh );
+		cubeNode->SetBaseColour(magenta);
+		cubeNode->SetTexture(nullTex);
+		cubeNode->SetShader( ren->GetShaderProg("basicColourShader"));
+		
+		ren->Get3dRoot()->AddChild( cubeNode );
+	}
+	
 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 	{
 		hVec3D zero; zero << 0,0,0,1.0f;
@@ -357,14 +444,20 @@ int main(int argc, char *argv[] )
 		
 		// we'll actually tweak the vertices slightly to more obviously show
 		// which way the camera is facing.
-		camCubes[isc]->vertices <<  -20, -20,  20,  20,    -50,-50, 50,  50,
-		                            -20,  20,  20, -20,    -50, 50, 50, -50,
-		                              0,   0,   0,   0,     50, 50, 50,  50,
-		                              1,   1,   1,   1,      1,  1,  1,   1;
-// 		camCubes[isc]->vertices <<  -0.02, -0.02,  0.02,  0.02,    -0.05,-0.05, 0.05,  0.05,
-// 		                            -0.02,  0.02,  0.02, -0.02,    -0.05, 0.05, 0.05, -0.05,
-// 		                              0,       0,     0,     0,     0.05, 0.05, 0.05,  0.05,
-// 		                              1,       1,     1,     1,        1,    1,    1,     1;
+		if( scaleIsMM )
+		{
+			camCubes[isc]->vertices <<  -20, -20,  20,  20,    -50,-50, 50,  50,
+			                            -20,  20,  20, -20,    -50, 50, 50, -50,
+			                              0,   0,   0,   0,     50, 50, 50,  50,
+			                              1,   1,   1,   1,      1,  1,  1,   1;
+		}
+		else
+		{
+			camCubes[isc]->vertices <<  -0.02, -0.02,  0.02,  0.02,    -0.05,-0.05, 0.05,  0.05,
+			                            -0.02,  0.02,  0.02, -0.02,    -0.05, 0.05, 0.05, -0.05,
+			                              0,       0,     0,     0,     0.05, 0.05, 0.05,  0.05,
+			                              1,       1,     1,     1,        1,    1,    1,     1;
+		}
 		camCubes[isc]->UploadToRenderer(ren);
 		
 		std::stringstream ss;
@@ -379,44 +472,18 @@ int main(int argc, char *argv[] )
 		ren->Get3dRoot()->AddChild( camNodes[isc] );
 	}
 	
-// 	// test...
-// 	hVec3D tcent; tcent << -358.06, -2109.7, 0.0, 1.0;
-// 	auto cn = Rendering::GenerateCubeNode( tcent, 50, "test cube", ren );
-// 	cn->SetTexture(nullTex);
-// 	cn->SetShader( ren->GetShaderProg("basicLitColourShader"));
-// 	ren->Get3dRoot()->AddChild( cn );
-	
-	// we also want to show the origin of the world space as a very simple mesh.
-	// I still have not done a shader that can have per-vertex colours, so forgive
-	// me if I use a little geometry to label each axis in the form of a link
-	// between the x and y axes, and a bar on the y axis.
-// 	auto axes  = std::make_shared<Rendering::Mesh>( Rendering::Mesh( 8, 5, 2) );
-// 	axes->vertices << 0, 1000,    0,    0,    200,   0,  200,-200,
-// 	                  0,    0, 1000,    0,      0, 200,  200, 200,
-// 	                  0,    0,    0, 1000,      0,   0,    0,   0,
-// 	                  1,    1,    1,    1,      1,   1,    1,   1;
-// 	
-// 	            // x, y, z,  x->y,  ybar
-// 	axes->faces << 0, 0, 0,   4,      6,
-//                    1, 2, 3,   5,      7;
-// 	axes->UploadToRenderer(ren);
-// 	
-// 	std::shared_ptr<Rendering::MeshNode> axesNode;
-// 	Rendering::NodeFactory::Create(axesNode, "axesNode");
-// 	axesNode->SetMesh( axes );
-// 	axesNode->SetTexture(nullTex);
-// 	axesNode->SetBaseColour(magenta);
-// 	axesNode->SetShader( ren->GetShaderProg("basicColourShader"));
-
-	auto axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
-// 	auto axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
+	std::shared_ptr<Rendering::SceneNode> axesNode;
+	if( scaleIsMM )
+		axesNode = Rendering::GenerateAxisNode3D( 500, "axesNode", ren );
+	else
+		axesNode = Rendering::GenerateAxisNode3D( 0.5, "axesNode", ren );
 	
 	ren->Get3dRoot()->AddChild(axesNode);
 	
 	ren->Get2dFgRoot()->AddChild( textRoot );
 	
-
 	
+	Calibration calib;
 	bool clicked = false;
 	int camChange = 1;
 	hVec2D clickPos, p2d;
@@ -431,12 +498,51 @@ int main(int argc, char *argv[] )
 			cam = std::max(0, cam);
 			cam = std::min( (int)sources.size()-1, cam );
 			cv::Mat img = sources[cam]->GetCurrent();
-			ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
-			ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
-			Calibration &calib = sources[cam]->GetCalibration();
 			
-// 			ren->Get3dCamera()->SetFromCalibration(calib, 300, 15000);
-			ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+			ren->DeleteBGImage();
+			
+			//
+			// When we set the calibration, we need to take into account if the window has a different aspect ratio 
+			// to the images.
+			//
+			if( !allSameRatio )
+			{
+				//
+				// This should allow us to handle mix of different cameras being used.
+				// ar (window aspect ratio) should be 1 in this case.
+				//
+				calib = sources[cam]->GetCalibration();
+				if( img.rows > img.cols )
+				{
+					ren->Get2dBgCamera()->SetOrthoProjection(0, img.rows, 0, img.rows, -10, 10);
+					ren->Get2dFgCamera()->SetOrthoProjection(0, img.rows, 0, img.rows, -10, 10);
+					calib.width  = img.rows;
+					calib.height = img.rows;
+				}
+				else
+				{
+					ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.cols, -10, 10);
+					ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.cols, -10, 10);
+					calib.width  = img.cols;
+					calib.height = img.cols;
+				}
+				
+				ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+				
+			}
+			else
+			{
+				//
+				// this is easy mode and just the code that we have always had when we never had to deal
+				// with rotated images.
+				//
+				ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
+				ren->Get2dFgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -10, 10);
+				calib = sources[cam]->GetCalibration();
+			
+				ren->Get3dCamera()->SetFromCalibration(calib, 0.1, 15000);
+			}
+			
 			
 			p2d = calib.Project(p);
 			p2d = calib.UndistortPoint(p2d);
@@ -571,4 +677,79 @@ int main(int argc, char *argv[] )
 		camChange = 0;
 		clicked = false;
 	}
+}
+
+
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube )
+{
+	genMatrix pts = genMatrix::Zero( 4, 9 );
+	pts << 0.0, cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],
+		   0.0, cube[1][0], cube[1][1], cube[1][1], cube[1][0],    cube[1][0], cube[1][1], cube[1][1], cube[1][0],
+		   0.0, cube[2][0], cube[2][0], cube[2][0], cube[2][0],    cube[2][1], cube[2][1], cube[2][1], cube[2][1],
+		   1.0,          1,          1,          1,          1,             1,          1,          1,          1;
+	
+	float omean, ocnt;
+	omean = 0.0f;
+	ocnt  = 0;
+	for( unsigned sc = 0; sc < sources.size(); ++sc )
+	{
+		Calibration &calib = sources[sc]->GetCalibration();
+		std::vector<float> dists;
+		hVec3D o, x, y;
+		o << 0,0,0,1;
+		x << 1,0,0,1;
+		y << 0,1,0,1;
+		
+		o = calib.TransformToWorld( o );
+		x = calib.TransformToWorld( x );
+		y = calib.TransformToWorld( y );
+		
+		hVec3D xd = x - o;
+		hVec3D yd = y - o;
+		
+		hVec2D o2 = calib.Project( o );
+		
+		for( unsigned pc = 0; pc < pts.cols(); ++pc )
+		{
+			hVec3D a = pts.col(pc);
+			hVec3D b = a;
+			hVec2D a2, b2;
+			
+			float d = 0.0f;
+			a2 = calib.Project(a);
+			do
+			{
+				d += 0.1;
+				b = a + xd*d;
+				b2 = calib.Project(b);
+			}
+			while( (b2-a2).norm() < 1.0f );
+			
+			dists.push_back(d);
+			cout << std::setw(5) << d << " ";
+			d = 0.0f;
+			
+			do
+			{
+				d += 0.1;
+				b = a + yd*d;
+				b2 = calib.Project(b);
+			}
+			while( (b2-a2).norm() < 1.0f );
+			
+			dists.push_back(d);
+			cout << std::setw(5) << d << " | ";
+		}
+		
+		float md = 0.0f;
+		for( unsigned c = 0; c < dists.size(); ++c )
+		{
+			md += dists[c];
+			omean += dists[c];
+			ocnt += 1;
+		}
+		md /= dists.size();
+		cout << "md: " << md << endl;
+	}
+	cout << "omd: " << omean / ocnt << endl;
 }

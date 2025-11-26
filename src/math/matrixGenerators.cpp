@@ -59,6 +59,16 @@ transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target )
 }
 
 
+transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, float far )
+{
+	transMatrix3D M;
+	M << 2*K(0,0)/w,   2*K(0,1)/w, -( w - 2*K(0,2))/w      ,                        0,
+	              0,  -2*K(1,1)/h,  ( h - 2*K(1,2))/h      ,                        0,
+	              0,            0, -(near+far)/(near-far)  ,  2*far*near/(near - far),
+	              0,            0,                        1,                        0;
+	return M;
+}
+
 // useful stuff...
  transMatrix3D ScaleMatrix(float sx, float sy, float sz)
 {
@@ -69,7 +79,7 @@ transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target )
 	return S;
 }
 
- transMatrix3D TranslationMatrix(float tx, float ty, float tz)
+transMatrix3D TranslationMatrix(float tx, float ty, float tz)
 {
 	transMatrix3D T = transMatrix3D::Identity();
 	T(0,3) = tx;
@@ -162,5 +172,34 @@ transMatrix3D RotMatrixEuler( float rx, float ry, float rz, EulerOrder order )
 		case EO_ZYX: R = Z*Y*X; break;
 	}
 	return R;
+}
+
+
+
+void TransformToEuler( transMatrix3D T, hVec3D &t, float &rx, float &ry, float &rz, EulerOrder order )
+{
+	
+	// Extract translation
+	t = T.block(0,3,4,1);
+	
+	
+	// Extract rotation matrix
+	Eigen::Matrix3f R = T.block(0,0,3,3);
+	
+	
+	// Convert rotation matrix to Euler angles
+	Eigen::Vector3f angVec;
+	switch( order )
+	{
+		case EO_XYZ: angVec = R.eulerAngles(0,1,2); rx = angVec(0), ry = angVec(1); rz = angVec(2); break;  
+		case EO_XZY: angVec = R.eulerAngles(0,2,1); rx = angVec(0), ry = angVec(2); rz = angVec(1); break;  
+		case EO_YXZ: angVec = R.eulerAngles(1,0,2); rx = angVec(1), ry = angVec(0); rz = angVec(2); break;  
+		case EO_YZX: angVec = R.eulerAngles(1,2,0); rx = angVec(1), ry = angVec(2); rz = angVec(0); break;  
+		case EO_ZXY: angVec = R.eulerAngles(2,0,1); rx = angVec(2), ry = angVec(0); rz = angVec(1); break;  
+		case EO_ZYX: angVec = R.eulerAngles(2,1,0); rx = angVec(2), ry = angVec(1); rz = angVec(0); break;  
+	}
+	
+	
+	return;
 }
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import meBook
 import os
@@ -22,8 +22,8 @@ bk.style = "book.css"
 
 bk.title    = "mc_core"
 bk.author   = "Murray"
-bk.date     = [2021,10,29]
-bk.coverImg = "imgs/tst.jpg"
+bk.date     = [2023,12,13]
+bk.coverImg = "imgs/cover.jpg"
 #bk.outputTypes = ["html", "word", "epub"]
 bk.outputTypes = ["html"]
 
@@ -34,8 +34,6 @@ bk.MakeChapter( 1, "Core Overview", [ "../README.md"] )
 bk.MakeChapter( 2, "Calibration", ["chapters/calib.md"] )
 bk.MakeChapter( 3, "Library overview", ["chapters/overview.md"])
 bk.MakeChapter( 4, "The Renderer", ["chapters/renderer.md"])
-bk.MakeChapter( 5, "Calibration algorithms", ["chapters/calibAlgs.md"])
-
 
 
 

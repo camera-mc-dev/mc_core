@@ -5,15 +5,25 @@ def SetCompiler(env):
 	conf = Configure(env)
 	if env['PLATFORM'] == 'darwin':
 		# Prefer an install of the non-apple clang.
-		if conf.CheckProg('/usr/local/opt/llvm/bin/clang++') != None:
-			env.Replace(CXX = '/usr/local/opt/llvm/bin/clang++')
+		if conf.CheckProg('/opt/homebrew/opt/llvm@18/bin/clang++') != None:
+			env.Replace(CXX = '/opt/homebrew/opt/llvm@18/bin/clang++')
+			env.Append(CPPPATH=["/opt/homebrew/opt/llvm@18/include","/opt/homebrew/opt/libomp/include"])
+			env.Append(LIBPATH=["/opt/homebrew/opt/llvm@18/lib","/opt/homebrew/opt/libomp/lib"])
 			env.Append(LIBS=['omp'])
 		else:
 			print( " 'Real' clang not installed. Last we checked, Apple Clang didn't support OpenMP" )
 			print( " Recommend installing 'real' clang from Homebrew or checking Apple clang OpenMP support " )
 			exit(0)
+		env.Append(CPPPATH=["/opt/homebrew/include", "/opt/homebrew/opt/sfml@2/include"])
+		env.Append(LIBPATH=["/opt/homebrew/lib", "/opt/homebrew/opt/sfml@2/lib"])
 	elif env['PLATFORM'] == 'posix':
 		pass
+	elif env['PLATFORM'] == 'win32':
+		if conf.CheckProg('clang++') != None:
+			env.Replace(CXX = 'clang++')
+		else:
+			print( "no clang" )
+			exit(0)
 	
 	else:
 		print( "-----------------------------------------------------------------------------------" )
@@ -21,7 +31,7 @@ def SetCompiler(env):
 		exit(0)
 	
 	# Enable C++ 11
-	env.Append(CPPFLAGS=['-std=c++11'])
+	env.Append(CPPFLAGS=['-std=c++17'])
 	
 	# all warnings, but also show how to disable each
 	# warning if necessary.
@@ -70,13 +80,14 @@ def FindOpenGL(env):
 	# we can also use EGL for headless OpenGL rendering contexts,
 	# which is great for remote applications where we need to render,
 	# but don't care about seeing it.
-	env.Append(CPPDEFINES=["USE_EGL"])
-	env.ParseConfig("pkg-config egl --cflags --libs")
+	if env['PLATFORM'] == 'posix':
+		env.Append(CPPDEFINES=["USE_EGL"])
+		env.ParseConfig("pkg-config egl --cflags --libs")
 
 
 def FindOpenCV(env):
 	# We use OpenCV for lots of things.
-	env.ParseConfig("pkg-config opencv --cflags --libs")
+	env.ParseConfig("pkg-config opencv4 --cflags --libs")
 
 	# OpenCV now needs this... well, on Mac anyway...
 	# Note: This assumes Opencv was installed with Homebrew.
@@ -95,7 +106,7 @@ def FindEigen(env):
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
 	env.Append(LIBS=['boost_system','boost_filesystem'])
-
+	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
 
 def FindMagick(env):
 	# Image magick has advantages over OpenCV in my experience.
