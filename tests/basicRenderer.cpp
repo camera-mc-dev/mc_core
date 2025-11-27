@@ -18,14 +18,31 @@ using namespace Rendering;
 
 int main(void)
 {
+	cout << "before window: " << endl;
+
 	std::shared_ptr<BasicRenderer> ren;
-	Rendering::RendererFactory::Create(ren, 1024, 512, "basic renderer test" );
+	try
+	{
+		Rendering::RendererFactory::Create(ren, 1024, 512, "basic renderer test" );
+	}
+	catch(const std::exception& e)
+	{
+		cout << "caught exception: " << e.what() << endl;
+		return(0);
+	}
+	catch(...)
+	{
+		cout << "caught unknown exception" << endl;
+		return(0);
+	}
+
+
 	
 	cout << "err after create: " <<  glGetError() << endl;
 	
 	// Image on the Background
-	cv::Mat img = LoadImage("data/testcard.png");
-	ren->SetBGImage(img);
+	// cv::Mat img = MCDLoadImage("data/testcard.png");
+	// ren->SetBGImage(img);
 	ren->Get2dBgCamera()->SetOrthoProjection(0,1024,0,512,-100,100);
 	
 	

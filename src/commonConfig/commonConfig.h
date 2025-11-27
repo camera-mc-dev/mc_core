@@ -51,8 +51,11 @@ public:
 			// try the $HOME environment variable
 			userHome = getenv("HOME");
 		}
+#elif defined(_WIN32)
+		// assume we're in a run directory, just use current dir.
+		userHome = "./";
 #else
-		throw std::runtime_error("yeah, I've not done this for Windows or unknown unix!");
+		throw std::runtime_error("unknown platform, common config home dir");
 #endif
 		
 		

@@ -32,6 +32,6 @@ int main( int argc, char* argv[] )
 
 
 	}
-	SaveImage( img, argv[2] );
+	MCDSaveImage( img, argv[2] );
 	return 0;
 }

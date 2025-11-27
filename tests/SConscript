@@ -27,7 +27,7 @@ os.chdir("%s"%(Dir(".").srcnode().abspath))
 # got into a build directory, it kind of forgets, and at the linker stage,
 # sees just .o files and thus uses gcc. Using gcc when everything else is c++
 # means it doesn't automatically pull in the c++ libraries. Ooops.
-srcEnv.Replace(LINK=srcEnv['CXX'])
+# srcEnv.Replace(LINK=srcEnv['CXX'])
 
 # find out where the current SConscript file was.
 scfpath = Dir('.').srcnode().abspath

@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
 // 		grab = renderer->Capture();
 // 		std::stringstream ss;
 // 		ss << "maskCompareVid/" << std::setw(6) << std::setfill('0') << ic << ".jpg";
-// 		SaveImage( grab, ss.str() );
+// 		MCDSaveImage( grab, ss.str() );
 		
 		if( !paused || advance )
 		{

@@ -197,7 +197,7 @@ jumpLabel01:
 
 }
 
-void SaveImage(cv::Mat &img, std::string filename)
+void MCDSaveImage(cv::Mat &img, std::string filename)
 {
 	if( !magickIsInitted )
 	{
@@ -228,7 +228,7 @@ void SaveImage(cv::Mat &img, std::string filename)
 		}
 		else
 		{
-			throw std::runtime_error("SaveImage: Image had neither 1 nor 3 channels.");
+			throw std::runtime_error("MCDSaveImage: Image had neither 1 nor 3 channels.");
 		}
 		outfi.write( (char*)&magic, sizeof(magic) );
 		outfi.write( (char*)&w, sizeof(w) );

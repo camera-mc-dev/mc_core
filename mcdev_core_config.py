@@ -55,6 +55,7 @@ def SetProjectPaths(env):
 	env.Append(LIBPATH=[f"{VCPKGROOT}/lib"])
 
 	env.Append(CPPPATH=["D:/murray/programming/nanoflann/include"])
+	env.Append(LINKFLAGS=['/SUBSYSTEM:CONSOLE'])
 
 
 def FindOpenGL(env):
@@ -86,6 +87,8 @@ def FindBoost(env):
 	#env.Append(LIBS=['boost_system','boost_filesystem'])
 	env.Append(LIBS=['boost_filesystem-vc143-mt-x64-1_89'])
 	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
+	env.Append(CXXFLAGS=['/MD'])
+
 
 def FindMagick(env):
 	# Image magick has advantages over OpenCV in my experience.

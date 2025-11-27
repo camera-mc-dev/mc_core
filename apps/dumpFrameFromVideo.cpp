@@ -44,6 +44,6 @@ int main(int argc, char* argv[] )
 		src.JumpToFrame( frames[fc]);
 		cv::Mat c = src.GetCurrent();
 		
-		SaveImage( c, ss.str() );
+		MCDSaveImage( c, ss.str() );
 	}
 }

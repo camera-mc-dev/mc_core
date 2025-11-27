@@ -7,7 +7,7 @@
 
 // stupid windows
 cv::Mat MCDLoadImage(std::string filename);
-void SaveImage(cv::Mat &img, std::string filename);
+void MCDSaveImage(cv::Mat &img, std::string filename);
 
 void SaveCFImage( cfMatrix &img, std::string filename );
 cfMatrix LoadCFImage(std::string filename);

@@ -265,14 +265,14 @@ int main(int argc, char *argv[] )
 		{
 			done = true;
 			gpImage *= 255;
-			SaveImage( gpImage, "groundPlane.png" );
+			MCDSaveImage( gpImage, "groundPlane.png" );
 		}
 		if( animate )
 		{
 			std::stringstream ss;
 			ss << "groundPlane-" << std::setw(8) << std::setfill('0') << sources[0]->GetCurrentFrameID() << ".charImg";
 			gpImage *= 255;
-			SaveImage( gpImage, ss.str() );
+			MCDSaveImage( gpImage, ss.str() );
 			for( unsigned isc = 0; isc < sources.size(); ++isc )
 			{
 				done = done | !sources[isc]->Advance();

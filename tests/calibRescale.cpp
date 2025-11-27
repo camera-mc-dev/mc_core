@@ -16,7 +16,7 @@ using std::vector;
 #include <boost/filesystem.hpp>
 
 #include <sstream>
-
+#undef small
 int main(int argc, char* argv[])
 {
 	if( argc != 2 )
@@ -64,6 +64,6 @@ int main(int argc, char* argv[])
 		
 		std::stringstream ss;
 		ss << "/tmp/rescale-" << std::setw(6) << std::setprecision(5) << std::fixed << scale << ".jpg";
-		SaveImage( small, ss.str() );
+		MCDSaveImage( small, ss.str() );
 	}
 }

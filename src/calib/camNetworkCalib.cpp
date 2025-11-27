@@ -682,7 +682,7 @@ void CamNetCalibrator::GetGrids()
 // 			cv::Mat grab = gridRen->Capture();
 // 			std::stringstream ss;
 // 			ss << "gridImgs/" << std::setw(6) << std::setfill('0') << fc << "_" << std::setw(6) << std::setfill('0') << gc << ".jpg";
-// 			SaveImage( grab, ss.str() );
+// 			MCDSaveImage( grab, ss.str() );
 // 			
 // 			++fc;
 // 		}

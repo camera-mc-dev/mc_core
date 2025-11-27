@@ -24,7 +24,7 @@ int main(void)
 	cout << "err after create: " <<  glGetError() << endl;
 	
 	// Image on the Background
-	cv::Mat img = LoadImage("data/testcard.png");
+	cv::Mat img = MCDLoadImage("data/testcard.png");
 	ren->SetBGImage(img);
 	ren->Get2dBgCamera()->SetOrthoProjection(0,1024,0,512,-100,100);
 	
@@ -70,12 +70,12 @@ int main(void)
 	cv::Mat grab = ren->Capture();
 	
 	cout << "b: " << endl;
-	SaveImage(grab, "tst.jpg");
+	MCDSaveImage(grab, "tst.jpg");
 	
 	cv::Mat i( 1024, 1024, CV_32FC3, cv::Scalar(0,0,0,0) );
 	ren->RenderToTexture(i);
 	i = i * 255.0f;
-	SaveImage(i, "tst2.jpg");
+	MCDSaveImage(i, "tst2.jpg");
 	
 	
 }

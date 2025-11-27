@@ -34,15 +34,34 @@ int main(int argc, char* argv[] )
 		src = (ImageSource*) new VideoSource(argv[1], "none");
 	}
 	
+	cout << "creating window" << endl;
 	
 	cv::Mat img = src->GetCurrent();
 	
 	float ar = img.rows / (float)img.cols;
+
+	cout << img.rows << " " << img.cols << endl;
+
 	std::shared_ptr<Rendering::BasicPauseRenderer> ren;
-	Rendering::RendererFactory::Create(ren, 1000, ar*1000, " circles test ");
+	try
+	{
+		Rendering::RendererFactory::Create(ren, 1000, ar*1000, " circles test ");
+	}
+	catch(const std::exception& e)
+	{
+		cout << "caught exception: " << e.what() << endl;
+		return(0);
+	}
+	catch(...)
+	{
+		cout << "caught unknown exception" << endl;
+		return(0);
+	}
+
 	
 	ren->Get2dBgCamera()->SetOrthoProjection(0, img.cols, 0, img.rows, -100, 100 );
 	
+	cout << "starting loop" << endl;
 	
 	bool paused, advance;
 	paused = true;

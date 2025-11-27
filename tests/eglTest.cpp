@@ -206,7 +206,7 @@ int main( int argc, char *argv[] )
 	cv::Mat res(600,800, CV_8UC3, cv::Scalar(0));
 //	glGetTexImage( GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, res.data );
 	glReadPixels(0, 0, 800, 600, GL_BGR, GL_UNSIGNED_BYTE, res.data );
-	SaveImage(res, "tst.jpg");
+	MCDSaveImage(res, "tst.jpg");
 	
 	
 	
