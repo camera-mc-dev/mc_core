@@ -12,18 +12,14 @@ void main()
 {
 	// the texture is single channel, so get the R value.
 	float v = texture( tex0, fragTexCoord ).r;
-
-	// output colour is the user supplied colour,
-	// but the alpha is set to 0 where there's no text...
-	// i.e. where v > 0.5
+	
+	// output colour is the user supplied colour...
 	fragColor = baseColour;
-
-	if( v > 0.499 )
-	{
-		fragColor.a = 0.0;
-	}
-
-	// do some anti-aliasing.
-	fragColor.a *= smoothstep(0.25, 0.75, fragColor.a);
-
+	
+	
+	// but alpha goes black outside of text.
+	// outside of text means v > 0.5
+	// but have a bit of smoothing between inside and outside.
+	fragColor.a = smoothstep( 0.489, 0.503, 1.0-v);
+	
 }
