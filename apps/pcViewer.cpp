@@ -6,6 +6,7 @@
 #include "math/matrixGenerators.h"
 #include "imgio/sourceFactory.h"
 #include "calib/calibration.h"
+#include "imgio/loadsave.h"
 
 
 #include <iostream>

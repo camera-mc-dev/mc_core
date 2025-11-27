@@ -27,7 +27,7 @@ os.chdir("%s"%(Dir(".").srcnode().abspath))
 # got into a build directory, it kind of forgets, and at the linker stage,
 # sees just .o files and thus uses gcc. Using gcc when everything else is c++
 # means it doesn't automatically pull in the c++ libraries. Ooops.
-srcEnv.Replace(LINK=srcEnv['CXX'])
+#srcEnv.Replace(LINK=srcEnv['CXX'])
 
 # find out where the current SConscript file was.
 scfpath = Dir('.').srcnode().abspath
@@ -42,6 +42,26 @@ srcEnv.Append(LIBPATH = ["%s/../%s/src"%(scfpath, buildDir)])
 
 # find any .cpp files in the current directory.
 cpps = [f for f in os.listdir('.') if f[-4:] == '.cpp']
+
+
+# 1. Get the list of library search directories from the SCons variable.
+#    Use .get() to avoid a KeyError if LIBPATH was never explicitly set,
+#    though it should be defined by the 'msvc' tool.
+LINK_DIRS = env.get('LIBPATH', [])
+
+# 2. Check if the list is empty (for safety)
+if LINK_DIRS:
+    # 3. Create the list of MSVC-specific /LIBPATH: flags
+    #    Iterate over every directory path and prepend the required MSVC syntax.
+    msvc_libpath_flags = [f'/LIBPATH:{path}' for path in LINK_DIRS]
+
+    # 4. Clear existing LINKFLAGS and then append the new, correct ones.
+    #    Using Replace first ensures no old conflicting flags remain.
+    env.Replace(LINKFLAGS=[])
+    env.Append(LINKFLAGS=msvc_libpath_flags)
+
+    print("MSVC Linker paths successfully transferred to LINKFLAGS.")
+
 
 # now search through any subDirectories.
 # we are only going to go one level deep.

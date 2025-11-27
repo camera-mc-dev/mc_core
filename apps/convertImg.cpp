@@ -14,7 +14,7 @@ int main( int argc, char* argv[] )
 	}
 
 	cv::Mat img, out;
-	img = LoadImage( argv[1] );
+	img = MCDLoadImage( argv[1] );
 
 	if( std::string(argv[2]).find(".floatImg") == std::string::npos )
 	{

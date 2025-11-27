@@ -118,7 +118,7 @@ std::shared_ptr<Rendering::MeshNode> Rendering::BasicHeadlessRenderer::SetBGImag
 		Rendering::NodeFactory::Create( bgImgNode, "convenienceBGImageNode");
 	}
 
-	bgImgTex->UploadImage(img);
+	bgImgTex->UpMCDLoadImage(img);
 	bgImgCard->UploadToRenderer( smartThis );
 	bgImgNode->SetTexture(bgImgTex);
 	bgImgNode->SetShader( GetShaderProg("basicShader") );

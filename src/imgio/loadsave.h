@@ -5,7 +5,8 @@
 #include <opencv2/opencv.hpp>
 #include "math/mathTypes.h"
 
-cv::Mat LoadImage(std::string filename);
+// stupid windows
+cv::Mat MCDLoadImage(std::string filename);
 void SaveImage(cv::Mat &img, std::string filename);
 
 void SaveCFImage( cfMatrix &img, std::string filename );

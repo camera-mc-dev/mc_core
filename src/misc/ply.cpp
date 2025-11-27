@@ -373,7 +373,7 @@ genRowMajMatrix LoadPlyTxtPointRGB( std::string infn )
 		infi >> cmd;
 		cout << cmd << endl;
 		if( cmd.compare("ply") == 0 )
-			gotply == true;
+			gotply = true;
 		else if( cmd.compare("format") == 0 )
 		{
 			std::string s;

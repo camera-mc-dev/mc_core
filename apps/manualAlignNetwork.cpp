@@ -292,7 +292,7 @@ AxisPoints GetAxisObservationsInteractive( Settings &s, std::vector< ImageSource
 // 	for( unsigned isc = 0; isc < sources.size(); ++isc )
 // 	{
 // 		cv::Mat img = sources[isc]->GetCurrent();
-// 		ren.UploadImage( img, tex );
+// 		ren.UpMCDLoadImage( img, tex );
 // 
 // 		std::vector< hVec2D > imgPoints;
 // 		while( imgPoints.size() < 3 )

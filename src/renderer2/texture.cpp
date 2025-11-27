@@ -57,7 +57,7 @@ void Rendering::Texture::SetFilters( GLuint in_magFilter, GLuint in_minFilter )
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter );
 }
 
-void Rendering::Texture::UploadImage(cv::Mat img)
+void Rendering::Texture::UpMCDLoadImage(cv::Mat img)
 {
 	GLenum err;
 

@@ -1,10 +1,6 @@
 #ifndef SCENE_GRAPH_H
 #define SCENE_GRAPH_H
 
-// stupid windows compile thing
-// windows had non-standard keywords for nearClip and farClip for old fashioned 
-// stuff, and being windows, didn't properly remove them, and I don't want to include windows.h
-
 
 #include "math/mathTypes.h"
 #include <vector>

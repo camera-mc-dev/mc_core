@@ -10,7 +10,6 @@
 // ----------------------------------------------------------------------------------------------------- //
 
 
-
 Rendering::SceneNode::SceneNode(std::string in_id)
 {
 	id = in_id;
@@ -185,7 +184,7 @@ void Rendering::CameraNode::SetPerspectiveProjection( transMatrix2D K, float w, 
 {
 	// This should map our desired right-handed looking along +ve z camera coordinate system
 	// to the appropriate OpenGL normalised device coordinates. Hopefully...
-	projMatrix = ProjMatGLFromK( K, w, h, near, far );
+	projMatrix = ProjMatGLFromK( K, w, h, nearClip, farClip );
 
 }
 

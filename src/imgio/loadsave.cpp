@@ -17,7 +17,7 @@ bool magickIsInitted = false;
 
 // Sometimes, it's quicker or just nicer to have a custom wrapper
 // for loading / saving images and using Magick++ rather than opencv.
-cv::Mat LoadImage(std::string filename)
+cv::Mat MCDLoadImage(std::string filename)
 {
 
 	if( !magickIsInitted )

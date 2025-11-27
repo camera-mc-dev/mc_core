@@ -18,7 +18,7 @@ void ImageDirectory::PreFetchThread()
 		if( frameIdx+1  < imageList.size() )
 		{
 			//std::cout << "\n*\n*\n*\n*\nprefetch load \n*\n*\n*\n*" << std::endl;
-			nextImage = LoadImage( imageList[frameIdx+1] );
+			nextImage = MCDLoadImage( imageList[frameIdx+1] );
 		}
 		
 		// release mutex and allow anyone waiting on us to continue.
@@ -208,7 +208,7 @@ frameTime_t ImageDirectory::GetCurrentFrameTime()
 bool ImageDirectory::ReadImage( )
 {
 	// current = cv::imread( imageList[frameIdx] );
-	current = LoadImage( imageList[frameIdx] );
+	current = MCDLoadImage( imageList[frameIdx] );
 	return true;
 	//TODO: Error checks!
 }

@@ -8,6 +8,10 @@
 using std::cout;
 using std::endl;
 
+// windows is stupid
+
+#include "loadsave.h"
+
 class FNImageDirectory : public ImageSource
 {
 protected:
@@ -240,7 +244,7 @@ public:
 		auto i = imgMap.find( realFrameNo );
 		if( i != imgMap.end() )
 		{
-			current = LoadImage( i->second );
+			current = MCDLoadImage( i->second );
 		}
 		else
 		{
@@ -249,7 +253,7 @@ public:
 			// we need an image of a sensible size... load the first image and blank it.
 			// really we could remember what size image and just make a blank image, but
 			// will it matter?
-			current = LoadImage( imgMap.begin()->second );
+			current = MCDLoadImage( imgMap.begin()->second );
 			current = cv::Mat( current.rows, current.cols, current.type(), cv::Scalar(0) );
 		}
 		cout << "frameIdx: " << frameIdx << " (" << realFrameNo << ")" << " : " << current.rows << " " << current.cols << endl;

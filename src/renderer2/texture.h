@@ -17,7 +17,7 @@ namespace Rendering
 		Texture(std::weak_ptr<AbstractRenderer> renderer);
 		~Texture();
 
-		void UploadImage( cv::Mat img );
+		void UpMCDLoadImage( cv::Mat img );
 
 		GLuint GetID()
 		{

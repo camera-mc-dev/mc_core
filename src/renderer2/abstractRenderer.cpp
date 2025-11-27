@@ -22,7 +22,7 @@ void Rendering::AbstractRenderer::FinishConstructor()
 	cv::Mat blankImg( 10, 10, CV_8UC3, cv::Scalar(255,255,255) );
 	
 	blankTexture.reset( new Texture(smartThis) );
-	blankTexture->UploadImage( blankImg );
+	blankTexture->UpMCDLoadImage( blankImg );
 }
 
 

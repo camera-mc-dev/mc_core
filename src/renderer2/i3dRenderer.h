@@ -6,6 +6,11 @@
 #include "renderer2/basicRenderer.h"
 #include "calib/calibration.h"
 
+
+// windows is stupid
+#undef near
+#undef far
+
 namespace Rendering
 {
 	// forward declarations

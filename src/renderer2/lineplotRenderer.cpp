@@ -36,7 +36,7 @@ void Rendering::LineplotRenderer::AddPlot(std::vector< Eigen::Vector2f > dataPoi
 	{
 		cv::Mat t(10,10, CV_8UC3, cv::Scalar(255,255,255) );
 		tex.reset( new Texture( smartThis ) );
-		tex->UploadImage(t);
+		tex->UpMCDLoadImage(t);
 	}
 	
 //	cout << "d1" << endl;

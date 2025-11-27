@@ -388,7 +388,7 @@ int main(int argc, char *argv[] )
 	// camera location.
 	cv::Mat nullImg(10,10, CV_8UC3, cv::Scalar(0,0,0) );
 	auto nullTex = std::make_shared<Rendering::Texture>( Rendering::Texture(ren) );
-	nullTex->UploadImage(nullImg);
+	nullTex->UpMCDLoadImage(nullImg);
 	std::vector< std::shared_ptr<Rendering::Mesh> > camCubes(sources.size());
 	std::vector< std::shared_ptr<Rendering::MeshNode> > camNodes(sources.size());
 	Eigen::Vector4f magenta;

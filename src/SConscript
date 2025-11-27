@@ -45,7 +45,7 @@ for f in cpps:
 
 # and all those object files simply archive into
 # a static library.
-libTarget = srcEnv.StaticLibrary('libMC-core', objs)
+libTarget = srcEnv.StaticLibrary('MC-core', objs)
 
 os.chdir(sconsDir)
 

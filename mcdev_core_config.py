@@ -54,46 +54,37 @@ def SetProjectPaths(env):
 	env.Append(CPPPATH=[f"{VCPKGROOT}/include"])
 	env.Append(LIBPATH=[f"{VCPKGROOT}/lib"])
 
+	env.Append(CPPPATH=["D:/murray/programming/nanoflann/include"])
+
 
 def FindOpenGL(env):
 	# We use SFML for creating windows and window interaction.
-	env.Append(CPPPATH=['/usr/include/SFML'])
-	if env['PLATFORM'] == 'posix':
-		env.Append(LIBS=['jpeg'])
-		env.ParseConfig("pkg-config sfml-all --cflags --libs")
-	elif env['PLATFORM'] == 'darwin':
-		env.Append(LIBS=['sfml-graphics', 'sfml-window', 'sfml-system'])
+	#env.Append(CPPPATH=['/usr/include/SFML'])
+	#if env['PLATFORM'] == 'posix':
+	#	env.Append(LIBS=['jpeg'])
+	#	env.ParseConfig("pkg-config sfml-all --cflags --libs")
+	#elif env['PLATFORM'] == 'darwin':
+	#	env.Append(LIBS=['sfml-graphics', 'sfml-window', 'sfml-system'])
+
+	env.Append( CPPPATH = ["D:\murray\programming\SFML-2.6.2-windows-vc17-64-bit\SFML-2.6.2\include"] )
+	env.Append( LIBPATH = ["D:\murray\programming\SFML-2.6.2-windows-vc17-64-bit\SFML-2.6.2\lib"] )
+	env.Append(LIBS=['sfml-graphics', 'sfml-window', 'sfml-system', 'freetype'])
+	env.Append(LIBS=['openGL32', 'glew32', 'glu32'])
 	
-	# We also directly use OpenGL for rendering.
-	# OpenGL on Mac needs to be done one way, and linux another.
-	if env['PLATFORM'] == 'darwin':
-		env.Append(LINKFLAGS=['-framework', 'OpenGL'])
-	elif env['PLATFORM'] == 'posix':
-		env.Append(LIBS=['GL', 'GLEW', 'GLU'])
-	
-	# freetype2 for font rendering. The v2 renderer can't use
-	# SFML's text code, so we wrapped up our own.
-	#env.ParseConfig("pkg-config freetype2 --cflags --libs")
-	env.Append(LIBS='freetype')
-	
-	# we can also use EGL for headless OpenGL rendering contexts,
-	# which is great for remote applications where we need to render,
-	# but don't care about seeing it.
-	if env['PLATFORM'] == 'posix':
-		env.Append(CPPDEFINES=["USE_EGL"])
-		env.ParseConfig("pkg-config egl --cflags --libs")
+
 
 
 def FindOpenCV(env):
 	# We use OpenCV for lots of things.
 	env.Append(CPPPATH=[f"{VCPKGROOT}/include/opencv4/"])
 	env.Append(CPPPATH=[f"{VCPKGROOT}/include/opencv4/"])
-	env.Append(LIBS=['opencv_core4', 'opencv_calib3d4', 'opencv_highgui4', 'opencv_video4', 'opencv_videoio4','opencv_dnn4'])
+	env.Append(LIBS=['opencv_xfeatures2d4','opencv_features2d4','opencv_calib3d4', 'opencv_highgui4', 'opencv_video4', 'opencv_videoio4','opencv_imgproc4','opencv_imgcodecs4','opencv_core4'])
 
 
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
-	env.Append(LIBS=['boost_system','boost_filesystem'])
+	#env.Append(LIBS=['boost_system','boost_filesystem'])
+	env.Append(LIBS=['boost_filesystem-vc143-mt-x64-1_89'])
 	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
 
 def FindMagick(env):
@@ -107,7 +98,8 @@ def FindMagick(env):
 def FindLibConfig(env):
 	# libconfig is used for config files and data loading.
 	env.Append(CPPPATH=[f"{VCPKGROOT}/include/libconfig/"])
-	env.Append(LIBS=['libconfig'])
+	env.Append(CXXFLAGS=['/DLIB_CONFIG_STATIC'])
+	env.Append(LIBS=['libconfig++'])
 
 def FindSnappy(env):
 	# We use a very basic custom image format for rapid saving 

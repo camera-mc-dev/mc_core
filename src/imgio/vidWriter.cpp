@@ -2,8 +2,6 @@
 #include <boost/algorithm/string.hpp>
 #include "commonConfig/commonConfig.h"
 
-#ifdef HAVE_FFMPEG
-
 #include <sstream>
 #include <iostream>
 using std::cout;
@@ -11,6 +9,7 @@ using std::endl;
 
 VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typicalImage, int in_fps, int in_crf, std::string pixfmt)
 {
+#ifndef _WIN32
 	// build up our ffmpeg command into a stringstream
 	std::stringstream ss;
 	
@@ -93,14 +92,17 @@ VidWriter::VidWriter( std::string filename, std::string codecStr, cv::Mat typica
 		cout << "popen error" << endl;
 		exit(1);
 	}
-	
+#else
+	throw( std::runtime_error( "vid writer uses pipes for linux, not set up for Windows") );
+#endif
 	
 
 }
 
 VidWriter::VidWriter( std::string filename, std::string encoderStr, cv::Mat typicalImage, int in_fps )
 {
-		// build up our ffmpeg command into a stringstream
+#ifndef _WIN32
+	// build up our ffmpeg command into a stringstream
 	std::stringstream ss;
 	
 	// start with the basics - the actual ffmpeg executable.
@@ -154,6 +156,9 @@ VidWriter::VidWriter( std::string filename, std::string encoderStr, cv::Mat typi
 		cout << "popen error" << endl;
 		exit(1);
 	}
+#else
+	throw( std::runtime_error( "vid writer uses pipes for linux, not set up for Windows") );
+#endif
 }
 
 
@@ -176,4 +181,3 @@ VidWriter::~VidWriter()
 	fclose(outPipe);
 // 	delete outPipe;
 }
-#endif

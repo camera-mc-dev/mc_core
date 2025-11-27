@@ -55,7 +55,7 @@ void CamNetCalibrator::ReadConfig()
 		else
 		{
 			cout << "no downHints in config file, assuming down is (0,1)" << endl;
-			sleep(2);
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 			downHints.resize( imgDirs.size() );
 			for( unsigned c = 0; c < downHints.size(); ++c )
 			{
@@ -675,7 +675,7 @@ void CamNetCalibrator::GetGrids()
 // 					cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
 // 				}
 // 				
-// 				imgCards[isc]->GetTexture()->UploadImage( img );
+// 				imgCards[isc]->GetTexture()->UpMCDLoadImage( img );
 // 			}
 // 			
 // 			gridRen->StepEventLoop();
@@ -1518,7 +1518,7 @@ void CamNetCalibrator::DebugGrid(unsigned cam, unsigned grid, vector<hVec2D> &ob
 // 
 // 	Texture tex = dren->GenTexture();
 // 	cv::Mat i = sources[cam]->GetCurrent();
-// 	dren->UploadImage( i, tex );
+// 	dren->UpMCDLoadImage( i, tex );
 // 	Calibration c;
 // 	c.width  = sources[cam]->GetCurrent().cols;
 // 	c.height = sources[cam]->GetCurrent().rows;
