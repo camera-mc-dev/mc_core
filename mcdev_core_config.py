@@ -1,5 +1,7 @@
 from SCons.Script import *
 
+VCPKGROOT = "D:/murray/programming/vcpkg/installed/x64-windows"
+
 def SetCompiler(env):
 	print( env['PLATFORM'] )
 	conf = Configure(env)
@@ -19,11 +21,14 @@ def SetCompiler(env):
 	elif env['PLATFORM'] == 'posix':
 		pass
 	elif env['PLATFORM'] == 'win32':
-		if conf.CheckProg('clang++') != None:
-			env.Replace(CXX = 'clang++')
-		else:
-			print( "no clang" )
-			exit(0)
+		pass
+		# if conf.CheckProg('clang++') != None:
+		# 	env.Replace(CXX = 'clang++')
+		# 	env.Append(CPPPATH=["D:/murray/programming/vcpkg/x64-windows/include/"])
+		# 	env.Append(LIBPATH=["D:/murray/programming/vcpkg/x64-windows/lib/"])
+		# else:
+		# 	print( "no clang" )
+		# 	exit(0)
 	
 	else:
 		print( "-----------------------------------------------------------------------------------" )
@@ -31,13 +36,14 @@ def SetCompiler(env):
 		exit(0)
 	
 	# Enable C++ 11
-	env.Append(CPPFLAGS=['-std=c++17'])
+	env.Append(CPPFLAGS=['/std:c++17'])
 	
 	# all warnings, but also show how to disable each
 	# warning if necessary.
-	env.Append(CPPFLAGS=['-Wall', '-fdiagnostics-show-option' ])
+	# env.Append(CPPFLAGS=['-Wall', '-fdiagnostics-show-option' ])
 	
 	env = conf.Finish()
+
 
 
 def SetProjectPaths(env):
@@ -45,16 +51,8 @@ def SetProjectPaths(env):
 	env.Append(CPPPATH=['.'])
 	
 	# get /usr/local in the include and library paths
-	env.Append(CPPPATH=['/usr/local/include'])
-	env.Append(LIBPATH=['/usr/local/lib'])
-
-
-def FindFFMPEG(env):
-	# We use FFMPEG directly for our video writer.
-	env.ParseConfig("pkg-config libavformat --cflags --libs")
-	env.ParseConfig("pkg-config libavutil --cflags --libs")
-	env.ParseConfig("pkg-config libavcodec --cflags --libs")
-	env.ParseConfig("pkg-config libswscale --cflags --libs")
+	env.Append(CPPPATH=[f"{VCPKGROOT}/include"])
+	env.Append(LIBPATH=[f"{VCPKGROOT}/lib"])
 
 
 def FindOpenGL(env):
@@ -75,7 +73,8 @@ def FindOpenGL(env):
 	
 	# freetype2 for font rendering. The v2 renderer can't use
 	# SFML's text code, so we wrapped up our own.
-	env.ParseConfig("pkg-config freetype2 --cflags --libs")
+	#env.ParseConfig("pkg-config freetype2 --cflags --libs")
+	env.Append(LIBS='freetype')
 	
 	# we can also use EGL for headless OpenGL rendering contexts,
 	# which is great for remote applications where we need to render,
@@ -87,21 +86,10 @@ def FindOpenGL(env):
 
 def FindOpenCV(env):
 	# We use OpenCV for lots of things.
-	env.ParseConfig("pkg-config opencv4 --cflags --libs")
+	env.Append(CPPPATH=[f"{VCPKGROOT}/include/opencv4/"])
+	env.Append(CPPPATH=[f"{VCPKGROOT}/include/opencv4/"])
+	env.Append(LIBS=['opencv_core4', 'opencv_calib3d4', 'opencv_highgui4', 'opencv_video4', 'opencv_videoio4','opencv_dnn4'])
 
-	# OpenCV now needs this... well, on Mac anyway...
-	# Note: This assumes Opencv was installed with Homebrew.
-	if env['PLATFORM'] == 'darwin':
-		env.Append(LINKFLAGS=['-rpath', '/usr/local/opt/opencv3/lib'])
-
-	# at present, OpenCV's pkg-config doesn't supply this
-	if env['PLATFORM'] == 'posix':
-		env.Append(LIBPATH=["/usr/local/share/OpenCV/3rdparty/lib/"])
-
-
-def FindEigen(env):
-	# Eigen is used for the maths.
-	env.ParseConfig("pkg-config eigen3 --cflags --libs")
 
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
@@ -112,12 +100,14 @@ def FindMagick(env):
 	# Image magick has advantages over OpenCV in my experience.
 	# Having said that, we can probably make this optional or just plump for OpenCV
 	# and avoid this dependency....
-	env.ParseConfig("pkg-config Magick++ --cflags --libs")
+	env.Append(CPPPATH=[f"{VCPKGROOT}/include/GraphicsMagick/"])
+	env.Append(LIBS=['GraphicsMagick++'])
 
 
 def FindLibConfig(env):
 	# libconfig is used for config files and data loading.
-	env.ParseConfig("pkg-config libconfig++ --cflags --libs")
+	env.Append(CPPPATH=[f"{VCPKGROOT}/include/libconfig/"])
+	env.Append(LIBS=['libconfig'])
 
 def FindSnappy(env):
 	# We use a very basic custom image format for rapid saving 
@@ -131,11 +121,11 @@ def FindCeres(env):
 	# some google libs.
 	env.Append(LIBS=["gflags", "glog", "ceres"])
 
-def FindHDF5(env):
-	# We use HDF5 files when we create and load a training dataset.
-	env.ParseConfig("pkg-config hdf5 --libs --cflags")
-	env.Append(LIBS=['hdf5'])
-	env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
+# def FindHDF5(env):
+	# # We use HDF5 files when we create and load a training dataset.
+	# env.ParseConfig("pkg-config hdf5 --libs --cflags")
+	# env.Append(LIBS=['hdf5'])
+	# env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
 
 def SetCoreConfig(env):
 	# --
@@ -151,11 +141,13 @@ def SetCoreConfig(env):
 	
 	FindOpenCV(env)
 	FindOpenGL(env)
-	FindFFMPEG(env)
-	FindEigen(env)
+
+
 	FindBoost(env)
 	FindMagick(env)
 	FindLibConfig(env)
 	FindSnappy(env)
 	FindCeres(env)
-	FindHDF5(env)
+	# FindHDF5(env)
+
+

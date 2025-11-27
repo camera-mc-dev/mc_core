@@ -248,6 +248,13 @@ for bm in buildEnvs:
 	buildDir = "build/%s"%bm
 	env = buildEnvs[bm]
 
+	print( "---" )
+	print( env.keys() )
+	print( env['CPPSUFFIXES'] )
+	print( env['CXX'] )
+	# print( env['CC'] )
+	print( "----" )
+
 	env.SConscript(dirs=['src'], variant_dir="%s/src"%buildDir, exports ='env buildDir bm', duplicate=False)
 	env.SConscript(dirs=['apps'], variant_dir="%s/apps"%buildDir, exports ='env buildDir bm', duplicate=False)
 	env.SConscript(dirs=['tests'], variant_dir="%s/tests"%buildDir, exports ='env buildDir bm', duplicate=False)
