@@ -53,7 +53,7 @@ std::shared_ptr<Rendering::MeshNode> Rendering::GenerateImageNode(float tlx, flo
 	float ar = img.rows / (float)img.cols;
 	auto card = Rendering::GenerateCard(width, width*ar, false);
 	std::shared_ptr<Texture> tex = std::shared_ptr<Texture>( new Texture(ren) );
-	tex->UpMCDLoadImage(img);
+	tex->UploadImage(img);
 	card->UploadToRenderer(ren);
 	
 	std::shared_ptr<Rendering::MeshNode> mn;
@@ -84,7 +84,7 @@ std::shared_ptr<Rendering::MeshNode> Rendering::GenerateImageNode(float tlx, flo
 {
 	auto card = Rendering::GenerateCard(width, height, false);
 	std::shared_ptr<Texture> tex = std::shared_ptr<Texture>( new Texture(ren) );
-	tex->UpMCDLoadImage(img);
+	tex->UploadImage(img);
 	card->UploadToRenderer(ren);
 	
 	std::shared_ptr<Rendering::MeshNode> mn;
@@ -116,7 +116,7 @@ std::shared_ptr<Rendering::MeshNode> Rendering::GenerateImageNode(float tlx, flo
 	auto card = Rendering::GenerateCard(width, height, false);
 	std::shared_ptr<Texture> tex = std::shared_ptr<Texture>( new Texture(ren) );
 	cv::Mat img( 10, 10, CV_32FC3, cv::Scalar(0,0,0) );
-	tex->UpMCDLoadImage(img);
+	tex->UploadImage(img);
 	card->UploadToRenderer(ren);
 	
 	std::shared_ptr<Rendering::MeshNode> mn;

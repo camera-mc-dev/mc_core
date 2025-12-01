@@ -124,7 +124,7 @@ std::shared_ptr<Rendering::MeshNode> Rendering::BasicRenderer::SetBGImage(cv::Ma
 		Rendering::NodeFactory::Create( bgImgNode, "convenienceBGImageNode");
 	}
 
-	bgImgTex->UpMCDLoadImage(img);
+	bgImgTex->UploadImage(img);
 	bgImgCard->UploadToRenderer( smartThis );
 	bgImgNode->SetTexture(bgImgTex);
 	bgImgNode->SetShader( GetShaderProg("basicShader") );

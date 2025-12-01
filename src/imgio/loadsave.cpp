@@ -19,13 +19,13 @@ bool magickIsInitted = false;
 // for loading / saving images and using Magick++ rather than opencv.
 cv::Mat MCDLoadImage(std::string filename)
 {
-
-	if( !magickIsInitted )
-    {
-        Magick::InitializeMagick(NULL);
-        magickIsInitted = true;
-    }
-
+// cout << "a" << endl;
+// 	if( !magickIsInitted )
+//     {
+//         Magick::InitializeMagick(NULL);
+//         magickIsInitted = true;
+//     }
+// cout << "b" << endl;
 	//cout << "loading: " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos )
 	{
@@ -162,37 +162,39 @@ cv::Mat MCDLoadImage(std::string filename)
 
 jumpLabel01:
 
-	Magick::Image mimg;
-	mimg.read(filename);
-
-	// TODO: Check type and colour channels of mimg...
-	if( mimg.type() == Magick::GrayscaleType)
-	{
-		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
-		mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
-		return cvimg;
-	}
-	else if( mimg.type() == Magick::PaletteType )
-	{
-		if( mimg.colorMapSize() <= 256 )
-		{
-			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
-			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
-			return cvimg;
-		}
-		else
-		{
-			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC3 );
-			mimg.write(0,0, mimg.columns(), mimg.rows(), "BGR", Magick::CharPixel, cvimg.data );
-			return cvimg;
-		}
-	}
-	else
-	{
-		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC3 );
-		mimg.write(0,0, mimg.columns(), mimg.rows(), "BGR", Magick::CharPixel, cvimg.data );
-		return cvimg;
-	}
+	return cv::imread( filename );
+// cout << "c" << endl;
+// 	Magick::Image mimg;
+// 	mimg.read(filename);
+// cout << "d " << mimg.rows() << " " << mimg.columns() << endl;
+// 	// TODO: Check type and colour channels of mimg...
+// 	if( mimg.type() == Magick::GrayscaleType)
+// 	{
+// 		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
+// 		mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
+// 		return cvimg;
+// 	}
+// 	else if( mimg.type() == Magick::PaletteType )
+// 	{
+// 		if( mimg.colorMapSize() <= 256 )
+// 		{
+// 			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
+// 			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
+// 			return cvimg;
+// 		}
+// 		else
+// 		{
+// 			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC3 );
+// 			mimg.write(0,0, mimg.columns(), mimg.rows(), "BGR", Magick::CharPixel, cvimg.data );
+// 			return cvimg;
+// 		}
+// 	}
+// 	else
+// 	{
+// 		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC3 );
+// 		mimg.write(0,0, mimg.columns(), mimg.rows(), "BGR", Magick::CharPixel, cvimg.data );
+// 		return cvimg;
+// 	}
 
 
 }

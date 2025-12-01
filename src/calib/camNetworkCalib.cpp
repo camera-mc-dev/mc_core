@@ -675,7 +675,7 @@ void CamNetCalibrator::GetGrids()
 // 					cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
 // 				}
 // 				
-// 				imgCards[isc]->GetTexture()->UpMCDLoadImage( img );
+// 				imgCards[isc]->GetTexture()->UploadImage( img );
 // 			}
 // 			
 // 			gridRen->StepEventLoop();
@@ -1518,7 +1518,7 @@ void CamNetCalibrator::DebugGrid(unsigned cam, unsigned grid, vector<hVec2D> &ob
 // 
 // 	Texture tex = dren->GenTexture();
 // 	cv::Mat i = sources[cam]->GetCurrent();
-// 	dren->UpMCDLoadImage( i, tex );
+// 	dren->UploadImage( i, tex );
 // 	Calibration c;
 // 	c.width  = sources[cam]->GetCurrent().cols;
 // 	c.height = sources[cam]->GetCurrent().rows;

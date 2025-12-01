@@ -8,7 +8,7 @@
 using std::cout;
 using std::endl;
 
-// windows is stupid
+
 
 #include "loadsave.h"
 

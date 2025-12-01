@@ -1,6 +1,7 @@
 #ifndef RENDERER2_H_ME
 #define RENDERER2_H_ME
 
+#include "renderer2/opengl.h"
 
 #include "renderer2/abstractRenderer.h"
 #include "math/mathTypes.h"

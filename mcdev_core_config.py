@@ -56,6 +56,7 @@ def SetProjectPaths(env):
 
 	env.Append(CPPPATH=["D:/murray/programming/nanoflann/include"])
 	env.Append(LINKFLAGS=['/SUBSYSTEM:CONSOLE'])
+	env.Append(CPPDEFINES=["WIN32_LEAN_AND_MEAN"])
 
 
 def FindOpenGL(env):
@@ -70,7 +71,7 @@ def FindOpenGL(env):
 	env.Append( CPPPATH = ["D:\murray\programming\SFML-2.6.2-windows-vc17-64-bit\SFML-2.6.2\include"] )
 	env.Append( LIBPATH = ["D:\murray\programming\SFML-2.6.2-windows-vc17-64-bit\SFML-2.6.2\lib"] )
 	env.Append(LIBS=['sfml-graphics', 'sfml-window', 'sfml-system', 'freetype'])
-	env.Append(LIBS=['openGL32', 'glew32', 'glu32'])
+	env.Append(LIBS=['openGL32', 'glew32', 'glu32','user32'])
 	
 
 

@@ -10,6 +10,7 @@ using std::cout;
 
 
 
+
 Rendering::BaseRenderer::BaseRenderer(unsigned in_width, unsigned in_height, std::string title) : AbstractRenderer(in_width,in_height,title)
 {
 	// request a modern openGL context.

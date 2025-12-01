@@ -238,9 +238,9 @@ int main(int argc, char* argv[])
 				}
 			}
 			
-			imgCards[isc]->GetTexture()->UpMCDLoadImage( img );
+			imgCards[isc]->GetTexture()->UploadImage( img );
 			
-// 			imgCards[isc]->GetTexture()->UpMCDLoadImage( sources[isc]->GetCurrent() );
+// 			imgCards[isc]->GetTexture()->UploadImage( sources[isc]->GetCurrent() );
 		}
 		renderer->StepEventLoop();
 		

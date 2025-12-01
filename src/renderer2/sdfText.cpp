@@ -9,7 +9,7 @@ Rendering::SDFText::SDFText(std::string in_fontFile, std::weak_ptr<AbstractRende
 	CreateSDFImage();
 
 	sdfTex.reset( new Texture(renderer) );
-	sdfTex->UpMCDLoadImage( sdfImage );
+	sdfTex->UploadImage( sdfImage );
 
 	// to actually render text, we also need to load the appropriate shaders.
 	// The SDFText class expects these to exist.

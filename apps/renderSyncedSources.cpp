@@ -345,7 +345,7 @@ int main(int argc, char* argv[])
 					
 				}
 				
-				imgCards[isc]->GetTexture()->UpMCDLoadImage( img );
+				imgCards[isc]->GetTexture()->UploadImage( img );
 			}
 			cout << ic << endl;
 		}
