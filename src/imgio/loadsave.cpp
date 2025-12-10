@@ -168,9 +168,25 @@ jumpLabel01:
 	// TODO: Check type and colour channels of mimg...
 	if( mimg.type() == Magick::GrayscaleType)
 	{
-		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
-		mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
-		return cvimg;
+		if( mimg.depth() == 8 )
+		{
+			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
+			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
+			return cvimg;
+		}
+		else if( mimg.depth() == 32 )
+		{
+			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_32FC1 );
+			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::FloatPixel, cvimg.data );
+			return cvimg;
+		}
+		else
+		{
+			std::stringstream ss;
+			ss << "unhandled channel depth: " << mimg.depth();
+			throw std::runtime_error( ss.str() );
+		}
+		
 	}
 	else if( mimg.type() == Magick::PaletteType )
 	{
