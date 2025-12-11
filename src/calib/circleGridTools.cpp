@@ -422,6 +422,10 @@ CircleGridDetector::CircleGridDetector( unsigned w, unsigned h, libconfig::Setti
 			{
 				blobDetector = CIRCD_t;
 			}
+			else if( bds.compare("CHESS") == 0 )
+			{
+				blobDetector = CVCHESS_t;
+			}
 		}
 		
 		
@@ -991,6 +995,30 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 	else if( blobDetector == CIRCD_t )
 	{
 		GridCircleFinder( grey, cd_minMagThresh, cd_detThresh, cd_rescale, tmpkps );
+	}
+	else if( blobDetector == CVCHESS_t )
+	{
+		std::vector<cv::Point2f> pts;
+		bool found = cv::findChessboardCorners( grey, cv::Size( cols, rows ), pts );
+		
+		float mx,Mx,my,My;
+		Mx = My = 0;
+		mx = my = std::max( grey.rows, grey.cols );
+		for( unsigned pc = 0; pc < pts.size(); ++pc )
+		{
+			mx = std::min( mx, pts[pc].x ); Mx = std::max( Mx, pts[pc].x );
+			mx = std::min( my, pts[pc].y ); My = std::max( My, pts[pc].y );
+		}
+		float size = ( (Mx-mx)+(My-my) ) / (rows+cols);
+		
+		tmpkps.resize( pts.size() );
+		for( unsigned pc = 0; pc < pts.size(); ++pc )
+		{
+			tmpkps[pc].size = size;
+			
+			tmpkps[pc].pt.x = pts[pc].x;
+			tmpkps[pc].pt.y = pts[pc].y;
+		}
 	}
 	
 	//

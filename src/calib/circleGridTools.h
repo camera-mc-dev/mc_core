@@ -55,7 +55,7 @@ void GridCircleFinder( cv::Mat grey, float minMagThresh, float detThresh, float 
 class CircleGridDetector
 {
 public:
-	enum blobDetector_t {MSER_t, SURF_t, CIRCD_t};
+	enum blobDetector_t {MSER_t, SURF_t, CIRCD_t, CVCHESS_t};
 	
 	CircleGridDetector( unsigned w, unsigned h, bool useHypothesis, bool visualise = false, blobDetector_t in_bdt = MSER_t, hVec2D down = {0,1,0});
 	CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg, hVec2D down = {0,1,0} );
