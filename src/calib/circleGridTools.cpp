@@ -1007,7 +1007,7 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 		for( unsigned pc = 0; pc < pts.size(); ++pc )
 		{
 			mx = std::min( mx, pts[pc].x ); Mx = std::max( Mx, pts[pc].x );
-			mx = std::min( my, pts[pc].y ); My = std::max( My, pts[pc].y );
+			my = std::min( my, pts[pc].y ); My = std::max( My, pts[pc].y );
 		}
 		float size = ( (Mx-mx)+(My-my) ) / (rows+cols);
 		
@@ -1060,6 +1060,8 @@ void CircleGridDetector::InitKeypoints(cv::Mat &grey, std::vector<cv::KeyPoint> 
 			count.push_back(1);
 		}
 	}
+	
+	
 }
 
 void CircleGridDetector::FindKeypoints(bool isGridLightOnDark)
@@ -1073,7 +1075,14 @@ void CircleGridDetector::FindKeypoints(bool isGridLightOnDark)
 	
 	auto t1 = std::chrono::steady_clock::now();
 	
-	RoughClassifyKeypoints( grey, isGridLightOnDark, filtkps );
+	if( blobDetector == CVCHESS_t )
+	{
+		kps = filtkps;
+	}
+	else
+	{
+		RoughClassifyKeypoints( grey, isGridLightOnDark, filtkps );
+	}
 	
 	auto t2 = std::chrono::steady_clock::now();
 	
