@@ -224,13 +224,7 @@ public:
 protected:
 	CGDRenderer(unsigned width, unsigned height, std::string title) : BasicRenderer(width,height,title)
 	{
-		Rendering::NodeFactory::Create(linesRoot, "linesRoot");
-		Rendering::NodeFactory::Create(gpsRoot, "gpsRoot");
 		
-		Get2dFgRoot()->AddChild(linesRoot);
-		Get2dFgRoot()->AddChild(gpsRoot);
-		
-		luuid = 0;
 	}
 public:
 	bool Step();
@@ -247,6 +241,21 @@ public:
 	std::shared_ptr< Rendering::SceneNode > gpsRoot;
 	
 	int luuid;
+	
+protected:
+	virtual void FinishConstructor()
+	{
+		BasicRenderer::FinishConstructor();
+		
+		Rendering::NodeFactory::Create(linesRoot, "linesRoot");
+		Rendering::NodeFactory::Create(gpsRoot, "gpsRoot");
+		
+		Get2dFgRoot()->AddChild(linesRoot);
+		Get2dFgRoot()->AddChild(gpsRoot);
+		
+		luuid = 0;
+	}
+	
 };
 
 

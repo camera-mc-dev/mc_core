@@ -44,7 +44,12 @@ int main(int argc, char* argv[])
 	Rendering::RendererFactory::Create( ren, 1280, 720, "MSER test" );
 	
 	CircleGridDetector cgDet(1920, 1080, false, true, CircleGridDetector::CVCHESS_t);
+<<<<<<< HEAD
 	
+=======
+	cgDet.parallelLineLengthRatioThresh = 0.85;
+	cgDet.parallelLineAngleThresh = 15.0;
+>>>>>>> 297c5688c196453ad807e6d89f763aa2f1d77d84
 	
 	bool done = false;
 	bool paused = false;
@@ -60,7 +65,7 @@ int main(int argc, char* argv[])
 		
 		
 		std::vector< CircleGridDetector::GridPoint > gridPoints;
-		cgDet.FindGrid( grey, 9, 10, false, false, gridPoints );
+		cgDet.FindGrid( grey, 4, 5, false, false, gridPoints );
 // 		cgDet.FindGrid( grey, 5, 9, false, false, gridPoints );
 		cout << "gridPoints: " << gridPoints.size() << endl;
 		for( unsigned gpc = 0; gpc < gridPoints.size(); ++gpc )
