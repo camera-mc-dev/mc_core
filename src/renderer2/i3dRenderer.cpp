@@ -311,8 +311,8 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	}
 	
 	viewCalib.L = T * viewCalib.L;
-	camCentre = viewCalib.GetCameraCentre();
-	viewCentre = camCentre + viewDir;
+	camCentre   = viewCalib.GetCameraCentre();
+	viewCentre  = camCentre + viewDir;
 	
 	
 	
@@ -349,10 +349,10 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		hVec3D t         = ovd - viewDir;
 		T.block(0,3,3,1) = t.head(3);
 		
-		cout << "---" << endl;
-		cout << viewDir.transpose() << endl;
-		cout << ovd.transpose() << endl;
-		cout << T << endl;
+		// cout << "---" << endl;
+		// cout << viewDir.transpose() << endl;
+		// cout << ovd.transpose() << endl;
+		// cout << T << endl;
 	}
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::G) )
 	{
@@ -361,10 +361,10 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		hVec3D t         = ovd - viewDir;
 		T.block(0,3,3,1) = t.head(3);
 		
-		cout << "---" << endl;
-		cout << viewDir.transpose() << endl;
-		cout << ovd.transpose() << endl;
-		cout << T << endl;
+		// cout << "---" << endl;
+		// cout << viewDir.transpose() << endl;
+		// cout << ovd.transpose() << endl;
+		// cout << T << endl;
 	}
 	viewCalib.L = viewCalib.L * T;
 	
@@ -392,7 +392,7 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		leftMousePressed = false;
 	}
 	
-	OrbitView( mouseMove, 0.1*ft );
+	OrbitView( mouseMove, ft );
 	
 	
 	// keep view centre node in the right place.
@@ -468,7 +468,7 @@ void Rendering::I3DRenderer::OrbitView( hVec2D mm, float time )
 		// I know this is ridiculous but, it works.
 		//
 		hVec3D tc; tc << -0.1*mm(0), -0.1*mm(1), 0.0, 0.0f;
-		hVec3D tw = viewCalib.TransformToWorld( tc );
+		hVec3D tw = viewCalib.TransformToWorld( time*tc );
 		
 		hVec3D up; up << 0,-1,0,0.0f;
 		up = viewCalib.TransformToWorld( up );
