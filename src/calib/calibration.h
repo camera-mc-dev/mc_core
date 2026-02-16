@@ -71,6 +71,26 @@ public:
 		width  = nwidth1;
 		height = nheight1;
 	}
+	
+	void RescaleImage( int nWidth, int nHeight )
+	{
+		// get per axis scale factors
+		float xs = nWidth / (float)width;
+		float ys = nHeight / (float)height;
+		
+		// rescale focal length
+		K(0,0) *= xs;
+		K(1,1) *= ys;
+		
+		// rescale principle point.
+		K(0,2) *= xs;
+		K(1,2) *= ys;
+		
+		// and remember new size
+		width  = nWidth;
+		height = nHeight;
+	}
+	
 
 	// read and write the calibration.
 	bool Read( std::string filename );
