@@ -47,23 +47,38 @@ int main(int argc, char* argv[])
 	
 	cv::Mat img = source->GetCurrent();
 	
-	for( float scale = 1.0; scale > 0.0; scale -= 0.05 )
+	float downscaleEndIter = 20000;
+	float finalDownscale   = 1;
+	float initialDownscale = 8;
+	for( unsigned iterCount = 0; iterCount < 50000; ++iterCount )
 	{
-		cout << "scale: " << scale << endl;
+		float currentDownscale = finalDownscale + (initialDownscale - finalDownscale) * pow( cos( (1.57f*iterCount)/downscaleEndIter ), 2.0f ); //std::exp( -(3.0f * iterCount)/(float)downscaleEndIter );
+		
+		float scale = 1.0f / currentDownscale;
+		if( iterCount >= downscaleEndIter )
+			scale = 1.0f;
+		
 		
 		Calibration c = source->GetCalibration();
 		c.RescaleImage( scale );
+		
+		
+		
+		
+		cv::Mat small;
+		cv::resize(img, small, cv::Size( c.width, c.height), cv::INTER_AREA );
+		
+		
+		std::stringstream ss;
+		ss << "/tmp/rescale-" << std::setw(8) << std::setfill('0') << iterCount << "-" << std::setw(6) << std::setprecision(5) << std::fixed << currentDownscale << ".jpg";
+		SaveImage( small, ss.str() );
+		
+		cout << iterCount << endl;
+		cout << "scale: " << scale << endl;
+		cout << "image size: " << small.cols << " " << small.rows << endl;
 		cout << "calib size: " << c.width << " " << c.height << endl;
 		cout << "K: " << endl;
 		cout << c.K << endl;
 		cout << " ---- " << endl << endl;
-		
-		cv::Mat small;
-		cv::resize(img, small, cv::Size( c.width, c.height), cv::INTER_AREA );
-		cout << "image size: " << small.cols << " " << small.rows << endl;
-		
-		std::stringstream ss;
-		ss << "/tmp/rescale-" << std::setw(6) << std::setprecision(5) << std::fixed << scale << ".jpg";
-		SaveImage( small, ss.str() );
 	}
 }
