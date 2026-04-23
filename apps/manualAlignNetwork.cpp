@@ -473,40 +473,34 @@ transMatrix3D ComputeTransformationGroundPlane( Settings &s, std::map< unsigned,
 	Eigen::JacobiSVD<Eigen::MatrixXf> svd(P, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	
 	
-	// the normal of the plane we're interested in is the last column of U
-	// and we want to make sure it points up
-	cout << "U: " << endl;
-	cout << svd.matrixU() << endl;
-	hVec3D norm; norm.head(3) = svd.matrixU().col(2);
-	cout << "plane norm: " << norm.transpose() << endl;
+	// we can use the SVD to get the rotation that we want.
+	// The SVD creates an orthonormal basis - the columns of U are the direction of maximum spread down to minimum spread,
+	// as orthogonal directions. Minimal spread will be the normal - hence the last column of U being the plane normal.
+	// Even more clever, if you multiply a point by the transpose of U, then you are projecting the point onto each basis vector
+	// and because of the svd being sorted the way it is the transpose of U is _already_ the rotation that we want.
+	// Oh... probably anyway - it might include a reflection.
+	//
+	genMatrix U = svd.matrixU();
 	
-	// there are two transformations that we need to make sure this plane ends up being
-	// out z=0 plane.
+	if( U.determinant() < 0 )
+		U.col(2) *= -1.0f;
 	
-	// The first is a translation, which comes from the mean of the points.
+	
+	transMatrix3D R = transMatrix3D::Identity();
+	R.block(0,0,3,3) = U.transpose();
+	
 	transMatrix3D T = transMatrix3D::Identity();
 	T.col(3).head(3) = -mean.head(3);
 	
-	// The second things we want is a rotation that makes the plane normal (0,0,1)
-	hVec3D idealNorm;
-	idealNorm << 0,0,1,0;
+	transMatrix3D M = R * T;
 	
-	hVec3D rax = Cross( idealNorm, norm );
+	cout << M << endl;
 	
-	cout << "rax: " << rax.transpose() << endl;
-	
-	// wonderful.
-	// the magnitude of rax is the sine of the rotation angle.
-	float rang = asin( rax.norm() );
-	rax = rax / rax.norm();
-	
-	cout << "rang: " << rang << endl;
-	cout << "raxn: " << rax.transpose()  << endl;
-	//transMatrix3D R = RotMatrix( rax, -rang );
-	transMatrix3D R = transMatrix3D::Identity();
-	R.block(0,0,3,3) = Eigen::AngleAxisf(-rang, rax.head(3)).matrix();
-	
-	
+	for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+	{
+		hVec3D p = mogi->second.p3d;
+		cout << p.transpose() << " -> " << (M*p).transpose() << endl;
+	}
 	
 	return R * T;
 }
@@ -828,29 +822,21 @@ int main(int argc, char *argv[] )
 		
 		
 		
-		
-		// so, we can see what happens when we apply this to each of the ground points...
-		cout << "Updated position of ground points: " << endl;
-		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
-		{
-			hVec3D p = GPM * mogi->second.p3d;
-			cout << "\t" << mogi->first << " : " << p.transpose() << endl;
-		}
-		
-		// cout << "--------tst-----------" << endl;
-		// for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
-		// {
-		// 	mogi->second.p3d = GPM * mogi->second.p3d;
-		// }
-		// ComputeTransformationGroundPlane( settings, mog );
-		// cout << "------ end tst -------" << endl;
-		
-		// and we can now update the calibrations too.
+		// and we can now update the calibrations.
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
 			transMatrix3D nL = sources[isc]->GetCalibration().L * GPM.inverse() ;
 			
 			sources[isc]->GetCalibration().L = nL;
+		}
+		
+		
+		cout << "Updated position of ground points (pre): " << endl;
+		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+		{
+			GetPointMatch3D( settings, sources, mogi->second );
+			
+			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
 		}
 		
 		
@@ -868,14 +854,50 @@ int main(int argc, char *argv[] )
 		o3 = axisPoints.o.p3d;
 		y3 = axisPoints.y.p3d;
 		
+		cout << "Axis points (pre T): " << endl;
+		cout << "\t" << axisPoints.x.p3d.transpose() << endl;
+		cout << "\t" << axisPoints.o.p3d.transpose() << endl;
+		cout << "\t" << axisPoints.y.p3d.transpose() << endl;
+		
 		transMatrix3D T;
 		T = transMatrix3D::Identity();
 		T(0,3) = -o3(0);
 		T(1,3) = -o3(1);
 		T(2,3) =   0.0f;
 		
-		// get vector from o->y 
 		
+		//
+		// Keep life simple and just get rid of that translation now.
+		//
+		for( unsigned isc = 0; isc < sources.size(); ++isc )
+		{
+			transMatrix3D nL = sources[isc]->GetCalibration().L * T.inverse() ;
+			
+			sources[isc]->GetCalibration().L = nL;
+		}
+		
+		
+		// get the axis points
+		GetAxisPoints3D( settings, sources, axisPoints );
+		
+		// 
+		// We're going to assume that the ground plane is now right.
+		// We need 
+		//  1) a translation on the z=0 plane to put the origin point at (0,0,z)
+		//  2) a rotation around the z-axis to make the y-point lie on the y-axis.
+		
+		
+		x3 = axisPoints.x.p3d;
+		o3 = axisPoints.o.p3d;
+		y3 = axisPoints.y.p3d;
+		
+		cout << "Axis points (post T): " << endl;
+		cout << "\t" << axisPoints.x.p3d.transpose() << endl;
+		cout << "\t" << axisPoints.o.p3d.transpose() << endl;
+		cout << "\t" << axisPoints.y.p3d.transpose() << endl;
+		
+		
+		// get vector from o->y 
 		hVec3D o3y3 = y3-o3;
 		
 		// get rid of z-component and norm.
@@ -893,21 +915,19 @@ int main(int argc, char *argv[] )
 		hVec3D raxis; raxis << 0,0,1,0;
 		
 		// and the angle is the dot product...
-		float ang    = acos( (o3y3).dot(y0) );
+		float ang    = -acos( (o3y3).dot(y0) );
 		
 		// so rotation is...
 		transMatrix3D Ry0 = transMatrix3D::Identity();
 		Ry0.block(0,0,3,3) = Eigen::AngleAxisf(ang, raxis.head(3)).matrix();
 		
-		// and thus we can do..
-		transMatrix3D M = Ry0*T;
 		
 		hVec3D xx, oo, yy;
-		xx = M * axisPoints.x.p3d;
-		oo = M * axisPoints.o.p3d;
-		yy = M * axisPoints.y.p3d;
+		xx = Ry0 * axisPoints.x.p3d;
+		oo = Ry0 * axisPoints.o.p3d;
+		yy = Ry0 * axisPoints.y.p3d;
 		
-		cout << "axis points:" << endl;
+		cout << "updated axis points:" << endl;
 		cout << xx.transpose() << endl;
 		cout << oo.transpose() << endl;
 		cout << yy.transpose() << endl;
@@ -924,9 +944,9 @@ int main(int argc, char *argv[] )
 			
 		}
 		
-		xx = Rx * M * axisPoints.x.p3d;
-		oo = Rx * M * axisPoints.o.p3d;
-		yy = Rx * M * axisPoints.y.p3d;
+		xx = Rx * Ry0 * axisPoints.x.p3d;
+		oo = Rx * Ry0 * axisPoints.o.p3d;
+		yy = Rx * Ry0 * axisPoints.y.p3d;
 		
 		cout << "axis points:" << endl;
 		cout << xx.transpose() << endl;
@@ -937,10 +957,19 @@ int main(int argc, char *argv[] )
 		// and we can now update the calibrations too.
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
-			transMatrix3D nL = sources[isc]->GetCalibration().L * (Rx*M).inverse() ;
+			transMatrix3D nL = sources[isc]->GetCalibration().L * (Rx*Ry0).inverse() ;
 			
 			sources[isc]->GetCalibration().L = nL;
 			sources[isc]->SaveCalibration();
+		}
+		
+		
+		cout << "Final position of ground points (post): " << endl;
+		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+		{
+			GetPointMatch3D( settings, sources, mogi->second );
+			
+			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
 		}
 	}
 	else
