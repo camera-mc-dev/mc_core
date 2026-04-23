@@ -291,7 +291,7 @@ std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::ve
 				int a = e.properties[pc].rfind("_");
 				std::string ns( e.properties[pc].begin()+a+1, e.properties[pc].end() );
 				int k = atoi( ns.c_str() );
-				out["gs-frest"](c,k) = 0;
+				out["gs-frest"](c,k) = v;
 			}
 		}
 	}
