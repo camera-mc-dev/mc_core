@@ -195,10 +195,23 @@ std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::ve
 		{
 			float v;
 			if( e.propTypes[pc].compare("float") == 0 )
+			{
 				if( isBinary )
 						infi.read( (char*)&v, sizeof( float ) );
 				else
 					v = atof( tokens[pc].c_str() );
+			}
+			else if( e.propTypes[pc].compare("double") == 0 )
+			{
+				if( isBinary )
+				{
+					double d;
+					infi.read( (char*)&d, sizeof( double ) );
+					v = d;
+				}
+				else
+					v = atof( tokens[pc].c_str() );
+			}
 			else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 			{
 				if( isBinary )

@@ -207,6 +207,19 @@ int main(int argc, char* argv[])
 			cv::Mat img = sources[isc]->GetCurrent();
 			if( grids.size() > 0 && grids[isc].size() > 0 && grids[isc][ic].size() > 0 )
 			{
+				float mx, Mx, my, My;
+				mx = my = std::max( img.rows, img.cols );
+				Mx = My = 0;
+				for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
+				{
+					float x,y;
+					x = grids[isc][ic][pc].pi(0);
+					y = grids[isc][ic][pc].pi(1);
+					mx = std::min( mx, x );
+					my = std::min( my, y );
+					Mx = std::max( Mx, x );
+				}
+				float rad = std::max( 5.0f, std::max( Mx - mx, My - my ) / (2.0f*(float)sqrt( grids[isc][ic].size()) ) );
 				for( unsigned pc = 0; pc < grids[isc][ic].size(); ++pc )
 				{
 					float x,y;
@@ -221,7 +234,7 @@ int main(int argc, char* argv[])
 					green = (std::min(col,10)/10.0f) * 255.0f;
 					blue  = 255.0f;
 					
-					cv::circle( img, cv::Point(x,y), 15, cv::Scalar(blue,green,red), 4 );
+					cv::circle( img, cv::Point(x,y), rad, cv::Scalar(blue,green,red), std::max( 4.0f, rad/5.0f ) );
 				}
 			}
 			

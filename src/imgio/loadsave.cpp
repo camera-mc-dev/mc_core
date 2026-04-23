@@ -21,11 +21,11 @@ cv::Mat LoadImage(std::string filename)
 {
 
 	if( !magickIsInitted )
-    {
-        Magick::InitializeMagick(NULL);
-        magickIsInitted = true;
-    }
-
+	{
+	    Magick::InitializeMagick(NULL);
+	    magickIsInitted = true;
+	}
+	
 	//cout << "loading: " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos )
 	{
@@ -158,6 +158,15 @@ cv::Mat LoadImage(std::string filename)
 			}
 		}
 	}
+	if( filename.find(".avif") != std::string::npos )
+	{
+		// 
+		// Most of the time, the imagemagick stuff loads and works with .avif files fine
+		// _except_ when I run calibration and something goes awry. Well, it does on
+		// one of my servers.
+		// NOTE: This will lose any higher bit-depths.
+		return cv::imread( filename );
+	}
 	
 
 jumpLabel01:
@@ -168,9 +177,25 @@ jumpLabel01:
 	// TODO: Check type and colour channels of mimg...
 	if( mimg.type() == Magick::GrayscaleType)
 	{
-		cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
-		mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
-		return cvimg;
+		if( mimg.depth() == 8 )
+		{
+			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_8UC1 );
+			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::CharPixel, cvimg.data );
+			return cvimg;
+		}
+		else if( mimg.depth() == 32 )
+		{
+			cv::Mat cvimg( mimg.rows(), mimg.columns(), CV_32FC1 );
+			mimg.write(0,0, mimg.columns(), mimg.rows(), "I", Magick::FloatPixel, cvimg.data );
+			return cvimg;
+		}
+		else
+		{
+			std::stringstream ss;
+			ss << "unhandled channel depth: " << mimg.depth();
+			throw std::runtime_error( ss.str() );
+		}
+		
 	}
 	else if( mimg.type() == Magick::PaletteType )
 	{

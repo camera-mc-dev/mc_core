@@ -55,7 +55,7 @@ void GridCircleFinder( cv::Mat grey, float minMagThresh, float detThresh, float 
 class CircleGridDetector
 {
 public:
-	enum blobDetector_t {MSER_t, SURF_t, CIRCD_t};
+	enum blobDetector_t {MSER_t, SURF_t, CIRCD_t, CVCHESS_t};
 	
 	CircleGridDetector( unsigned w, unsigned h, bool useHypothesis, bool visualise = false, blobDetector_t in_bdt = MSER_t, hVec2D down = {0,1,0});
 	CircleGridDetector( unsigned w, unsigned h, libconfig::Setting &cfg, hVec2D down = {0,1,0} );
@@ -224,13 +224,7 @@ public:
 protected:
 	CGDRenderer(unsigned width, unsigned height, std::string title) : BasicRenderer(width,height,title)
 	{
-		Rendering::NodeFactory::Create(linesRoot, "linesRoot");
-		Rendering::NodeFactory::Create(gpsRoot, "gpsRoot");
 		
-		Get2dFgRoot()->AddChild(linesRoot);
-		Get2dFgRoot()->AddChild(gpsRoot);
-		
-		luuid = 0;
 	}
 public:
 	bool Step();
@@ -247,6 +241,21 @@ public:
 	std::shared_ptr< Rendering::SceneNode > gpsRoot;
 	
 	int luuid;
+	
+protected:
+	virtual void FinishConstructor()
+	{
+		BasicRenderer::FinishConstructor();
+		
+		Rendering::NodeFactory::Create(linesRoot, "linesRoot");
+		Rendering::NodeFactory::Create(gpsRoot, "gpsRoot");
+		
+		Get2dFgRoot()->AddChild(linesRoot);
+		Get2dFgRoot()->AddChild(gpsRoot);
+		
+		luuid = 0;
+	}
+	
 };
 
 

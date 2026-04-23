@@ -10,8 +10,7 @@ using std::vector;
 
 #include <Eigen/Geometry>
 
-#include "imgio/imagesource.h"
-#include "imgio/vidsrc.h"
+#include "imgio/sourceFactory.h"
 #include "calib/circleGridTools.h"
 #include "math/intersections.h"
 #include "math/products.h"
@@ -135,7 +134,7 @@ void LoadPointMatches( std::string matchesFile, std::map< unsigned, PointMatch >
 }
 
 std::vector< ImageSource* > sources;
-void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube );
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube );
 
 int main(int argc, char *argv[] )
 {
@@ -243,7 +242,7 @@ int main(int argc, char *argv[] )
 	}
 
 	// create image sources
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	
 	bool gotSources = false;
 	if( imgDirs.size() > 0 )
@@ -254,18 +253,19 @@ int main(int argc, char *argv[] )
 // 			sources.push_back( new ImageDirectory(imgDirs[ic]));
 			
 			
-			cout << "creating source: " << imgDirs[ic] << endl;
-			ImageSource *isrc;
-			if( boost::filesystem::is_directory( imgDirs[ic] ))
-			{
-				isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
-			}
-			else
-			{
-				calibFiles[ic] = imgDirs[ic] + ".calib";
-				isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
-			}
-			sources.push_back( isrc );
+			// cout << "creating source: " << imgDirs[ic] << endl;
+			// ImageSource *isrc;
+			// if( boost::filesystem::is_directory( imgDirs[ic] ))
+			// {
+			// 	isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
+			// }
+			// else
+			// {
+			// 	calibFiles[ic] = imgDirs[ic] + ".calib";
+			// 	isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
+			// }
+			auto sh = CreateSource( imgDirs[ic] );
+			sources.push_back( sh.source );
 			
 		}
 		
@@ -278,7 +278,7 @@ int main(int argc, char *argv[] )
 		for( unsigned ic = 0; ic < vidFiles.size(); ++ic )
 		{
 			cout << "creating source: " << vidFiles[ic] << " with " << calibFiles[ic] << endl;
-			sources.push_back( new VideoSource( vidFiles[ic], calibFiles[ic] ) );;
+			sources.push_back( std::shared_ptr<ImageSource>( new VideoSource( vidFiles[ic], calibFiles[ic] ) ) );;
 		}
 		gotSources = true;
 	}
@@ -312,6 +312,8 @@ int main(int argc, char *argv[] )
 	{
 		const Calibration &cal = sources[isc]->GetCalibration();
 		cout << cal.L << endl << endl;
+		
+		cout << "det L[:3,:3] : " << cal.L.block(0,0,3,3).determinant() << endl;
 	}
 	cout << endl;
 	
@@ -584,24 +586,38 @@ int main(int argc, char *argv[] )
 					cout << "\t\t" << "no obs" << endl;
 				}
 				
-				up = calib.UndistortPoint( pi->second );
-				p.x = up(0);
-				p.y = up(1);
-				cv::circle( udimg, p, 8, cv::Scalar(0,255,255), 3 );
-				
-				cout << "\t\tpi :" << pi->second.transpose() << endl;
-				cout << "\t\tup :" << up.transpose() << endl;
-				
-				
-				std::stringstream ss; ss << "point-text-" << mi->first;
-				std::shared_ptr< Rendering::SceneNode > pointText;
-				Rendering::NodeFactory::Create( pointText, ss.str() );
-				ss.str("");
-				ss << mi->first;
-				up(0) += 10;
-				Eigen::Vector4f mag; mag << 1.0, 0.0, 1.0, 1.0;
-				textMaker.RenderString( ss.str(), 50, up, mag, pointText );
-				textRoot->AddChild( pointText );
+				// check if point _behind_ camera.
+				hVec3D zp; zp << 0,0,1,1;
+				zp = calib.TransformToWorld( zp );
+				hVec3D oax = zp - calib.GetCameraCentre();
+				hVec3D pdr = m.p3d - calib.GetCameraCentre();
+				pdr /= pdr.norm();
+				if( pdr.dot( oax ) > 0 )
+				{
+					
+					up = calib.UndistortPoint( pi->second );
+					p.x = up(0);
+					p.y = up(1);
+					cv::circle( udimg, p, 8, cv::Scalar(0,255,255), 3 );
+					
+					cout << "\t\tpi :" << pi->second.transpose() << endl;
+					cout << "\t\tup :" << up.transpose() << endl;
+					
+					
+					std::stringstream ss; ss << "point-text-" << mi->first;
+					std::shared_ptr< Rendering::SceneNode > pointText;
+					Rendering::NodeFactory::Create( pointText, ss.str() );
+					ss.str("");
+					ss << mi->first;
+					up(0) += 10;
+					Eigen::Vector4f mag; mag << 1.0, 0.0, 1.0, 1.0;
+					textMaker.RenderString( ss.str(), 50, up, mag, pointText );
+					textRoot->AddChild( pointText );
+				}
+				else
+				{
+					cout << "\t\t" << "behind" << endl;
+				}
 				
 			}
 			
@@ -680,7 +696,7 @@ int main(int argc, char *argv[] )
 }
 
 
-void ResCheck( std::vector< ImageSource* > &sources, std::vector< std::vector<float> > &cube )
+void ResCheck( std::vector< std::shared_ptr<ImageSource> > &sources, std::vector< std::vector<float> > &cube )
 {
 	genMatrix pts = genMatrix::Zero( 4, 9 );
 	pts << 0.0, cube[0][0], cube[0][0], cube[0][1], cube[0][1],    cube[0][0], cube[0][0], cube[0][1], cube[0][1],

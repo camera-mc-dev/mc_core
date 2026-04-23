@@ -277,7 +277,8 @@ private:
 			s.find(".png") == end-4  ||
 			s.find(".bmp") == end-4  ||
 			s.find(".tiff") == end-5 ||
-			s.find(".tif") == end-4 ||
+			s.find(".tif") == end-4  ||
+			s.find(".avif") == end-5 ||
 		    s.find(".charImg") == end-8 ||
 			s.find(".floatImg") == end-9
 			)

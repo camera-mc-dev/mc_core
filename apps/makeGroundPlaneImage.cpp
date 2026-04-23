@@ -1,5 +1,6 @@
 #include <Eigen/Geometry>
 
+#include "imgio/sourceFactory.h"
 #include "imgio/imagesource.h"
 #include "imgio/vidsrc.h"
 #include "calib/circleGridTools.h"
@@ -153,7 +154,7 @@ int main(int argc, char *argv[] )
 	}
 
 	// create image sources
-	std::vector< ImageSource* > sources;
+	std::vector< std::shared_ptr<ImageSource> > sources;
 	
 	bool gotSources = false;
 	if( imgDirs.size() > 0 )
@@ -161,17 +162,22 @@ int main(int argc, char *argv[] )
 		for( unsigned ic = 0; ic < imgDirs.size(); ++ic )
 		{
 			cout << "creating source: " << imgDirs[ic] << endl;
+			/*
 			ImageSource *isrc;
 			if( boost::filesystem::is_directory( imgDirs[ic] ))
 			{
-				isrc = (ImageSource*) new ImageDirectory(imgDirs[ic]);
+				isrc = (std::shared_ptr<ImageSource>) new ImageDirectory(imgDirs[ic]);
 			}
 			else
 			{
 				calibFiles[ic] = imgDirs[ic] + ".calib";
-				isrc = (ImageSource*) new VideoSource(imgDirs[ic], calibFiles[ic]);
+				isrc = (std::shared_ptr<ImageSource>) new VideoSource(imgDirs[ic], calibFiles[ic]);
 			}
 			sources.push_back( isrc );
+			/*/
+			auto sh = CreateSource( imgDirs[ic] );
+			sources.push_back( sh.source );
+			//*/
 		}
 		gotSources = true;
 	}
@@ -180,7 +186,9 @@ int main(int argc, char *argv[] )
 		for( unsigned ic = 0; ic < vidFiles.size(); ++ic )
 		{
 			cout << "creating source: " << vidFiles[ic] << " with " << calibFiles[ic] << endl;
-			sources.push_back( new VideoSource( vidFiles[ic], calibFiles[ic] ) );;
+			//sources.push_back( new VideoSource( vidFiles[ic], calibFiles[ic] ) );;
+			auto sh = CreateSource( vidFiles[ic], calibFiles[ic] );
+			sources.push_back( sh.source );
 		}
 		gotSources = true;
 	}
@@ -264,7 +272,7 @@ int main(int argc, char *argv[] )
 		if( !animate )
 		{
 			done = true;
-			gpImage *= 255;
+			// gpImage *= 255;
 			SaveImage( gpImage, "groundPlane.png" );
 		}
 		if( animate )

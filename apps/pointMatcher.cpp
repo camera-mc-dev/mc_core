@@ -1,3 +1,4 @@
+#include "imgio/sourceFactory.h"
 #include "imgio/imagesource.h"
 #include "imgio/vidsrc.h"
 #include "imgio/loadsave.h"
@@ -69,7 +70,7 @@ public:
 	hVec3D GetSubPixel( hVec3D p, cv::Mat img );
 	
 	
-	std::map< std::string, ImageSource* > sources;
+	std::map< std::string, std::shared_ptr<ImageSource> > sources;
 	std::map< unsigned, PointMatch > matches;
 	std::string matchesFile;
 	
@@ -188,18 +189,22 @@ PointMatcher::PointMatcher(std::string networkConfigFilename)
 	for( auto i = imgDirs.begin(); i != imgDirs.end(); ++i )
 	{
 		cout << "creating source: " << i->first << " : " << i->second << endl;
-		ImageSource *isrc;
-		if( boost::filesystem::is_directory( i->second ))
-		{
-			isrc = (ImageSource*) new ImageDirectory(i->second);
-// 			isDirectorySource.push_back(true);
-		}
-		else
-		{
-			isrc = (ImageSource*) new VideoSource(i->second, "none");
-// 			isDirectorySource.push_back(false);
-		}
-		sources[i->first] = isrc;
+// 		ImageSource *isrc;
+// 		if( boost::filesystem::is_directory( i->second ))
+// 		{
+// 			isrc = (ImageSource*) new ImageDirectory(i->second);
+// // 			isDirectorySource.push_back(true);
+// 		}
+// 		else
+// 		{
+// 			isrc = (ImageSource*) new VideoSource(i->second, "none");
+// // 			isDirectorySource.push_back(false);
+// 		}
+		// sources[i->first] = isrc;
+		
+		auto sh = CreateSource( i->second );
+		sources[i->first] = sh.source;
+		
 		sources[i->first]->JumpToFrame( frameInds[i->first] );
 	}
 	

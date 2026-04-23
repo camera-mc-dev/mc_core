@@ -274,39 +274,39 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 	if( sf::Keyboard::isKeyPressed(sf::Keyboard::W) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(2,3) = -5.0*ft;
+		T0(2,3) = -1.0*ft;
 		T = T0 * T;
 	}
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(2,3) =  5.0*ft;
+		T0(2,3) =  1.0*ft;
 		T = T0 * T;
 	}
 	
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(0,3) =  5.0*ft;
+		T0(0,3) =  1.0*ft;
 		T = T0 * T;
 	}
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(0,3) = -5.0*ft;
+		T0(0,3) = -1.0*ft;
 		T = T0 * T;
 	}
 	
 	if(sf::Keyboard::isKeyPressed(sf::Keyboard::R) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(1,3) =  5.0*ft;
+		T0(1,3) =  1.0*ft;
 		T = T0 * T;
 	}
 	else if(sf::Keyboard::isKeyPressed(sf::Keyboard::F) )
 	{
 		transMatrix3D T0 = transMatrix3D::Identity();
-		T0(1,3) = -5.0*ft;
+		T0(1,3) = -1.0*ft;
 		T = T0 * T;
 	}
 	
@@ -392,7 +392,7 @@ void Rendering::I3DRenderer::HandleOrbitCamera( float ft )
 		leftMousePressed = false;
 	}
 	
-	OrbitView( mouseMove, 1.0*ft );
+	OrbitView( mouseMove, 0.1*ft );
 	
 	
 	// keep view centre node in the right place.
@@ -461,27 +461,30 @@ void Rendering::I3DRenderer::RotateView( hVec2D mm, float time )
 
 void Rendering::I3DRenderer::OrbitView( hVec2D mm, float time )
 {
-	//
-	// move the camera in camera space along the mm vector.
-	// I know this is ridiculous but, it works.
-	//
-	hVec3D tc; tc << -0.1*mm(0), -0.1*mm(1), 0.0, 0.0f;
-	hVec3D tw = viewCalib.TransformToWorld( tc );
-	
-	hVec3D up; up << 0,-1,0,0.0f;
-	up = viewCalib.TransformToWorld( up );
-	
-	hVec3D cc = viewCalib.GetCameraCentre();
-	hVec3D vd = cc - viewCentre;
-	
-	hVec3D tmp;
-	tmp = cc + tw;
-	
-	hVec3D vd2 = tmp - viewCentre;
-	hVec3D eye = viewCentre + vd.norm() * vd2/vd2.norm();
-	
-	viewCalib.L = LookAt( eye, up, viewCentre );
-	Set3DCamera( viewCalib, near, far );
+	if( mm.head(2).norm() > 0 )
+	{
+		//
+		// move the camera in camera space along the mm vector.
+		// I know this is ridiculous but, it works.
+		//
+		hVec3D tc; tc << -0.1*mm(0), -0.1*mm(1), 0.0, 0.0f;
+		hVec3D tw = viewCalib.TransformToWorld( tc );
+		
+		hVec3D up; up << 0,-1,0,0.0f;
+		up = viewCalib.TransformToWorld( up );
+		
+		hVec3D cc = viewCalib.GetCameraCentre();
+		hVec3D vd = cc - viewCentre;
+		
+		hVec3D tmp;
+		tmp = cc + tw;
+		
+		hVec3D vd2 = tmp - viewCentre;
+		hVec3D eye = viewCentre + vd.norm() * vd2/vd2.norm();
+		
+		viewCalib.L = LookAt( eye, up, viewCentre );
+		Set3DCamera( viewCalib, near, far );
+	}
 }
 
 
