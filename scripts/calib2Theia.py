@@ -2,9 +2,9 @@ import os,sys
 from calib import Calib
 import numpy as np
 
-if len( sys.argv ) < 4:
+if len( sys.argv ) < 5:
 	print( "Tool to export a set of calibration files to Theia format" )
-	print( sys.argv[0], "<output file> <sensor width in mm> <cam0.calib> <cam1.calib> ..." )
+	print( sys.argv[0], "<output file> <rescale> <sensor width in mm> <cam0.calib> <cam1.calib> ..." )
 	exit(0)
 
 # open output file and write header.
@@ -15,9 +15,10 @@ outfi.write("""<calibration third_party="false">
     <cameras>
     """)
 
-swimm = float( sys.argv[2] )
+rescale = float( sys.argv[2] ) 
+swimm   = float( sys.argv[3] )
 
-calpaths = sorted( sys.argv[3:] )
+calpaths = sorted( sys.argv[4:] )
 for cfp in calpaths:
 	
 	cal = Calib( cfp )
@@ -59,9 +60,9 @@ for cfp in calpaths:
 	for r in range(3):
 		for c in range(3):
 			outfi.write( '%sr%d%d="%f"\n'%(indent2, r+1,c+1, cal.L[r,c])  )  # theia uses 1-indexing
-	outfi.write( '%sx="%f"\n'%(indent2,  cal.L[0,3])  )
-	outfi.write( '%sy="%f"\n'%(indent2,  cal.L[1,3])  )
-	outfi.write( '%sz="%f"\n'%(indent2,  cal.L[2,3])  )
+	outfi.write( '%sx="%f"\n'%(indent2,  cal.L[0,3] * rescale)  )
+	outfi.write( '%sy="%f"\n'%(indent2,  cal.L[1,3] * rescale)  )
+	outfi.write( '%sz="%f"\n'%(indent2,  cal.L[2,3] * rescale)  )
 	outfi.write( '%s/>\n'%indent1 )
 	
 	outfi.write( '%s</camera>\n'%indent0 )
