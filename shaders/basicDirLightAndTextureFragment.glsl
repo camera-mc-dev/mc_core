@@ -31,5 +31,6 @@ void main()
 	float angular = 0.9 *  max(0, -dot(lightDir, fragNormal) );
 
 	float lighting = 0.8*angular + ambient;
-	fragColor = lighting * texCol * (baseColour+vColour);
+	vec4  l4 = vec4( lighting, lighting, lighting, 1.0);
+	fragColor = l4 * texCol * (baseColour+vColour);
 }
