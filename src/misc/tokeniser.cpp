@@ -17,7 +17,7 @@ std::vector<std::string> SplitLine(const std::string& input, const std::string& 
 	
 	int tokenStart = 0;
 	int tokenEnd   = 0;
-	cout << input << endl;
+	// cout << input << endl;
 	while( tokenStart < input.size() )
 	{
 		while( IsDelimitor( input[ tokenStart ], delimitors ) )

@@ -2835,6 +2835,12 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 	cout << endl;
 	
 	
+	// NULL : squared loss
+	ceres::SoftLOneLoss *lossFunc = new ceres::SoftLOneLoss( 2.0f );  // smooth like square near 0, linear with distance.
+	//new ceres::HuberLoss(s)                                         // kind of the same but even lower gradient with distance.
+	// ceres::CauchyLoss *lossFunc = new ceres::CauchyLoss( 2.0f );   // like a log loss, less and less gradient with distance.
+	
+	
 	// for the Ceres based bundle adjustor, we need to do some prep.
 	// first off, collect together the cameras that we're going to use
 	// in the right order. We want to specify any fixed cameras first.
@@ -3024,7 +3030,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 						
 						problem.AddResidualBlock(
 						                          cef,
-						                          NULL /* squared loss */,
+						                          lossFunc /* squared loss */,
 						                          &params[cc][0]
 						                        );
 					}
@@ -3046,7 +3052,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 						
 						problem.AddResidualBlock(
 						                          cef,
-						                          NULL /* squared loss */,
+						                          lossFunc /* squared loss */,
 						                          &params[cc][0]
 						                        );
 					}
@@ -3080,10 +3086,11 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 						
 						cef = new ceres::AutoDiffCostFunction<CalibCeres::CeresFunctor_FixedCamera_BA, 2, 3> ( errf );
 						
-						problem.AddResidualBlock(cef,
-												NULL /* squared loss */,
-												&points[pc][0]
-												);
+						problem.AddResidualBlock(
+						                         cef,
+						                         lossFunc /* squared loss */,
+						                         &points[pc][0]
+						                        );
 					}
 					else
 					{
@@ -3108,7 +3115,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 							
 							problem.AddResidualBlock(
 							                          cef,
-							                          NULL /* squared loss */,
+							                          lossFunc /* squared loss */,
 							                          &params[cc][0],
 							                          &points[pc][0]
 							                        );
@@ -3133,7 +3140,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 							
 							
 							problem.AddResidualBlock(cef,
-													NULL /* squared loss */,
+													lossFunc /* squared loss */,
 													&params[cc][0],
 													&points[pc][0]
 													);
@@ -3159,7 +3166,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params[cc][0],
 														&points[pc][0]
 														);
@@ -3182,7 +3189,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params[cc][0],
 														&points[pc][0]
 														);
@@ -3205,7 +3212,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params[cc][0],
 														&points[pc][0]
 														);
@@ -3228,7 +3235,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params[cc][0],
 														&points[pc][0]
 														);
@@ -3262,7 +3269,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params.back()[0],
 														&points.back()[0]
 														);
@@ -3288,7 +3295,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 								
 								
 								problem.AddResidualBlock(cef,
-														NULL /* squared loss */,
+														lossFunc /* squared loss */,
 														&params.back()[0],
 														&points.back()[0]
 														);
@@ -3328,7 +3335,7 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 					
 					
 					problem.AddResidualBlock(cef,
-											NULL /* squared loss */,
+											lossFunc /* squared loss */,
 											&(points[pc][0])
 											);
 				}
@@ -3484,6 +3491,8 @@ void CamNetCalibrator::BundleAdjust(sbaMode_t mode, vector<unsigned> fixedCams, 
 		}
 		++pc;
 	}
+	
+	//delete lossFunc;  // actually, don't do this, ceres apparently takes ownership of the pointer.
 	
 	// it all seems to simple, until you run it...
 

@@ -19,13 +19,13 @@ bool magickIsInitted = false;
 // for loading / saving images and using Magick++ rather than opencv.
 cv::Mat MCDLoadImage(std::string filename)
 {
-// cout << "a" << endl;
-// 	if( !magickIsInitted )
-//     {
-//         Magick::InitializeMagick(NULL);
-//         magickIsInitted = true;
-//     }
-// cout << "b" << endl;
+	
+	// if( !magickIsInitted )
+	// {
+	//     Magick::InitializeMagick(NULL);
+	//     magickIsInitted = true;
+	// }
+	
 	//cout << "loading: " << filename << endl;
 	if( filename.find(".floatImg") != std::string::npos )
 	{
@@ -70,7 +70,7 @@ cv::Mat MCDLoadImage(std::string filename)
 			{
 				throw std::runtime_error("floatImg " + filename + " had the wrong number of channels.");
 			}
-
+		
 		}
 		else
 		{
@@ -157,6 +157,15 @@ cv::Mat MCDLoadImage(std::string filename)
 				throw std::runtime_error("charImg " + filename + " had the wrong number of channels.");
 			}
 		}
+	}
+	if( filename.find(".avif") != std::string::npos )
+	{
+		// 
+		// Most of the time, the imagemagick stuff loads and works with .avif files fine
+		// _except_ when I run calibration and something goes awry. Well, it does on
+		// one of my servers.
+		// NOTE: This will lose any higher bit-depths.
+		return cv::imread( filename );
 	}
 	
 

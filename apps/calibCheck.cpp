@@ -312,6 +312,8 @@ int main(int argc, char *argv[] )
 	{
 		const Calibration &cal = sources[isc]->GetCalibration();
 		cout << cal.L << endl << endl;
+		
+		cout << "det L[:3,:3] : " << cal.L.block(0,0,3,3).determinant() << endl;
 	}
 	cout << endl;
 	
@@ -584,24 +586,38 @@ int main(int argc, char *argv[] )
 					cout << "\t\t" << "no obs" << endl;
 				}
 				
-				up = calib.UndistortPoint( pi->second );
-				p.x = up(0);
-				p.y = up(1);
-				cv::circle( udimg, p, 8, cv::Scalar(0,255,255), 3 );
-				
-				cout << "\t\tpi :" << pi->second.transpose() << endl;
-				cout << "\t\tup :" << up.transpose() << endl;
-				
-				
-				std::stringstream ss; ss << "point-text-" << mi->first;
-				std::shared_ptr< Rendering::SceneNode > pointText;
-				Rendering::NodeFactory::Create( pointText, ss.str() );
-				ss.str("");
-				ss << mi->first;
-				up(0) += 10;
-				Eigen::Vector4f mag; mag << 1.0, 0.0, 1.0, 1.0;
-				textMaker.RenderString( ss.str(), 50, up, mag, pointText );
-				textRoot->AddChild( pointText );
+				// check if point _behind_ camera.
+				hVec3D zp; zp << 0,0,1,1;
+				zp = calib.TransformToWorld( zp );
+				hVec3D oax = zp - calib.GetCameraCentre();
+				hVec3D pdr = m.p3d - calib.GetCameraCentre();
+				pdr /= pdr.norm();
+				if( pdr.dot( oax ) > 0 )
+				{
+					
+					up = calib.UndistortPoint( pi->second );
+					p.x = up(0);
+					p.y = up(1);
+					cv::circle( udimg, p, 8, cv::Scalar(0,255,255), 3 );
+					
+					cout << "\t\tpi :" << pi->second.transpose() << endl;
+					cout << "\t\tup :" << up.transpose() << endl;
+					
+					
+					std::stringstream ss; ss << "point-text-" << mi->first;
+					std::shared_ptr< Rendering::SceneNode > pointText;
+					Rendering::NodeFactory::Create( pointText, ss.str() );
+					ss.str("");
+					ss << mi->first;
+					up(0) += 10;
+					Eigen::Vector4f mag; mag << 1.0, 0.0, 1.0, 1.0;
+					textMaker.RenderString( ss.str(), 50, up, mag, pointText );
+					textRoot->AddChild( pointText );
+				}
+				else
+				{
+					cout << "\t\t" << "behind" << endl;
+				}
 				
 			}
 			
