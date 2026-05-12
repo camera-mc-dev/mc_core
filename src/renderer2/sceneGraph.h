@@ -151,6 +151,7 @@ namespace Rendering
 		// vision K matrix, compatible with OpenCV.
 		void SetOrthoProjection(float left, float right, float top, float bottom, float near, float far);
 		void SetPerspectiveProjection( transMatrix2D K, float width, float height, float near, float far );
+		void SetProjection( transMatrix3D P );
 		void SetFromCalibration( const Calibration &calib, float near, float far );
 		transMatrix3D GetProjection()
 		{

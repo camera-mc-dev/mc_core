@@ -15,6 +15,7 @@ void Rendering::BasicRenderer::FinishConstructor()
 	ss << ccfg.shadersRoot << "/";
 	
 	LoadVertexShader(ss.str() + "basicVertex.glsl", "basicVertex");
+	LoadVertexShader(ss.str() + "pcloudVertex.glsl", "pcloudVertex");
 	LoadVertexShader(ss.str() + "texLearnVertex.glsl", "texLearnVertex");
 	LoadFragmentShader(ss.str() + "basicTextureOnlyFragment.glsl", "unlitFrag" );
 	LoadFragmentShader(ss.str() + "basicDirLightAndTextureFragment.glsl", "dirlitFrag" );
@@ -26,6 +27,7 @@ void Rendering::BasicRenderer::FinishConstructor()
 	CreateShaderProgram("basicVertex", "dirlitFrag", "basicLitShader");
 	CreateShaderProgram("basicVertex", "colourFrag", "basicColourShader");
 	CreateShaderProgram("basicVertex", "dirlitColourFrag", "basicLitColourShader");
+	CreateShaderProgram("pcloudVertex", "colourFrag", "pcloudShader");
 // 	CreateShaderProgram("basicVertex", "thickLineGeom", "colourFrag", "thickLine");
 	
 	CreateShaderProgram("texLearnVertex", "colourFrag", "texLearnShader");
