@@ -29,8 +29,8 @@ void main()
 	// cos(0) = 1, cos(90) = 0, we want brightest when angle near 90,
 	// so...
 	float angular = 0.9 *  max(0, -dot(lightDir, fragNormal) );
-
+	
 	float lighting = 0.8*angular + ambient;
-	vec4  l4 = vec4( lighting, lighting, lighting, 1.0);
+	vec4 l4 = vec4( lighting, lighting, lighting,  1.0 );
 	fragColor = l4 * texCol * (baseColour+vColour);
 }

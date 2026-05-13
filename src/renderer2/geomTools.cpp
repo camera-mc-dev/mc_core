@@ -33,16 +33,16 @@ std::shared_ptr<Mesh> Rendering::GenerateCard(float width, float height, bool ce
 	// normal of the card if -ve z so as to face the camera
 	// by default.
 	card->normals   << 0 ,  0,  0,  0,
-					   0 ,  0,  0,  0,
-					   -1, -1, -1, -1,
-					   0 ,  0,  0,  0;
+	                   0 ,  0,  0,  0,
+	                   -1, -1, -1, -1,
+	                   0 ,  0,  0,  0;
 
 	card->texCoords << 0, 1, 1, 0,
-					   0, 0, 1, 1;
+	                   0, 0, 1, 1;
 
 	card->faces     << 0, 0,
-					   1, 2,
-					   2, 3;
+	                   1, 2,
+	                   2, 3;
 
 	return card;
 }

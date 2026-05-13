@@ -35,7 +35,8 @@ namespace ceres
 transMatrix3D LookAt( hVec3D eye, hVec3D up, hVec3D target );
 
 // OpenGL projection matrix from camera K matrix
-transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, float far );
+transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float  near, float  far );
+transMatrix2D KFromProjMatGL( transMatrix3D M, float w, float h, float &near, float &far );
 
 
 

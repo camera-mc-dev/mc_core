@@ -188,7 +188,14 @@ void Rendering::CameraNode::SetPerspectiveProjection( transMatrix2D K, float w, 
 
 }
 
-void Rendering::CameraNode::SetFromCalibration( const Calibration &calib, float nearClip, float farClip )
+void Rendering::CameraNode::SetProjection( transMatrix3D P )
+{
+	// This should map our desired right-handed looking along +ve z camera coordinate system
+	// to the appropriate OpenGL normalised device coordinates. Hopefully...
+	projMatrix = P;
+}
+
+void Rendering::CameraNode::SetFromCalibration( const Calibration &calib, float nearClip, float nearClip )
 {
 	// This sets the camera projection and camera position to match the input camera
 	// calibration.
