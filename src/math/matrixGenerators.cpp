@@ -69,6 +69,26 @@ transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, flo
 	return M;
 }
 
+
+transMatrix2D KFromProjMatGL( transMatrix3D M, float w, float h, float &near, float &far )
+{
+	transMatrix2D K;
+	K << w*M(0,0)/2.0f,   w*M(0,1)/2.0f,  0.5f*w*( 1.0f+M(1,2) ) ,
+	                 0,  -h*M(1,1)/2.0f,  0.5f*h*( 1.0f-M(1,2) ) ,
+	                 0,               0,                      1.0;
+	
+	// we can determine near and far too
+	// NOTE: assuming row 3 of proj mat is (far+near)/(far-near),     -2*far*near/(far-near)
+	// and yes, I got Gemini to do the solve.
+	near = -M(2,3)/(M(2,2)+1);
+	far  =  M(2,3)/(1-M(2,2));
+	
+	
+	return K;
+}
+
+
+
 // useful stuff...
  transMatrix3D ScaleMatrix(float sx, float sy, float sz)
 {
