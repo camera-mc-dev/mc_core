@@ -73,7 +73,7 @@ transMatrix3D ProjMatGLFromK( transMatrix2D K, float w, float h, float near, flo
 transMatrix2D KFromProjMatGL( transMatrix3D M, float w, float h, float &near, float &far )
 {
 	transMatrix2D K;
-	K << w*M(0,0)/2.0f,   w*M(0,1)/2.0f,  0.5f*w*( 1.0f+M(1,2) ) ,
+	K << w*M(0,0)/2.0f,   w*M(0,1)/2.0f,  0.5f*w*( 1.0f+M(0,2) ) ,
 	                 0,  -h*M(1,1)/2.0f,  0.5f*h*( 1.0f-M(1,2) ) ,
 	                 0,               0,                      1.0;
 	
