@@ -88,235 +88,361 @@ void ReadPlyHeader( std::ifstream &infi,   bool &out_isBinary, std::vector< SEle
 	
 }
 
+typedef Eigen::Matrix<        float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor >  floatMat;
+typedef Eigen::Matrix<       double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor > doubleMat;
+typedef Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor >  uint8Mat;
+typedef Eigen::Matrix<         char, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor >   int8Mat;
 
-std::map<std::string, genRowMajMatrix> ReadPlyData( std::ifstream &infi, std::vector< SElement > &elements, bool isBinary )
+struct SPlyData
 {
-	std::map<std::string, genRowMajMatrix> out;
-	SElement &e = elements[0];   // we've already checked that there's only 1 element and that it is "vertex"
+	std::map< std::string,  floatMat >   fProps;
+	std::map< std::string, doubleMat >   dProps;
+	std::map< std::string,  uint8Mat > ui8Props;
+	std::map< std::string,   int8Mat >  i8Props;
+};
+
+void ReadElementBinary( std::ifstream &infi, SElement &e, SPlyData &outData )
+{
+	//
+	// plyData is interleaved - for each element you get all the properties together.
+	// i.e. a "matrix" of shape [e,n]. Which is simple enough until you remember that all
+	// of the properies can be different types, so we can't do something nice like if it was
+	// [n, e], i.e., coherent matrices of the same type.
+	//
+	// But reading property by property from the file is achingly slow...
+	//
 	
-	bool gotxyz  = false;
-	bool gotnorm = false;
-	bool gotrgb  = false;
-	bool gotfdc  = false;
-	int  numfr   = 0;
-	bool gotop   = false;
-	bool gotsc   = false;
-	bool gotrot  = false;
+	
+	//
+	// if we treat everything as bytes, how big is [e,n]?
+	//
+	unsigned totBytes = 0;
+	std::vector< unsigned > propByteCounts( e.properties.size() );
 	for( size_t pc = 0; pc < e.properties.size(); ++pc )
 	{
-		if(( e.properties[pc].compare("x") == 0  ||
-		     e.properties[pc].compare("y") == 0  ||
-		     e.properties[pc].compare("z") == 0 ) && !gotxyz   )
+		if( e.propTypes[pc].compare("float") == 0 )
 		{
-			out["xyz"] = genRowMajMatrix::Zero( e.number, 3 );
-			gotxyz = true;
+			totBytes += sizeof(float);
+			propByteCounts[pc] = sizeof(float);
 		}
-		
-		else if(( e.properties[pc].compare("nx") == 0  ||
-			      e.properties[pc].compare("ny") == 0  ||
-			      e.properties[pc].compare("nz") == 0 ) && !gotnorm   )
+		else if( e.propTypes[pc].compare("double") == 0 )
 		{
-			out["norm"] = genRowMajMatrix::Zero( e.number, 3 );
-			gotnorm = true;
+			totBytes += sizeof(double);
+			propByteCounts[pc] = sizeof(double);
 		}
-		
-		else if(( e.properties[pc].compare("red")   == 0  ||
-			      e.properties[pc].compare("green") == 0  ||
-			      e.properties[pc].compare("blue")  == 0 ) && !gotrgb   )
+		else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 		{
-			out["rgb"] = genRowMajMatrix::Zero( e.number, 3 );
-			gotnorm = true;
+			totBytes += sizeof(unsigned char);
+			propByteCounts[pc] = sizeof(unsigned char);
 		}
-		
-		
-		
-		
-		else if(( e.properties[pc].compare("sx") == 0  ||
-			      e.properties[pc].compare("sy") == 0  ||
-			      e.properties[pc].compare("sz") == 0 ) && !gotsc   )
+		else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
 		{
-			out["gs-scale"] = genRowMajMatrix::Zero( e.number, 3 );
-			gotsc = true;
+			totBytes += sizeof(char);
+			propByteCounts[pc] = sizeof(char);
 		}
-		
-		else if(( e.properties[pc].compare("scale_0") == 0  ||
-			      e.properties[pc].compare("scale_1") == 0  ||
-			      e.properties[pc].compare("scale_2") == 0 ) && !gotsc   )
+		else
 		{
-			out["gs-scale"] = genRowMajMatrix::Zero( e.number, 3 );
-			gotsc = true;
-		}
-		
-		else if( e.properties[pc].find("f_dc") == 0  && !gotfdc )
-		{
-			gotfdc = true;
-			out["gs-fdc"] = genRowMajMatrix::Zero( e.number, 3 );
-		}
-		else if( e.properties[pc].find("f_rest") == 0 )
-		{
-			int a = e.properties[pc].rfind("_");
-			std::string ns( e.properties[pc].begin()+a+1, e.properties[pc].end() );
-			numfr = std::max( numfr, atoi( ns.c_str() ) + 1 );
-		}
-		
-		else if( e.properties[pc].find("rot") == 0  && !gotrot )
-		{
-			gotrot = true;
-			out["gs-qwxyz"] = genRowMajMatrix::Zero( e.number, 4 );
-		}
-		else if( e.properties[pc].find("opacity") == 0  && !gotop )
-		{
-			gotop = true;
-			out["gs-opacity"] = genRowMajMatrix::Zero( e.number, 1 );
+			std::stringstream ss;
+			ss <<  "unrecognised property type " << e.propTypes[pc] << " in .ply file ";
+			throw std::runtime_error( ss.str() );
 		}
 	}
 	
-	if( numfr > 0 )
-		out["gs-frest"] = genRowMajMatrix::Zero( e.number, numfr );
+	//
+	// Now we can read a big buffer of bytes.
+	//
+	std::vector< unsigned char > buf( e.number * totBytes );
+	infi.read( (char*) &buf[0], e.number * totBytes );
 	
-	cout << endl << "-out check-" << endl;
-	for( auto i = out.begin(); i != out.end(); ++i )
-		cout << i->first << " " << i->second.rows() << " " << i->second.cols() <<  endl;
-	cout << "--" << endl;
+	
+	//
+	// But we still have to reinterpret those raw bytes into individual properties.
+	// We can maybe get some help from Eigen on this front if we treat the whole thing as 
+	// one big matrix of uint8s...
+	//
+	Eigen::Map< int8Mat > bufMap( (char*)&buf[0], e.number, totBytes );
+	unsigned colCount = 0;
+	for( unsigned pc = 0; pc < e.properties.size(); ++pc )
+	{
+		// so we can take all the relevant columns for this property into its own int8 matrix.
+		int8Mat M8 = bufMap.block( 0, colCount, e.number, propByteCounts[pc] );
+		
+		// and then, if we're lucky, we can use a map to reinterpret the matrix data 
+		if( e.propTypes[pc].compare("float") == 0 )
+		{
+			outData.fProps[ e.properties[pc] ] = Eigen::Map< floatMat >( (float*)M8.data(), M8.rows(), 1 );
+		}
+		else if( e.propTypes[pc].compare("double") == 0 )
+		{
+			outData.dProps[ e.properties[pc] ] = Eigen::Map< doubleMat >( (double*)M8.data(), M8.rows(), 1 );
+		}
+		else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
+		{
+			outData.ui8Props[ e.properties[pc] ] = Eigen::Map< uint8Mat >( (unsigned char*)M8.data(), M8.rows(), 1 );
+		}
+		else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
+		{
+			outData.i8Props[ e.properties[pc] ] = M8;
+		}
+	}
+	
+	//
+	// And _maybe_ that's fine?
+	//
+	return;
+}
+
+
+void ReadElementASCII( std::ifstream &infi, SElement &e, SPlyData &outData )
+{
+	//
+	// With ASCII data we're just going to slowly cycle through the file.
+	// _Maybe_ we could be clever and read all of into one big string, then 
+	// parse that big string, but... likely as not, an ASCII file will be 
+	// a relatively small model.
+	//
+	for( size_t pc = 0; pc < e.properties.size(); ++pc )
+	{
+		if( e.propTypes[pc].compare("float") == 0 )
+		{
+			outData.fProps[ e.properties[pc] ] == floatMat::Zero( e.number, 1 );
+		}
+		else if( e.propTypes[pc].compare("double") == 0 )
+		{
+			outData.dProps[ e.properties[pc] ] == doubleMat::Zero( e.number, 1 );
+		}
+		else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
+		{
+			outData.ui8Props[ e.properties[pc] ] == uint8Mat::Zero( e.number, 1 );
+		}
+		else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
+		{
+			outData.i8Props[ e.properties[pc] ] == int8Mat::Zero( e.number, 1 );
+		}
+		else
+		{
+			std::stringstream ss;
+			ss <<  "unrecognised property type " << e.propTypes[pc] << " in .ply file ";
+			throw std::runtime_error( ss.str() );
+		}
+	}
+	
 	
 	std::string line;
 	std::vector<std::string> tokens;
 	for( unsigned c = 0; c < e.number; ++c )
 	{
-		if( !isBinary )
-		{
-			std::getline(infi, line);
-			cout << line << " : " << std::flush;
-			tokens = SplitLine(line," \t");
-			assert( tokens.size() == e.properties.size() );
-		}
+		std::getline(infi, line);
+		tokens = SplitLine(line," \t");
+		assert( tokens.size() == e.properties.size() );
 		
 		for( size_t pc = 0; pc < e.properties.size(); ++pc )
 		{
-			float v;
 			if( e.propTypes[pc].compare("float") == 0 )
 			{
-				if( isBinary )
-						infi.read( (char*)&v, sizeof( float ) );
-				else
-					v = atof( tokens[pc].c_str() );
+				outData.fProps[ e.properties[pc] ]( c, pc ) = atof( tokens[pc].c_str() );
 			}
 			else if( e.propTypes[pc].compare("double") == 0 )
 			{
-				if( isBinary )
-				{
-					double d;
-					infi.read( (char*)&d, sizeof( double ) );
-					v = d;
-				}
-				else
-					v = atof( tokens[pc].c_str() );
+				outData.dProps[ e.properties[pc] ]( c, pc ) = atof( tokens[pc].c_str() );
 			}
 			else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 			{
-				if( isBinary )
-				{
-					unsigned char ucv;
-					infi.read( (char*)&ucv, sizeof(unsigned char) );
-					v = (float)ucv / 255.0f;
-				}
-				else
-				{
-					v = atof( tokens[pc].c_str() ) / 255.0f;
-				}
+				outData.ui8Props[ e.properties[pc] ]( c, pc ) = atoi( tokens[pc].c_str() );
 			}
-			else
+			else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
 			{
-				cout << e.properties[pc] << " " << e.propTypes[pc] << endl;
-				throw std::runtime_error( "not ready for other property types" );
-			}
-			
-			
-			// now put that value in the right place...
-			// more ugly :(
-			if( e.properties[ pc ].compare("x") == 0 )
-				out["xyz"](c,0) = v;
-			else if( e.properties[ pc ].compare("y") == 0 )
-				out["xyz"](c,1) = v;
-			else if( e.properties[ pc ].compare("z") == 0 )
-				out["xyz"](c,2) = v;
-			
-			
-			else if( e.properties[ pc ].compare("nx") == 0 )
-				out["norm"](c,0) = v;
-			else if( e.properties[ pc ].compare("ny") == 0 )
-				out["norm"](c,1) = v;
-			else if( e.properties[ pc ].compare("nz") == 0 )
-				out["norm"](c,2) = v;
-			
-			
-			else if( e.properties[ pc ].compare("red") == 0 )
-				out["rgb"](c,0) = v;
-			else if( e.properties[ pc ].compare("green") == 0 )
-				out["rgb"](c,1) = v;
-			else if( e.properties[ pc ].compare("blue") == 0 )
-				out["rgb"](c,2) = v;
-			
-			
-			
-			else if( e.properties[ pc ].compare("sx") == 0 )
-				out["gs-scale"](c,0) = v;
-			else if( e.properties[ pc ].compare("sy") == 0 )
-				out["gs-scale"](c,1) = v;
-			else if( e.properties[ pc ].compare("sz") == 0 )
-				out["gs-scale"](c,2) = v;
-			
-			else if( e.properties[ pc ].compare("scale_0") == 0 )
-				out["gs-scale"](c,0) = v;
-			else if( e.properties[ pc ].compare("scale_1") == 0 )
-				out["gs-scale"](c,1) = v;
-			else if( e.properties[ pc ].compare("scale_2") == 0 )
-				out["gs-scale"](c,2) = v;
-			
-			
-			
-			else if( e.properties[ pc ].compare("f_dc_0") == 0 )
-				out["gs-fdc"](c,0) = v;
-			else if( e.properties[ pc ].compare("f_dc_1") == 0 )
-				out["gs-fdc"](c,1) = v;
-			else if( e.properties[ pc ].compare("f_dc_2") == 0 )
-				out["gs-fdc"](c,2) = v;
-			
-			
-			
-			
-			else if( e.properties[ pc ].compare("rot_0") == 0 )
-				out["gs-qwxyz"](c,0) = v;
-			else if( e.properties[ pc ].compare("rot_1") == 0 )
-				out["gs-qwxyz"](c,1) = v;
-			else if( e.properties[ pc ].compare("rot_2") == 0 )
-				out["gs-qwxyz"](c,2) = v;
-			else if( e.properties[ pc ].compare("rot_3") == 0 )
-				out["gs-qwxyz"](c,3) = v;
-			
-			
-			else if( e.properties[ pc ].compare("opacity") == 0 )
-				out["gs-opacity"](c,0) = v;
-			
-			
-			else if( e.properties[ pc ].find("f_rest") == 0 )
-			{
-				int a = e.properties[pc].rfind("_");
-				std::string ns( e.properties[pc].begin()+a+1, e.properties[pc].end() );
-				int k = atoi( ns.c_str() );
-				out["gs-frest"](c,k) = v;
+				outData.i8Props[ e.properties[pc] ]( c, pc ) = atoi( tokens[pc].c_str() );
 			}
 		}
 	}
+}
+
+
+
+std::map<std::string, genRowMajMatrix> GetCloudData( SPlyData &plyData )
+{
+	std::map<std::string, genRowMajMatrix> out;
 	
 	
-	
-	if( infi.fail() )
+	//
+	// if we're doing gaussian splatting, we know that the spherical harmonic parameters
+	// will be in the "float" properties, and we need to know how many there are.
+	//
+	int numfr = 0;
+	for( auto i = plyData.fProps.begin(); i != plyData.fProps.end(); ++i )
 	{
-		cout << "error reading data block" << endl;
-		exit(0);
+		if( i->first.find("f_rest") == 0 )
+		{
+			int a = i->first.rfind("_");
+			std::string ns( i->first.begin()+a+1, i->first.end() );
+			numfr = std::max( numfr, atoi( ns.c_str() ) + 1 );
+		}
+	}
+	if( numfr > 0 )
+	{
+		out["gs-frest"] = genRowMajMatrix::Zero( plyData.fProps["f_dc"].rows() , numfr );
 	}
 	
+	
+	bool gotxyz  = false;
+	bool gotnorm = false;
+	bool gotrgb  = false;
+	bool gotsc   = false;
+	bool gotrot  = false;
+	for( auto i = plyData.fProps.begin(); i != plyData.fProps.end(); ++i )
+	{
+		
+		//
+		// x,y,z
+		//
+		if( i->first.compare("x") == 0 )
+		{
+			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
+			out["xyz"].col(0) = i->second.col(0);
+		}
+		else if( i->first.compare("y") == 0 )
+		{
+			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
+			out["xyz"].col(1) = i->second.col(0);
+		}
+		else if( i->first.compare("z") == 0 )
+		{
+			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
+			out["xyz"].col(2) = i->second.col(0);
+		}
+		
+		
+		//
+		// normal (nx,ny,nz)
+		//
+		if( i->first.compare("nx") == 0 )
+		{
+			if( !gotnorm ){  out["norm"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotnorm = true; }
+			out["norm"].col(0) = i->second.col(0);
+		}
+		else if( i->first.compare("ny") == 0 )
+		{
+			if( !gotnorm ){  out["norm"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotnorm = true; }
+			out["norm"].col(1) = i->second.col(0);
+		}
+		else if( i->first.compare("nz") == 0 )
+		{
+			if( !gotnorm ){  out["norm"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotnorm = true; }
+			out["norm"].col(2) = i->second.col(0);
+		}
+		
+		
+		
+		//
+		// rgb (red,green,blue)
+		//
+		if( i->first.compare("red") == 0 )
+		{
+			if( !gotrgb ){  out["rgb"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotrgb = true; }
+			out["rgb"].col(0) = i->second.col(0);
+		}
+		else if( i->first.compare("green") == 0 )
+		{
+			if( !gotrgb ){  out["rgb"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotrgb = true; }
+			out["rgb"].col(1) = i->second.col(0);
+		}
+		else if( i->first.compare("blue") == 0 )
+		{
+			if( !gotrgb ){  out["rgb"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotrgb = true; }
+			out["rgb"].col(2) = i->second.col(0);
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		//
+		// The next are gaussian splat specific.
+		//
+		
+		
+		//
+		// scale (sx,sy,sz)  or (scale_0, scale_1, scale_2)
+		//
+		if( i->first.compare("sx") == 0   ||   i->first.compare("scale_0") == 0)
+		{
+			if( !gotsc ){  out["gs-scale"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotsc = true; }
+			out["gs-scale"].col(0) = i->second.col(0);
+		}
+		else if( i->first.compare("sy") == 0   ||   i->first.compare("scale_1") == 0)
+		{
+			if( !gotsc ){  out["gs-scale"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotsc = true; }
+			out["gs-scale"].col(1) = i->second.col(0);
+		}
+		else if( i->first.compare("sz") == 0   ||   i->first.compare("scale_2") == 0)
+		{
+			if( !gotsc ){  out["gs-scale"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotsc = true; }
+			out["gs-scale"].col(2) = i->second.col(0);
+		}
+		
+		
+		
+		//
+		// dc spherical component
+		//
+		else if( i->first.compare("f_dc") == 0  )
+		{
+			out["gs-fdc"] = i->second;
+		}
+		
+		
+		//
+		// remaining spherical components
+		//
+		else if( i->first.find("f_rest") == 0 )
+		{
+			int a = i->first.rfind("_");
+			std::string ns( i->first.begin()+a+1, i->first.end() );
+			int k = atoi( ns.c_str() );
+			out["gs-frest"].col(k) = i->second;
+		}
+		
+		
+		
+		//
+		// orientation (quaternion) of splat gaussian orientations.
+		//
+		else if( i->first.compare("rot_0") == 0  )
+		{
+			if( !gotrot ){  out["gs-qwxyz"] = genRowMajMatrix::Zero( i->second.rows(), 4 ); gotrot = true; }
+			out["gs-qwxyz"].col(0) = i->second;
+		}
+		else if( i->first.compare("rot_1") == 0  )
+		{
+			if( !gotrot ){  out["gs-qwxyz"] = genRowMajMatrix::Zero( i->second.rows(), 4 ); gotrot = true; }
+			out["gs-qwxyz"].col(1) = i->second;
+		}
+		else if( i->first.compare("rot_2") == 0  )
+		{
+			if( !gotrot ){  out["gs-qwxyz"] = genRowMajMatrix::Zero( i->second.rows(), 4 ); gotrot = true; }
+			out["gs-qwxyz"].col(2) = i->second;
+		}
+		else if( i->first.compare("rot_3") == 0  )
+		{
+			if( !gotrot ){  out["gs-qwxyz"] = genRowMajMatrix::Zero( i->second.rows(), 4 ); gotrot = true; }
+			out["gs-qwxyz"].col(3) = i->second;
+		}
+		
+		
+		
+		//
+		// splat gaussian opacity.
+		//
+		else if( i->first.compare("opacity") == 0  )
+		{
+			out["gs-opacity"] = i->second;
+		}
+		
+	}
 	
 	return out;
 }
@@ -359,8 +485,28 @@ std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
 		return out;
 	}
 	
+	//
+	// in this specific case, we only want 1 element : "vertex"
+	//
+	assert( elements.size() == 1 && elements[0].name.compare("vertex") == 0 );
 	
-	return ReadPlyData( infi, elements, isBinary );
+	SPlyData outData;
+	if( isBinary )
+	{
+		ReadElementBinary( infi, elements[0], outData );
+	}
+	else
+	{
+		ReadElementASCII( infi, elements[0], outData );
+	}
+	
+	
+	//
+	// My "legacy" implementation means I now need to do some rearranging into convenience matrices.
+	//
+	
+	
+	
 }
 
 
