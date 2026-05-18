@@ -184,6 +184,7 @@ void ReadElementBinary( std::ifstream &infi, SElement &e, SPlyData &outData )
 		{
 			outData.i8Props[ e.properties[pc] ] = M8;
 		}
+		colCount += propByteCounts[pc];
 	}
 	
 	//
@@ -281,7 +282,8 @@ std::map<std::string, genRowMajMatrix> GetCloudData( SPlyData &plyData )
 	}
 	if( numfr > 0 )
 	{
-		out["gs-frest"] = genRowMajMatrix::Zero( plyData.fProps["f_dc"].rows() , numfr );
+		out["gs-frest"] = genRowMajMatrix::Zero( plyData.fProps["f_dc_0"].rows() , numfr );
+		cout << "frest: " << out["gs-frest"].rows() << " " << out["gs-frest"].cols() << endl;
 	}
 	
 	
@@ -290,6 +292,7 @@ std::map<std::string, genRowMajMatrix> GetCloudData( SPlyData &plyData )
 	bool gotrgb  = false;
 	bool gotsc   = false;
 	bool gotrot  = false;
+	bool gotfdc  = false;
 	for( auto i = plyData.fProps.begin(); i != plyData.fProps.end(); ++i )
 	{
 		
@@ -300,16 +303,25 @@ std::map<std::string, genRowMajMatrix> GetCloudData( SPlyData &plyData )
 		{
 			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
 			out["xyz"].col(0) = i->second.col(0);
+			
+// 			cout << "x: " << i->second.col(0).head(10).transpose() << endl;
 		}
 		else if( i->first.compare("y") == 0 )
 		{
 			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
 			out["xyz"].col(1) = i->second.col(0);
+			
+// 			cout << "y: " << i->second.col(0).head(10).transpose() << endl;
 		}
 		else if( i->first.compare("z") == 0 )
 		{
 			if( !gotxyz ){  out["xyz"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotxyz = true; }
 			out["xyz"].col(2) = i->second.col(0);
+			
+// 			cout << "z: " << i->second.col(0).head(10).transpose() << endl;
+			
+// 			cout << out["xyz"].block( 0, 0, 10, 3 ) << endl;
+// 			exit(0);
 		}
 		
 		
@@ -389,9 +401,20 @@ std::map<std::string, genRowMajMatrix> GetCloudData( SPlyData &plyData )
 		//
 		// dc spherical component
 		//
-		else if( i->first.compare("f_dc") == 0  )
+		else if( i->first.compare("f_dc_0") == 0  )
 		{
-			out["gs-fdc"] = i->second;
+			if( !gotfdc ){  out["gs-fdc"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotfdc = true; }
+			out["gs-fdc"].col(0) = i->second;
+		}
+		else if( i->first.compare("f_dc_1") == 0  )
+		{
+			if( !gotfdc ){  out["gs-fdc"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotfdc = true; }
+			out["gs-fdc"].col(1) = i->second;
+		}
+		else if( i->first.compare("f_dc_2") == 0  )
+		{
+			if( !gotfdc ){  out["gs-fdc"] = genRowMajMatrix::Zero( i->second.rows(), 3 ); gotfdc = true; }
+			out["gs-fdc"].col(2) = i->second;
 		}
 		
 		
@@ -504,7 +527,7 @@ std::map<std::string, genRowMajMatrix> LoadPlyPointCloud( std::string infn )
 	//
 	// My "legacy" implementation means I now need to do some rearranging into convenience matrices.
 	//
-	
+	return GetCloudData( outData );
 	
 	
 }
