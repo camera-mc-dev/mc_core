@@ -257,10 +257,10 @@ void CreateSources( Settings &s, std::vector< std::shared_ptr<ImageSource> > &so
 	}
 	
 
-	for( unsigned isc = 0; isc < sources.size(); ++isc )
-	{
-		sources[isc]->JumpToFrame( s.originFrame );
-	}
+	// for( unsigned isc = 0; isc < sources.size(); ++isc )
+	// {
+	// 	sources[isc]->JumpToFrame( s.originFrame );
+	// }
 }
 
 struct AxisPoints
@@ -971,6 +971,12 @@ int main(int argc, char *argv[] )
 			
 			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
 		}
+		
+		cout << "Full transformation: " << endl;
+		cout << "   ----------------  " << endl;
+		transMatrix3D fullT = GPM.inverse() * T.inverse() * (Rx * Ry0).inverse();
+		cout << fullT << endl;
+		cout << "   ----------------  " << endl;
 	}
 	else
 	{
