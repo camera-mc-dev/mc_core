@@ -202,9 +202,12 @@ Settings ParseConfig( std::string cfn )
 		if( cfg.exists( "markerPoints" ) )
 		{
 			libconfig::Setting &mp = cfg.lookup("markerPoints");
+			cout << "markerPoints: " << mp.getLength() << endl;
 			for( unsigned mc = 0; mc < mp.getLength(); ++mc )
 			{
-				s.markerPoints[ mp[mc][0] ] << mp[mc][1], mp[mc][2], mp[mc][3], 1.0f;
+				s.markerPoints[ (unsigned)mp[mc][0] ] << mp[mc][1], mp[mc][2], mp[mc][3], 1.0f;
+				
+				cout << "\t" << (unsigned)mp[mc][0] << " : " << s.markerPoints[ mp[mc][0] ].transpose() << endl;
 			}
 			
 			s.markersAreLeftHanded = cfg.lookup( "markersAreLeftHanded" );
@@ -797,7 +800,7 @@ void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch >
 	//
 	// We want to compute pMarkers = F.T.pMatches - which means solving for T.
 	//
-	
+	cout << s.markerPoints.size() << " " <<  markerObs.size() << endl;
 	assert( s.markerPoints.size() == markerObs.size() );
 	
 	//
@@ -882,8 +885,8 @@ void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch >
 	hVec3D t = centMatches - scale * (R * centMocap);
 	
 	T = transMatrix3D::Identity();
-	T.block(0,0,3,3) = scale * R;
-	T.col(3)         = t;
+	T.block(0,0,3,3) = scale * R33;
+	T.block(0,3,3,1) = t.head(3);
 	
 	
 	
@@ -1172,13 +1175,16 @@ int main(int argc, char *argv[] )
 		std::map< unsigned, PointMatch > markerObs;
 		for( auto i = settings.markerPoints.begin(); i != settings.markerPoints.end(); ++i )
 		{
+			cout << "marker " << i->first << std::flush;
 			auto mi = matches.find( i->first );
 			if( mi != matches.end() )
 			{
 				markerObs[ i->first ] = matches[ i->first ];
+				cout << " found" << endl;
 			}
 			else
 			{
+				cout << " not found" << endl;
 				std::stringstream ss; ss << "no match/observation of marker " << i->first;
 				throw std::runtime_error( ss.str() );
 			}
@@ -1190,36 +1196,50 @@ int main(int argc, char *argv[] )
 				
 				cout << "\t" << mi->first << " : " << mi->second.p3d.transpose() << endl;
 			}
+		}
+		
+		
+		
+		transMatrix3D F, T;
+		ComputeTransformationMarkers( settings, markerObs, T, F );
+		
+		
+		//
+		// Now move all the cameras using T...
+		//
+		for( unsigned isc = 0; isc < sources.size(); ++isc )
+		{
+			transMatrix3D nL = sources[isc]->GetCalibration().L * T.inverse() ;
 			
-			
-			transMatrix3D F, T;
-			ComputeTransformationMarkers( settings, markerObs, T, F );
-			
-			
-			//
-			// Now move all the cameras using T...
-			//
-			for( unsigned isc = 0; isc < sources.size(); ++isc )
-			{
-				transMatrix3D nL = sources[isc]->GetCalibration().L * T.inverse() ;
-				
-				sources[isc]->GetCalibration().L = nL;
-				sources[isc]->SaveCalibration();
-				
-			}
-			
-			//
-			// And recompute 3D positions...
-			//
-			cout << "Final (?) position of marker obs: " << endl;
-			for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
-			{
-				GetPointMatch3D( settings, sources, mi->second );
-				
-				cout << "\t" << mi->first << " : " << mi->second.p3d.transpose() << endl;
-			}
+			sources[isc]->GetCalibration().L = nL;
+			sources[isc]->SaveCalibration();
 			
 		}
+		
+		//
+		// And recompute 3D positions...
+		//
+		cout << "Final (?) position of marker obs: " << endl;
+		for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
+		{
+			GetPointMatch3D( settings, sources, mi->second );
+			
+			cout << "\t" << mi->first << " : " << mi->second.p3d.transpose() << endl;
+		}
+		
+		cout << "F and T " << endl;
+		cout << F << endl << endl;
+		cout << T << endl;
+		
+		cout << " ( input marker pos, and reflected marker pos ) " << endl;
+		for( auto i = settings.markerPoints.begin(); i != settings.markerPoints.end(); ++i )
+		{
+			hVec3D pr = F * i->second;
+			cout << i->first << " : " << i->second.transpose() << endl;
+			cout <<          "      " << pr.transpose() << endl << endl;
+		}
+		
+		
 		
 	}
 	
