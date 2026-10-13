@@ -22,6 +22,8 @@ using std::vector;
 
 #include "commonConfig/commonConfig.h"
 
+#include "SDS/opt.h"
+
 void DebugOutput(vector< transMatrix3D > Ls);
 
 
@@ -796,6 +798,39 @@ transMatrix3D ComputeTransformationYfirst( Settings &s, AxisPoints axisPoints )
 // As such, we return the transform T that puts our origins in alignment with x,y parallel,
 // and the relevant reflection F
 //
+
+class AlignAgent: public SDS::Agent
+{
+public:
+	AlignAgent( genMatrix source, genMatrix target ) : source( source), target( target )
+	{
+		
+	}
+	
+	genMatrix source, target;
+	
+	
+	virtual double EvaluatePosition()
+	{
+		// state is rx,ry,rz, tx,ty,tz
+		
+		// make a rot matrix and put the translation in.
+		transMatrix3D T = RotMatrix( position[0], position[1], position[2] );
+		T.col(3) << position[3], position[4], position[5], 1.0f;
+		
+		
+		genMatrix TS = T * source;
+		
+		error = 0.0f;
+		for( unsigned c = 0; c < source.cols(); ++c )
+		{
+			error += ( TS.col(c) - target.col(c) ).norm();
+		}
+		
+		return error;
+	}
+};
+
 void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch > &markerObs, transMatrix3D &T, transMatrix3D &F )
 {
 	//
@@ -852,83 +887,66 @@ void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch >
 	
 	
 	
-/*
-	std::vector< cv::Point3f > markers, matches;
-	for( unsigned c = 0; c < FpMarkers.cols(); ++c )
-	{
-		cv::Point3f k, p;
-		k.x = FpMarkers(0,c);  k.y = FpMarkers(1,c);  k.z = FpMarkers(2,c);
-		p.x =  pMatches(0,c);  p.y =  pMatches(1,c);  p.z =  pMatches(2,c);
-		
-		markers.push_back( k );
-		matches.push_back( p );
-	}
-	
-	double scale;
-	cv::Mat Tcv = cv::estimateAffine3D( matches, markers, NULL, true );  // force true because already applied F to markers so must be rotation, no reflection.
-	
-	cout << Tcv.rows << " " << Tcv.cols << " " << Tcv.type() << endl;
-	cout << Tcv << endl;
-	
-	
-	T = transMatrix3D::Identity();
-	for( unsigned r = 0; r < 3; ++r )
-		for( unsigned c = 0; c < 4; ++c )
-		{
-			T(r,c) = Tcv.at< double >(r,c);
-		}
-	
-	cout << T << endl;
-	cout << scale << endl;
-/*/
 	//
-	// T is a "similarity" - a transformation including scale, rotation and translation.
-	// We can now set about calculating it - and yes, this is Gemini based Umeyama algorithm.
+	// I can't solve with the "proper" algorithms.
 	// 
-	//
-	
-	// 1. Centroids and recentre....
-	hVec3D centMatches = pMatches.rowwise().mean();
-	hVec3D centMocap   = FpMarkers.rowwise().mean();
-	
-	genMatrix Hmatches = pMatches.colwise() - centMatches;
-	genMatrix Hmocap   = FpMarkers.colwise()  - centMocap;
 	
 	
-	// 2. Covariance matrix
-	Eigen::Matrix3f H = Hmatches.block(0,0,3,3) * Hmocap.block(0,0,3,3).transpose();
-	
-	
-	// 3. SVD
-	Eigen::JacobiSVD<Eigen::Matrix3f> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::Matrix3f U = svd.matrixU();
-	Eigen::Matrix3f V = svd.matrixV();
-	
-	
-	// 4. Ensure proper rotation (det = +1, no reflection in T)
-	Eigen::Matrix3f R33 = V * U.transpose();
-	if (R33.determinant() < 0)
+	// scale should be easy.
+	float S = 0.0f;
+	unsigned count = 0;
+	for( unsigned c0 = 0; c0 < pMatches.cols(); ++c0 )
 	{
-		Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
-		S(2, 2) = -1.0;
-		R33 = V * S * U.transpose();
+		for( unsigned c1 = c0+1; c1 < pMatches.cols(); ++c1 )
+		{
+			// get distance between each pair of points in each space.
+			float d0 = (pMatches.col(c0)  - pMatches.col(c1) ).norm();
+			float d1 = (FpMarkers.col(c0) - FpMarkers.col(c1)).norm();
+			
+			// compute rescaling s such that d1 = s*d0 => s = d1/d0
+			float s = d1 / d0;
+			++count;
+			S += s;
+		}
 	}
-	transMatrix3D R = transMatrix3D::Identity();
-	R.block(0,0,3,3) = R33;
 	
-	// 5. compute scale
-	float scale = Hmocap.norm() / Hmatches.norm();
-	cout << "scale: " << scale << endl;
-
-	// 7. Compute Translation (t)
-	hVec3D t = centMatches - scale * (R * centMocap);
-	
-	T = transMatrix3D::Identity();
-	T.block(0,0,3,3) = scale * R33;
-	T.block(0,3,3,1) = t.head(3);
-//*/
+	S /= (float)count;
+	cout << "scale: " << S << endl;
 	
 	
+	
+	// It's mad but... SDS to the rescue ?
+	SDS::Optimiser sdsopt;
+	std::vector< AlignAgent* > ragents;
+	ragents.assign( 100, NULL );
+	std::vector< SDS::Agent* > agents( ragents.size() );
+	for( unsigned ac = 0; ac < agents.size(); ++ac )
+	{
+		ragents[ac] = new AlignAgent( pMatches, FpMarkers);
+		agents[ac] = ragents[ac];
+	}
+	
+	// initialise the search.
+	int bestAgent;
+	std::vector<double> initPos(3), initRanges(3);
+	initPos = {0,0,0, 0,0,0};
+	initRanges = { 0.1, 0.1, 0.1,  100, 100, 100 };
+	sdsopt.InitialiseOpt(initPos, initRanges, agents, 0.001, 5000);
+	
+	// loop until we have a solution.
+	int ic = 0;
+	do
+	{
+		bestAgent = sdsopt.StepOpt();
+		hVec3D r; r << ragents[bestAgent]->position[0], ragents[bestAgent]->position[1], ragents[bestAgent]->position[2], 0.0f;
+		
+		cout << ragents[ bestAgent ]->error <<  endl;
+	}
+	while( !sdsopt.CheckTerm() );
+	
+	auto position = agents[ bestAgent ]->position;
+	T = RotMatrix( position[0], position[1], position[2] );
+	T.col(3) << position[3], position[4], position[5], 1.0f;
 	
 }
 
