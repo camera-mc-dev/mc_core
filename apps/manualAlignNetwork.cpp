@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/calib3d.hpp>
 #include <iostream>
 #include <vector>
 #include <set>
@@ -845,6 +846,43 @@ void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch >
 	
 	//
 	// T is a "similarity" - a transformation including scale, rotation and translation.
+	// We should be able to get OpenCV to do it for us... but we have to be careful to avoid
+	// degenerate coplanarity issues caused by points being on the floor.
+	// 
+	
+	
+	
+/*
+	std::vector< cv::Point3f > markers, matches;
+	for( unsigned c = 0; c < FpMarkers.cols(); ++c )
+	{
+		cv::Point3f k, p;
+		k.x = FpMarkers(0,c);  k.y = FpMarkers(1,c);  k.z = FpMarkers(2,c);
+		p.x =  pMatches(0,c);  p.y =  pMatches(1,c);  p.z =  pMatches(2,c);
+		
+		markers.push_back( k );
+		matches.push_back( p );
+	}
+	
+	double scale;
+	cv::Mat Tcv = cv::estimateAffine3D( matches, markers, NULL, true );  // force true because already applied F to markers so must be rotation, no reflection.
+	
+	cout << Tcv.rows << " " << Tcv.cols << " " << Tcv.type() << endl;
+	cout << Tcv << endl;
+	
+	
+	T = transMatrix3D::Identity();
+	for( unsigned r = 0; r < 3; ++r )
+		for( unsigned c = 0; c < 4; ++c )
+		{
+			T(r,c) = Tcv.at< double >(r,c);
+		}
+	
+	cout << T << endl;
+	cout << scale << endl;
+/*/
+	//
+	// T is a "similarity" - a transformation including scale, rotation and translation.
 	// We can now set about calculating it - and yes, this is Gemini based Umeyama algorithm.
 	// 
 	//
@@ -880,14 +918,15 @@ void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch >
 	
 	// 5. compute scale
 	float scale = Hmocap.norm() / Hmatches.norm();
-	
+	cout << "scale: " << scale << endl;
+
 	// 7. Compute Translation (t)
 	hVec3D t = centMatches - scale * (R * centMocap);
 	
 	T = transMatrix3D::Identity();
 	T.block(0,0,3,3) = scale * R33;
 	T.block(0,3,3,1) = t.head(3);
-	
+//*/
 	
 	
 	
@@ -1154,7 +1193,7 @@ int main(int argc, char *argv[] )
 			vector< transMatrix3D > nLs;
 			for( unsigned isc = 0; isc < sources.size(); ++isc )
 			{
-				transMatrix3D nL = sources[isc]->GetCalibration().L * M.inverse() ;
+				transMatrix3D nL = sources[isc]->GetCalibration().L * M; //.inverse() ;
 				
 				sources[isc]->GetCalibration().L = nL;
 				sources[isc]->SaveCalibration();
@@ -1202,6 +1241,17 @@ int main(int argc, char *argv[] )
 		
 		transMatrix3D F, T;
 		ComputeTransformationMarkers( settings, markerObs, T, F );
+		
+		//
+		// Test F and T on points - should take us to mocap markers
+		//
+		for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
+		{
+			cout << mi->first << " : " << mi->second.p3d.transpose() << endl;
+			cout << "     "            << settings.markerPoints[ mi->first ].transpose() << endl;
+			cout << "     "            << (T*mi->second.p3d).transpose()   << endl;
+			cout << "     "            << (F*T*mi->second.p3d).transpose() << endl;
+		}
 		
 		
 		//
