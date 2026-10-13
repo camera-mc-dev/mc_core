@@ -95,6 +95,10 @@ struct Settings
 	bool negateYAxis = false;
 	std::vector<unsigned> matchesOnGround;
 	std::vector<unsigned> axisPoints;
+	
+	std::map< unsigned, hVec3D> markerPoints;
+	bool markersAreLeftHanded;
+	char reflectAxis;
 };
 
 
@@ -117,7 +121,7 @@ Settings ParseConfig( std::string cfn )
 	try
 	{
 		cfg.readFile(cfn.c_str());
-
+		
 		if( cfg.exists("dataRoot") )
 			s.dataRoot = (const char*)cfg.lookup("dataRoot");
 		s.testRoot = (const char*)cfg.lookup("testRoot");
@@ -193,6 +197,27 @@ Settings ParseConfig( std::string cfn )
 			{
 				s.axisPoints.push_back( ap[mc] );
 			}
+		}
+		
+		if( cfg.exists( "markerPoints" ) )
+		{
+			libconfig::Setting &mp = cfg.lookup("markerPoints");
+			for( unsigned mc = 0; mc < mp.getLength(); ++mc )
+			{
+				s.markerPoints[ mp[mc][0] ] << mp[mc][1], mp[mc][2], mp[mc][3], 1.0f;
+			}
+			
+			s.markersAreLeftHanded = cfg.lookup( "markersAreLeftHanded" );
+			if( s.markersAreLeftHanded )
+			{
+				std::string reflectAxisTmpStr = (const char*)cfg.lookup("reflectAxis");
+				assert( reflectAxisTmpStr.size() == 1 );
+				assert( reflectAxisTmpStr.compare("x") == 0 ||
+				        reflectAxisTmpStr.compare("y") == 0 ||
+				        reflectAxisTmpStr.compare("z") == 0    );
+				s.reflectAxis = reflectAxisTmpStr[0];
+			}
+			
 		}
 	}
 	catch( libconfig::SettingException &e)
@@ -753,6 +778,23 @@ transMatrix3D ComputeTransformationYfirst( Settings &s, AxisPoints axisPoints )
 }
 
 
+
+//
+// If we have a set of mocap markers with 2D observations of them, we can compute 
+// a rigid transformation between the marker positions and our reconstructions of them.
+//
+// The other thing to note is that Vicon is stupid (;p) and uses a left handed coordinate 
+// system, so we need to allow for that.
+//
+// If the Vicon system retains the concept of z-up, then what we will do is match it's 
+// origin and z-axis, and have a reflection on one of x or y as per config.
+//
+// As such, we return the transform T that puts our origins in alignment with x,y parallel,
+// and the relevant reflection F
+//
+void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch > &markerObs, transMatrix3D &T, transMatrix3D &F )
+{
+}
 
 
 int main(int argc, char *argv[] )
