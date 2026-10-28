@@ -3,18 +3,22 @@ from ezc3d import c3d
 from timecode import Timecode
 import numpy as np
 
-if len( sys.argv ) != 3:
+if len( sys.argv ) < 3:
 	print( "Tool to calculate frame-offset between .c3d file and emergent timestamp" )
 	print( "Gets the mean first frame timestamp from emergent export (Murray's script)" )
 	print( "Compares that to the timecode embedded in the .c3d file" )
 	print( "Usage: " )
 	print( sys.argv[0], "< path to emergent capture >  < path to vicon .c3d track >" )
+	print( "\n" )
+	print( "You may also pass a timecode values to convert to emergent frame numbers" )
+	print( sys.argv[0], "< path to emergent capture >  < path to vicon .c3d track > [ timecode 0 ] ... [ timecode n ]" )
+	print( "timecodes written as hrs:mins:secs:frames(subframes)" )
 	exit(0)
 
 evPath  = sys.argv[1]
 c3dPath = sys.argv[2]
 
-
+extraTimecodes = sys.argv[3:]
 
 #
 # Start by reading the "timecode" from the .c3d file
@@ -121,3 +125,11 @@ print( "emergent frames since midnight: ", tsFrames )
 
 offset = tsFrames - tcFrames
 print( "offset: ", offset )
+
+
+
+#
+# If we have a set of timecodes to convert...
+#
+for etc in extraTimecodes:
+	print( etc )
