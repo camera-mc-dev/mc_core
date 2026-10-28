@@ -206,19 +206,19 @@ void ReadElementASCII( std::ifstream &infi, SElement &e, SPlyData &outData )
 	{
 		if( e.propTypes[pc].compare("float") == 0 )
 		{
-			outData.fProps[ e.properties[pc] ] == floatMat::Zero( e.number, 1 );
+			outData.fProps[ e.properties[pc] ] = floatMat::Zero( e.number, 1 );
 		}
 		else if( e.propTypes[pc].compare("double") == 0 )
 		{
-			outData.dProps[ e.properties[pc] ] == doubleMat::Zero( e.number, 1 );
+			outData.dProps[ e.properties[pc] ] = doubleMat::Zero( e.number, 1 );
 		}
 		else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 		{
-			outData.ui8Props[ e.properties[pc] ] == uint8Mat::Zero( e.number, 1 );
+			outData.ui8Props[ e.properties[pc] ] = uint8Mat::Zero( e.number, 1 );
 		}
 		else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
 		{
-			outData.i8Props[ e.properties[pc] ] == int8Mat::Zero( e.number, 1 );
+			outData.i8Props[ e.properties[pc] ] = int8Mat::Zero( e.number, 1 );
 		}
 		else
 		{
@@ -241,19 +241,19 @@ void ReadElementASCII( std::ifstream &infi, SElement &e, SPlyData &outData )
 		{
 			if( e.propTypes[pc].compare("float") == 0 )
 			{
-				outData.fProps[ e.properties[pc] ]( c, pc ) = atof( tokens[pc].c_str() );
+				outData.fProps[ e.properties[pc] ]( c, 0 ) = atof( tokens[pc].c_str() );
 			}
 			else if( e.propTypes[pc].compare("double") == 0 )
 			{
-				outData.dProps[ e.properties[pc] ]( c, pc ) = atof( tokens[pc].c_str() );
+				outData.dProps[ e.properties[pc] ]( c, 0 ) = atof( tokens[pc].c_str() );
 			}
 			else if( e.propTypes[pc].compare("uchar") == 0 || e.propTypes[pc].compare("uint8") == 0 )
 			{
-				outData.ui8Props[ e.properties[pc] ]( c, pc ) = atoi( tokens[pc].c_str() );
+				outData.ui8Props[ e.properties[pc] ]( c, 0 ) = atoi( tokens[pc].c_str() );
 			}
 			else if( e.propTypes[pc].compare("char") == 0 || e.propTypes[pc].compare("int8") == 0 )
 			{
-				outData.i8Props[ e.properties[pc] ]( c, pc ) = atoi( tokens[pc].c_str() );
+				outData.i8Props[ e.properties[pc] ]( c, 0 ) = atoi( tokens[pc].c_str() );
 			}
 		}
 	}

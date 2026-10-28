@@ -275,7 +275,14 @@ int main( int argc, char *argv[] )
 	//
 	// Create mesh with vertices and vertexColours
 	//
-	assert( cloud.find("xyz") != cloud.end() );
+	if( cloud.find("xyz") == cloud.end() )
+	{
+		cout << "Could not find xyz in cloud dict: " << endl;
+		cout << "got:" << endl;
+		for( auto k = cloud.begin(); k != cloud.end(); ++k )
+			cout << "\t" << k->first << endl;
+		exit(0);
+	}
 	int numVert = cloud["xyz"].rows();
 	std::shared_ptr<Rendering::Mesh> cloudMesh( new Rendering::Mesh( numVert,0 ) ); // lots of verts, no faces.
 	cloudMesh->vertices.block(   0,0, 3, numVert) = cloud["xyz"].block(0,0, numVert, 3 ).transpose();

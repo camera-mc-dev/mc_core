@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/calib3d.hpp>
 #include <iostream>
 #include <vector>
 #include <set>
@@ -20,6 +21,8 @@ using std::vector;
 #include "libconfig.h++"
 
 #include "commonConfig/commonConfig.h"
+
+#include "SDS/opt.h"
 
 void DebugOutput(vector< transMatrix3D > Ls);
 
@@ -95,6 +98,10 @@ struct Settings
 	bool negateYAxis = false;
 	std::vector<unsigned> matchesOnGround;
 	std::vector<unsigned> axisPoints;
+	
+	std::map< unsigned, hVec3D> markerPoints;
+	bool markersAreLeftHanded;
+	char reflectAxis;
 };
 
 
@@ -117,7 +124,7 @@ Settings ParseConfig( std::string cfn )
 	try
 	{
 		cfg.readFile(cfn.c_str());
-
+		
 		if( cfg.exists("dataRoot") )
 			s.dataRoot = (const char*)cfg.lookup("dataRoot");
 		s.testRoot = (const char*)cfg.lookup("testRoot");
@@ -194,6 +201,30 @@ Settings ParseConfig( std::string cfn )
 				s.axisPoints.push_back( ap[mc] );
 			}
 		}
+		
+		if( cfg.exists( "markerPoints" ) )
+		{
+			libconfig::Setting &mp = cfg.lookup("markerPoints");
+			cout << "markerPoints: " << mp.getLength() << endl;
+			for( unsigned mc = 0; mc < mp.getLength(); ++mc )
+			{
+				s.markerPoints[ (unsigned)mp[mc][0] ] << mp[mc][1], mp[mc][2], mp[mc][3], 1.0f;
+				
+				cout << "\t" << (unsigned)mp[mc][0] << " : " << s.markerPoints[ mp[mc][0] ].transpose() << endl;
+			}
+			
+			s.markersAreLeftHanded = cfg.lookup( "markersAreLeftHanded" );
+			if( s.markersAreLeftHanded )
+			{
+				std::string reflectAxisTmpStr = (const char*)cfg.lookup("reflectAxis");
+				assert( reflectAxisTmpStr.size() == 1 );
+				assert( reflectAxisTmpStr.compare("x") == 0 ||
+				        reflectAxisTmpStr.compare("y") == 0 ||
+				        reflectAxisTmpStr.compare("z") == 0    );
+				s.reflectAxis = reflectAxisTmpStr[0];
+			}
+			
+		}
 	}
 	catch( libconfig::SettingException &e)
 	{
@@ -257,10 +288,10 @@ void CreateSources( Settings &s, std::vector< std::shared_ptr<ImageSource> > &so
 	}
 	
 
-	for( unsigned isc = 0; isc < sources.size(); ++isc )
-	{
-		sources[isc]->JumpToFrame( s.originFrame );
-	}
+	// for( unsigned isc = 0; isc < sources.size(); ++isc )
+	// {
+	// 	sources[isc]->JumpToFrame( s.originFrame );
+	// }
 }
 
 struct AxisPoints
@@ -754,6 +785,171 @@ transMatrix3D ComputeTransformationYfirst( Settings &s, AxisPoints axisPoints )
 
 
 
+//
+// If we have a set of mocap markers with 2D observations of them, we can compute 
+// a rigid transformation between the marker positions and our reconstructions of them.
+//
+// The other thing to note is that Vicon is stupid (;p) and uses a left handed coordinate 
+// system, so we need to allow for that.
+//
+// If the Vicon system retains the concept of z-up, then what we will do is match it's 
+// origin and z-axis, and have a reflection on one of x or y as per config.
+//
+// As such, we return the transform T that puts our origins in alignment with x,y parallel,
+// and the relevant reflection F
+//
+
+class AlignAgent: public SDS::Agent
+{
+public:
+	AlignAgent( genMatrix source, genMatrix target ) : source( source), target( target )
+	{
+		
+	}
+	
+	genMatrix source, target;
+	
+	
+	virtual double EvaluatePosition()
+	{
+		// state is rx,ry,rz, tx,ty,tz
+		
+		// make a rot matrix and put the translation in.
+		transMatrix3D T = RotMatrix( position[0], position[1], position[2] );
+		T.col(3) << position[3], position[4], position[5], 1.0f;
+		
+		
+		genMatrix TS = T * source;
+		
+		error = 0.0f;
+		for( unsigned c = 0; c < source.cols(); ++c )
+		{
+			error += ( TS.col(c) - target.col(c) ).norm();
+		}
+		
+		return error;
+	}
+};
+
+void ComputeTransformationMarkers( Settings &s, std::map< unsigned, PointMatch > &markerObs, transMatrix3D &T, transMatrix3D &F )
+{
+	//
+	// We want to compute pMarkers = F.T.pMatches - which means solving for T.
+	//
+	cout << s.markerPoints.size() << " " <<  markerObs.size() << endl;
+	assert( s.markerPoints.size() == markerObs.size() );
+	
+	//
+	// Let's start by putting the point correspondences in a pair of matrices.
+	//
+	genMatrix pMarkers, pMatches;
+	pMarkers   = genMatrix::Ones( 4, s.markerPoints.size() );
+	pMatches = genMatrix::Ones( 4, s.markerPoints.size() );
+	unsigned c = 0;
+	for( auto i = markerObs.begin(); i != markerObs.end(); ++i )
+	{
+		pMarkers.col(c)   = s.markerPoints[ i->first ];
+		pMatches.col(c) = markerObs[ i->first ].p3d;
+		++c;
+	}
+	
+	
+	//
+	// The user has already told us what F will be.
+	//
+	F = transMatrix3D::Identity();
+	if( s.markersAreLeftHanded )
+	{
+		if( s.reflectAxis == 'x' )
+			F(0,0) = -1;
+		else if( s.reflectAxis == 'y' )
+			F(1,1) = -1;
+		else if( s.reflectAxis == 'z' )
+			F(2,2) = -1;
+		else
+			throw( std::runtime_error(" reflect axis not one of x,y,z " ) );
+	}
+	
+	//
+	// We can then make life much easier by reflecting the mocap points.
+	// The inverse of the reflection _is_ the reflection, obviously.
+	//
+	// so we then have:
+	//     F.pMarkers = T.pMatches
+	//
+	genMatrix FpMarkers = F * pMarkers;
+	
+	//
+	// T is a "similarity" - a transformation including scale, rotation and translation.
+	// We should be able to get OpenCV to do it for us... but we have to be careful to avoid
+	// degenerate coplanarity issues caused by points being on the floor.
+	// 
+	
+	
+	
+	//
+	// I can't solve with the "proper" algorithms.
+	// 
+	
+	
+	// scale should be easy.
+	float S = 0.0f;
+	unsigned count = 0;
+	for( unsigned c0 = 0; c0 < pMatches.cols(); ++c0 )
+	{
+		for( unsigned c1 = c0+1; c1 < pMatches.cols(); ++c1 )
+		{
+			// get distance between each pair of points in each space.
+			float d0 = (pMatches.col(c0)  - pMatches.col(c1) ).norm();
+			float d1 = (FpMarkers.col(c0) - FpMarkers.col(c1)).norm();
+			
+			// compute rescaling s such that d1 = s*d0 => s = d1/d0
+			float s = d1 / d0;
+			++count;
+			S += s;
+		}
+	}
+	
+	S /= (float)count;
+	cout << "scale: " << S << endl;
+	
+	
+	
+	// It's mad but... SDS to the rescue ?
+	SDS::Optimiser sdsopt;
+	std::vector< AlignAgent* > ragents;
+	ragents.assign( 100, NULL );
+	std::vector< SDS::Agent* > agents( ragents.size() );
+	for( unsigned ac = 0; ac < agents.size(); ++ac )
+	{
+		ragents[ac] = new AlignAgent( pMatches, FpMarkers);
+		agents[ac] = ragents[ac];
+	}
+	
+	// initialise the search.
+	int bestAgent;
+	std::vector<double> initPos(3), initRanges(3);
+	initPos = {0,0,0, 0,0,0};
+	initRanges = { 0.1, 0.1, 0.1,  100, 100, 100 };
+	sdsopt.InitialiseOpt(initPos, initRanges, agents, 0.001, 5000);
+	
+	// loop until we have a solution.
+	int ic = 0;
+	do
+	{
+		bestAgent = sdsopt.StepOpt();
+		hVec3D r; r << ragents[bestAgent]->position[0], ragents[bestAgent]->position[1], ragents[bestAgent]->position[2], 0.0f;
+		
+		cout << ragents[ bestAgent ]->error <<  endl;
+	}
+	while( !sdsopt.CheckTerm() );
+	
+	auto position = agents[ bestAgent ]->position;
+	T = RotMatrix( position[0], position[1], position[2] );
+	T.col(3) << position[3], position[4], position[5], 1.0f;
+	
+}
+
 
 int main(int argc, char *argv[] )
 {
@@ -775,247 +971,345 @@ int main(int argc, char *argv[] )
 		LoadPointMatches( settings.matchesFile, matches );
 	}
 	
-	AxisPoints axisPoints;
-	if( settings.axisPoints.size() != 3 )
-	{
-		axisPoints = GetAxisObservationsInteractive( settings, sources );
-	}
-	else
-	{
-		cout << "Using stated known points to form world axes..." << endl;
-		
-		auto xi = matches.find( settings.axisPoints[0] );
-		auto oi = matches.find( settings.axisPoints[1] );
-		auto yi = matches.find( settings.axisPoints[2] );
-		
-		if( xi != matches.end() && oi != matches.end() && yi != matches.end() )
-		{
-			axisPoints.x = xi->second;
-			axisPoints.y = yi->second;
-			axisPoints.o = oi->second;
-		}
-	}
 	
-	
-	
-	//
-	// We'll start with a reconstruction of _all_ the points that are stated to 
-	// be on the ground plane.
-	//
-	if( settings.matchesOnGround.size() > 0 )
+	if( settings.markerPoints.size() == 0 )
 	{
-		std::map< unsigned, PointMatch > mog;
-		for( unsigned mogc = 0; mogc < settings.matchesOnGround.size(); ++mogc )
-		{
-			mog[ settings.matchesOnGround[mogc] ] = matches[ settings.matchesOnGround[mogc] ];
-		}
 		
-		cout << "Initial position of ground points: " << endl;
-		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+		AxisPoints axisPoints;
+		if( settings.axisPoints.size() != 3 )
 		{
-			GetPointMatch3D( settings, sources, mogi->second );
+			axisPoints = GetAxisObservationsInteractive( settings, sources );
+		}
+		else
+		{
+			cout << "Using stated known points to form world axes..." << endl;
 			
-			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
-		}
-		
-		transMatrix3D GPM = ComputeTransformationGroundPlane( settings, mog );
-		
-		
-		
-		// and we can now update the calibrations.
-		for( unsigned isc = 0; isc < sources.size(); ++isc )
-		{
-			transMatrix3D nL = sources[isc]->GetCalibration().L * GPM.inverse() ;
+			auto xi = matches.find( settings.axisPoints[0] );
+			auto oi = matches.find( settings.axisPoints[1] );
+			auto yi = matches.find( settings.axisPoints[2] );
 			
-			sources[isc]->GetCalibration().L = nL;
+			if( xi != matches.end() && oi != matches.end() && yi != matches.end() )
+			{
+				axisPoints.x = xi->second;
+				axisPoints.y = yi->second;
+				axisPoints.o = oi->second;
+			}
 		}
 		
-		
-		cout << "Updated position of ground points (pre): " << endl;
-		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
-		{
-			GetPointMatch3D( settings, sources, mogi->second );
-			
-			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
-		}
-		
-		
-		// get the axis points
-		GetAxisPoints3D( settings, sources, axisPoints );
-		
-		// 
-		// We're going to assume that the ground plane is now right.
-		// We need 
-		//  1) a translation on the z=0 plane to put the origin point at (0,0,z)
-		//  2) a rotation around the z-axis to make the y-point lie on the y-axis.
-		
-		hVec3D x3,o3,y3;
-		x3 = axisPoints.x.p3d;
-		o3 = axisPoints.o.p3d;
-		y3 = axisPoints.y.p3d;
-		
-		cout << "Axis points (pre T): " << endl;
-		cout << "\t" << axisPoints.x.p3d.transpose() << endl;
-		cout << "\t" << axisPoints.o.p3d.transpose() << endl;
-		cout << "\t" << axisPoints.y.p3d.transpose() << endl;
-		
-		transMatrix3D T;
-		T = transMatrix3D::Identity();
-		T(0,3) = -o3(0);
-		T(1,3) = -o3(1);
-		T(2,3) =   0.0f;
 		
 		
 		//
-		// Keep life simple and just get rid of that translation now.
+		// We'll start with a reconstruction of _all_ the points that are stated to 
+		// be on the ground plane.
+		//
+		if( settings.matchesOnGround.size() > 0 )
+		{
+			std::map< unsigned, PointMatch > mog;
+			for( unsigned mogc = 0; mogc < settings.matchesOnGround.size(); ++mogc )
+			{
+				mog[ settings.matchesOnGround[mogc] ] = matches[ settings.matchesOnGround[mogc] ];
+			}
+			
+			cout << "Initial position of ground points: " << endl;
+			for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+			{
+				GetPointMatch3D( settings, sources, mogi->second );
+				
+				cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
+			}
+			
+			transMatrix3D GPM = ComputeTransformationGroundPlane( settings, mog );
+			
+			
+			
+			// and we can now update the calibrations.
+			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			{
+				transMatrix3D nL = sources[isc]->GetCalibration().L * GPM.inverse() ;
+				
+				sources[isc]->GetCalibration().L = nL;
+			}
+			
+			
+			cout << "Updated position of ground points (pre): " << endl;
+			for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+			{
+				GetPointMatch3D( settings, sources, mogi->second );
+				
+				cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
+			}
+			
+			
+			// get the axis points
+			GetAxisPoints3D( settings, sources, axisPoints );
+			
+			// 
+			// We're going to assume that the ground plane is now right.
+			// We need 
+			//  1) a translation on the z=0 plane to put the origin point at (0,0,z)
+			//  2) a rotation around the z-axis to make the y-point lie on the y-axis.
+			
+			hVec3D x3,o3,y3;
+			x3 = axisPoints.x.p3d;
+			o3 = axisPoints.o.p3d;
+			y3 = axisPoints.y.p3d;
+			
+			cout << "Axis points (pre T): " << endl;
+			cout << "\t" << axisPoints.x.p3d.transpose() << endl;
+			cout << "\t" << axisPoints.o.p3d.transpose() << endl;
+			cout << "\t" << axisPoints.y.p3d.transpose() << endl;
+			
+			transMatrix3D T;
+			T = transMatrix3D::Identity();
+			T(0,3) = -o3(0);
+			T(1,3) = -o3(1);
+			T(2,3) =   0.0f;
+			
+			
+			//
+			// Keep life simple and just get rid of that translation now.
+			//
+			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			{
+				transMatrix3D nL = sources[isc]->GetCalibration().L * T.inverse() ;
+				
+				sources[isc]->GetCalibration().L = nL;
+			}
+			
+			
+			// get the axis points
+			GetAxisPoints3D( settings, sources, axisPoints );
+			
+			// 
+			// We're going to assume that the ground plane is now right.
+			// We need 
+			//  1) a translation on the z=0 plane to put the origin point at (0,0,z)
+			//  2) a rotation around the z-axis to make the y-point lie on the y-axis.
+			
+			
+			x3 = axisPoints.x.p3d;
+			o3 = axisPoints.o.p3d;
+			y3 = axisPoints.y.p3d;
+			
+			cout << "Axis points (post T): " << endl;
+			cout << "\t" << axisPoints.x.p3d.transpose() << endl;
+			cout << "\t" << axisPoints.o.p3d.transpose() << endl;
+			cout << "\t" << axisPoints.y.p3d.transpose() << endl;
+			
+			
+			// get vector from o->y 
+			hVec3D o3y3 = y3-o3;
+			
+			// get rid of z-component and norm.
+			o3y3(2) = 0.0f;
+			o3y3 /= o3y3.norm();
+			
+			// target is...
+			hVec3D y0; 
+			if( settings.negateYAxis )
+				y0 << 0,-1,0,0;
+			else
+				y0 <<   0,1,0,0;
+			
+			// rotation axis is z-axis
+			hVec3D raxis; raxis << 0,0,1,0;
+			
+			// and the angle is the dot product...
+			float ang    = -acos( (o3y3).dot(y0) );
+			
+			// so rotation is...
+			transMatrix3D Ry0 = transMatrix3D::Identity();
+			Ry0.block(0,0,3,3) = Eigen::AngleAxisf(ang, raxis.head(3)).matrix();
+			
+			
+			hVec3D xx, oo, yy;
+			xx = Ry0 * axisPoints.x.p3d;
+			oo = Ry0 * axisPoints.o.p3d;
+			yy = Ry0 * axisPoints.y.p3d;
+			
+			cout << "updated axis points:" << endl;
+			cout << xx.transpose() << endl;
+			cout << oo.transpose() << endl;
+			cout << yy.transpose() << endl;
+			cout << endl;
+			
+			// one more check...
+			transMatrix3D Rx = transMatrix3D::Identity();
+			if( ( xx(0) < 0 && !settings.negateXAxis ) ||
+				( xx(0) > 0 &&  settings.negateXAxis ) )
+			{
+				cout << "needed extra rotation..." << endl;
+				hVec3D raxis; raxis << 0,1,0,0;
+				Rx.block(0,0,3,3) = Eigen::AngleAxisf( 3.14159, raxis.head(3)).matrix();
+				
+			}
+			
+			xx = Rx * Ry0 * axisPoints.x.p3d;
+			oo = Rx * Ry0 * axisPoints.o.p3d;
+			yy = Rx * Ry0 * axisPoints.y.p3d;
+			
+			cout << "axis points:" << endl;
+			cout << xx.transpose() << endl;
+			cout << oo.transpose() << endl;
+			cout << yy.transpose() << endl;
+			cout << endl;
+			
+			// and we can now update the calibrations too.
+			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			{
+				transMatrix3D nL = sources[isc]->GetCalibration().L * (Rx*Ry0).inverse() ;
+				
+				sources[isc]->GetCalibration().L = nL;
+				sources[isc]->SaveCalibration();
+			}
+			
+			
+			cout << "Final position of ground points (post): " << endl;
+			for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
+			{
+				GetPointMatch3D( settings, sources, mogi->second );
+				
+				cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
+			}
+			
+			cout << "Full transformation: " << endl;
+			cout << "   ----------------  " << endl;
+			transMatrix3D fullT = GPM.inverse() * T.inverse() * (Rx * Ry0).inverse();
+			cout << fullT << endl;
+			cout << "   ----------------  " << endl;
+		}
+		else
+		{
+			//
+			// traditional route using just the axis points.
+			//
+			
+			GetAxisPoints3D( settings, sources, axisPoints );
+			
+			
+			
+			cout << "axis points:" << endl;
+			cout << axisPoints.x.p3d.transpose() << endl;
+			cout << axisPoints.o.p3d.transpose() << endl;
+			cout << axisPoints.y.p3d.transpose() << endl;
+			cout << endl;
+			
+			cout << " target point observations and reprojections: " << endl;
+			for( auto obsi = axisPoints.x.obs.begin(); obsi != axisPoints.x.obs.end(); ++obsi )
+			{
+				cout << "Camera id: " << obsi->first << endl;
+				cout << obsi->second.transpose() << "     -- --      " << axisPoints.x.proj[ obsi->first ].transpose() << endl;
+				cout << axisPoints.o.obs[ obsi->first ].transpose() << "     -- --      " << axisPoints.o.proj[ obsi->first ].transpose() << endl;
+				cout << axisPoints.y.obs[ obsi->first ].transpose() << "     -- --      " << axisPoints.y.proj[ obsi->first ].transpose() << endl;
+				cout << " ----- " << endl;
+			}
+			
+			
+			
+			transMatrix3D M = ComputeTransformationYfirst( settings, axisPoints );
+			
+			vector< transMatrix3D > nLs;
+			for( unsigned isc = 0; isc < sources.size(); ++isc )
+			{
+				transMatrix3D nL = sources[isc]->GetCalibration().L * M; //.inverse() ;
+				
+				sources[isc]->GetCalibration().L = nL;
+				sources[isc]->SaveCalibration();
+				
+				nLs.push_back(nL);
+			}
+			
+			DebugOutput(nLs);
+		}
+	}
+	else
+	{
+		
+		// in this case, we have a set of known 3D marker points, and their matching 2D obvservations in the matches.
+		
+		
+		// 1) reconstruct the matches corresponding to the marker points.
+		std::map< unsigned, PointMatch > markerObs;
+		for( auto i = settings.markerPoints.begin(); i != settings.markerPoints.end(); ++i )
+		{
+			cout << "marker " << i->first << std::flush;
+			auto mi = matches.find( i->first );
+			if( mi != matches.end() )
+			{
+				markerObs[ i->first ] = matches[ i->first ];
+				cout << " found" << endl;
+			}
+			else
+			{
+				cout << " not found" << endl;
+				std::stringstream ss; ss << "no match/observation of marker " << i->first;
+				throw std::runtime_error( ss.str() );
+			}
+			
+			cout << "Initial position of marker obs: " << endl;
+			for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
+			{
+				GetPointMatch3D( settings, sources, mi->second );
+				
+				cout << "\t" << mi->first << " : " << mi->second.p3d.transpose() << endl;
+			}
+		}
+		
+		
+		
+		transMatrix3D F, T;
+		ComputeTransformationMarkers( settings, markerObs, T, F );
+		
+		//
+		// Test F and T on points - should take us to mocap markers
+		//
+		for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
+		{
+			cout << mi->first << " : " << mi->second.p3d.transpose() << endl;
+			cout << "     "            << settings.markerPoints[ mi->first ].transpose() << endl;
+			cout << "     "            << (T*mi->second.p3d).transpose()   << endl;
+			cout << "     "            << (F*T*mi->second.p3d).transpose() << endl;
+		}
+		
+		
+		//
+		// Now move all the cameras using T...
 		//
 		for( unsigned isc = 0; isc < sources.size(); ++isc )
 		{
 			transMatrix3D nL = sources[isc]->GetCalibration().L * T.inverse() ;
 			
 			sources[isc]->GetCalibration().L = nL;
-		}
-		
-		
-		// get the axis points
-		GetAxisPoints3D( settings, sources, axisPoints );
-		
-		// 
-		// We're going to assume that the ground plane is now right.
-		// We need 
-		//  1) a translation on the z=0 plane to put the origin point at (0,0,z)
-		//  2) a rotation around the z-axis to make the y-point lie on the y-axis.
-		
-		
-		x3 = axisPoints.x.p3d;
-		o3 = axisPoints.o.p3d;
-		y3 = axisPoints.y.p3d;
-		
-		cout << "Axis points (post T): " << endl;
-		cout << "\t" << axisPoints.x.p3d.transpose() << endl;
-		cout << "\t" << axisPoints.o.p3d.transpose() << endl;
-		cout << "\t" << axisPoints.y.p3d.transpose() << endl;
-		
-		
-		// get vector from o->y 
-		hVec3D o3y3 = y3-o3;
-		
-		// get rid of z-component and norm.
-		o3y3(2) = 0.0f;
-		o3y3 /= o3y3.norm();
-		
-		// target is...
-		hVec3D y0; 
-		if( settings.negateYAxis )
-			y0 << 0,-1,0,0;
-		else
-			y0 <<   0,1,0,0;
-		
-		// rotation axis is z-axis
-		hVec3D raxis; raxis << 0,0,1,0;
-		
-		// and the angle is the dot product...
-		float ang    = -acos( (o3y3).dot(y0) );
-		
-		// so rotation is...
-		transMatrix3D Ry0 = transMatrix3D::Identity();
-		Ry0.block(0,0,3,3) = Eigen::AngleAxisf(ang, raxis.head(3)).matrix();
-		
-		
-		hVec3D xx, oo, yy;
-		xx = Ry0 * axisPoints.x.p3d;
-		oo = Ry0 * axisPoints.o.p3d;
-		yy = Ry0 * axisPoints.y.p3d;
-		
-		cout << "updated axis points:" << endl;
-		cout << xx.transpose() << endl;
-		cout << oo.transpose() << endl;
-		cout << yy.transpose() << endl;
-		cout << endl;
-		
-		// one more check...
-		transMatrix3D Rx = transMatrix3D::Identity();
-		if( ( xx(0) < 0 && !settings.negateXAxis ) ||
-			( xx(0) > 0 &&  settings.negateXAxis ) )
-		{
-			cout << "needed extra rotation..." << endl;
-			hVec3D raxis; raxis << 0,1,0,0;
-			Rx.block(0,0,3,3) = Eigen::AngleAxisf( 3.14159, raxis.head(3)).matrix();
-			
-		}
-		
-		xx = Rx * Ry0 * axisPoints.x.p3d;
-		oo = Rx * Ry0 * axisPoints.o.p3d;
-		yy = Rx * Ry0 * axisPoints.y.p3d;
-		
-		cout << "axis points:" << endl;
-		cout << xx.transpose() << endl;
-		cout << oo.transpose() << endl;
-		cout << yy.transpose() << endl;
-		cout << endl;
-		
-		// and we can now update the calibrations too.
-		for( unsigned isc = 0; isc < sources.size(); ++isc )
-		{
-			transMatrix3D nL = sources[isc]->GetCalibration().L * (Rx*Ry0).inverse() ;
-			
-			sources[isc]->GetCalibration().L = nL;
-			sources[isc]->SaveCalibration();
-		}
-		
-		
-		cout << "Final position of ground points (post): " << endl;
-		for( auto mogi = mog.begin(); mogi != mog.end(); ++mogi )
-		{
-			GetPointMatch3D( settings, sources, mogi->second );
-			
-			cout << "\t" << mogi->first << " : " << mogi->second.p3d.transpose() << endl;
-		}
-	}
-	else
-	{
-		//
-		// traditional route using just the axis points.
-		//
-		
-		GetAxisPoints3D( settings, sources, axisPoints );
-		
-		
-		
-		cout << "axis points:" << endl;
-		cout << axisPoints.x.p3d.transpose() << endl;
-		cout << axisPoints.o.p3d.transpose() << endl;
-		cout << axisPoints.y.p3d.transpose() << endl;
-		cout << endl;
-		
-		cout << " target point observations and reprojections: " << endl;
-		for( auto obsi = axisPoints.x.obs.begin(); obsi != axisPoints.x.obs.end(); ++obsi )
-		{
-			cout << "Camera id: " << obsi->first << endl;
-			cout << obsi->second.transpose() << "     -- --      " << axisPoints.x.proj[ obsi->first ].transpose() << endl;
-			cout << axisPoints.o.obs[ obsi->first ].transpose() << "     -- --      " << axisPoints.o.proj[ obsi->first ].transpose() << endl;
-			cout << axisPoints.y.obs[ obsi->first ].transpose() << "     -- --      " << axisPoints.y.proj[ obsi->first ].transpose() << endl;
-			cout << " ----- " << endl;
-		}
-		
-		
-		
-		transMatrix3D M = ComputeTransformationYfirst( settings, axisPoints );
-		
-		vector< transMatrix3D > nLs;
-		for( unsigned isc = 0; isc < sources.size(); ++isc )
-		{
-			transMatrix3D nL = sources[isc]->GetCalibration().L * M.inverse() ;
-			
-			sources[isc]->GetCalibration().L = nL;
 			sources[isc]->SaveCalibration();
 			
-			nLs.push_back(nL);
 		}
 		
-		DebugOutput(nLs);
+		//
+		// And recompute 3D positions...
+		//
+		cout << "Final (?) position of marker obs: " << endl;
+		for( auto mi = markerObs.begin(); mi != markerObs.end(); ++mi )
+		{
+			GetPointMatch3D( settings, sources, mi->second );
+			
+			cout << "\t" << mi->first << " : " << mi->second.p3d.transpose() << endl;
+		}
+		
+		cout << "F and T " << endl;
+		cout << F << endl << endl;
+		cout << T << endl;
+		
+		cout << " ( input marker pos, and reflected marker pos ) " << endl;
+		for( auto i = settings.markerPoints.begin(); i != settings.markerPoints.end(); ++i )
+		{
+			hVec3D pr = F * i->second;
+			cout << i->first << " : " << i->second.transpose() << endl;
+			cout <<          "      " << pr.transpose() << endl << endl;
+		}
+		
+		
+		
 	}
-	
 	
 	
 	
