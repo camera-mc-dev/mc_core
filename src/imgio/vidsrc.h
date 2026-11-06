@@ -28,7 +28,7 @@ public:
 	{
 		// OpenCV says the CAP_PROP_POS_FRAMES is
 		// the number of the next frame, hence -1
-		return cvvc.get(cv::CAP_PROP_POS_FRAMES);
+		return cvvc.get(cv::CAP_PROP_POS_FRAMES) - numberOfFirstFrame;
 	}
 	virtual frameTime_t GetCurrentFrameTime()
 	{
