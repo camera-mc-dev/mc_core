@@ -40,19 +40,33 @@ public:
 		// ideally in a safe and sane cross-platform way.
 		// ha ha ha ha.
 		std::string userHome;
-#if defined(__APPLE__) || defined( __gnu_linux__ )
-		struct passwd* pwd = getpwuid(getuid());
-		if (pwd)
-		{
-			userHome = pwd->pw_dir;
+#if defined(__APPLE__) || defined(__gnu_linux__)
+		struct passwd* pwd = nullptr;
+		
+		// 1. Check if invoked via sudo and look up the original user
+		const char* sudoUser = std::getenv("SUDO_USER");
+		if (sudoUser) {
+			pwd = getpwnam(sudoUser);
 		}
-		else
-		{
-			// try the $HOME environment variable
-			userHome = getenv("HOME");
+		
+		// 2. Fall back to the current effective UID if not under sudo
+		if (!pwd) {
+			pwd = getpwuid(getuid());
+		}
+		
+		// 3. Resolve directory path with environment fallbacks
+		if (pwd && pwd->pw_dir) {
+			userHome = pwd->pw_dir;
+		} else {
+			const char* homeEnv = std::getenv("HOME");
+			if (homeEnv) {
+				userHome = homeEnv;
+			} else {
+				throw std::runtime_error("Could not determine user home directory.");
+			}
 		}
 #else
-		throw std::runtime_error("yeah, I've not done this for Windows or unknown unix!");
+		throw std::runtime_error("Platform not supported.");
 #endif
 		
 		
