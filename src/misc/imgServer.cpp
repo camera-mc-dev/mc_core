@@ -1,4 +1,4 @@
-#include "ImgServer.h"
+#include "misc/imgServer.h"
 //#define CPPHTTPLIB_OPENSSL_SUPPORT // optional, remove if using plain http
 #include "httplib.h"
 #include <chrono>
