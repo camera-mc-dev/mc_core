@@ -1,5 +1,8 @@
 from SCons.Script import *
 
+import urllib.request
+import os
+
 def SetCompiler(env):
 	print( env['PLATFORM'] )
 	conf = Configure(env)
@@ -99,7 +102,7 @@ def FindEigen(env):
 
 def FindBoost(env):
 	# We're using boost filesystem to get multi-platform filesystem handling.
-	env.Append(LIBS=['boost_system','boost_filesystem'])
+	env.Append(LIBS=['boost_filesystem']) # 'boost_system',
 	env.Append(CPPFLAGS=["-DBOOST_NO_CXX11_SCOPED_ENUMS"] )
 
 def FindMagick(env):
@@ -131,6 +134,37 @@ def FindHDF5(env):
 	env.Append(LIBS=['hdf5'])
 	env.Append(CPPFLAGS=['-DHAVE_HIGH_FIVE'])
 
+
+
+# def FindHTTPLib( env ):
+# 	if not os.path.exists("3rdParty/httplib"):
+# 		os.makedirs("3rdParty/httplib")
+# 	if not os.path.exists("3rdParty/httplib/httplib.h"):
+# 		url = "https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h"
+# 		urllib.request.urlretrieve(url, "3rdParty/httplib/httplib.h")
+# 	env.Append( CPPPATH=[f"{Dir(".").srcnode().abspath}/3rdParty/httplib"] )
+
+
+
+def FindHTTPLib(env):
+	# Anchor to the source root directory using SCons' Dir('#')
+	root_dir = Dir('#').srcnode().abspath
+	third_party_dir = os.path.join(root_dir, "3rdParty", "httplib")
+	httplib_path = os.path.join(third_party_dir, "httplib.h")
+
+	if not os.path.exists(third_party_dir):
+		os.makedirs(third_party_dir, exist_ok=True)
+		
+	if not os.path.exists(httplib_path):
+		print("Fetching cpp-httplib header...")
+		url = "https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h"
+		urllib.request.urlretrieve(url, httplib_path)
+		print("Successfully downloaded httplib.h")
+
+	# Append to CPPPATH so variant builds can always locate it in the source tree
+	env.Append(CPPPATH=[third_party_dir])
+
+
 def SetCoreConfig(env):
 	# --
 	# Basic setup
@@ -153,3 +187,4 @@ def SetCoreConfig(env):
 	FindSnappy(env)
 	FindCeres(env)
 	FindHDF5(env)
+	FindHTTPLib(env)
