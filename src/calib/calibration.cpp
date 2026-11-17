@@ -361,5 +361,69 @@ void Calibration::ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b 
 		
 	p0b = p0 + f0 * dir;
 	p1b = p0 + f1 * dir;
+	
+}
 
+
+
+
+
+
+void CalculateExtrinsicsFromAruco(  std::vector< cv::Point2f >  markerCorners , float markerSideLength )
+{
+	// 1. Define the 3D corner coordinates of marker m0 in the world frame.
+	// OpenCV ArUco corners are ordered clockwise starting from top-left:
+	// 0: Top-Left, 1: Top-Right, 2: Bottom-Right, 3: Bottom-Left
+	// Note: Depending on your desired Z-axis orientation (pointing out of or into the marker),
+	// Y is typically inverted relative to image coordinates so Z points out toward the camera.
+	float half = markerSideLength / 2.0f;
+	std::vector<cv::Point3f> objPoints = {
+	                                         cv::Point3f(-half,  half, 0.0f), // Top-Left
+	                                         cv::Point3f( half,  half, 0.0f), // Top-Right
+	                                         cv::Point3f( half, -half, 0.0f), // Bottom-Right
+	                                         cv::Point3f(-half, -half, 0.0f)  // Bottom-Left
+	                                     };
+	
+	// 3. Convert Eigen intrinsics to cv::Mat (CV_64F is safest for solvePnP)
+	cv::Mat cameraMatrix(3, 3, CV_64F);
+	for (int r = 0; r < 3; ++r)
+	{
+		for (int c = 0; c < 3; ++c)
+		{
+			cameraMatrix.at<double>(r, c) = static_cast<double>( K(r, c));
+		}
+	}
+	
+	
+	// 4. Solve PnP using IPPE_SQUARE (fast and avoids planar pose ambiguity)
+	cv::Mat rvec, tvec;
+	cv::solvePnP(
+	                objPoints, 
+	                markerCorners, 
+	                cameraMatrix, 
+	                k, 
+	                rvec, 
+	                tvec, 
+	                false, 
+	                cv::SOLVEPNP_IPPE_SQUARE
+	            );
+	
+	// 5. Convert rotation vector (rvec) to 3x3 rotation matrix
+	cv::Mat R_cv;
+	cv::Rodrigues(rvec, R_cv);
+	
+	// 6. Assemble the 4x4 World-to-Camera transformation matrix
+	L = transMatrix3D::Identity();
+	
+	for (int r = 0; r < 3; ++r)
+	{
+		for (int c = 0; c < 3; ++c)
+		{
+			L(r, c) = static_cast<float>(R_cv.at<double>(r, c));
+		}
+		L(r, 3) = static_cast<float>(tvec.at<double>(r, 0));
+	}
+	
+	
+	
 }

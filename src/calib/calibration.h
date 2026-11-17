@@ -91,11 +91,14 @@ public:
 		height = nHeight;
 	}
 	
-
+	
+	void CalculateExtrinsicsFromAruco(  std::vector< cv::Point2f >  markerCorners, float markerSideLength  );
+	
+	
 	// read and write the calibration.
 	bool Read( std::string filename );
 	bool Write( std::string filename );
-
+	
 	// apply distortion params.
 	// private because these should not be called externally,
 	// they are only valid inside Project and Unproject
