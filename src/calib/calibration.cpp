@@ -369,7 +369,7 @@ void Calibration::ClipToFrustum( hVec3D p0, hVec3D p1, hVec3D &p0b, hVec3D &p1b 
 
 
 
-void CalculateExtrinsicsFromAruco(  std::vector< cv::Point2f >  markerCorners , float markerSideLength )
+void Calibration::CalculateExtrinsicsFromAruco(  std::vector< cv::Point2f >  markerCorners , float markerSideLength )
 {
 	// 1. Define the 3D corner coordinates of marker m0 in the world frame.
 	// OpenCV ArUco corners are ordered clockwise starting from top-left:
@@ -401,7 +401,7 @@ void CalculateExtrinsicsFromAruco(  std::vector< cv::Point2f >  markerCorners , 
 	                objPoints, 
 	                markerCorners, 
 	                cameraMatrix, 
-	                k, 
+	                distParams, 
 	                rvec, 
 	                tvec, 
 	                false, 
